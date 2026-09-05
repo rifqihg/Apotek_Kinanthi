@@ -1,0 +1,218 @@
+    public function destructions()
+    {
+        $destructions = WarehouseInventory::with('medicine')->byStatus('pending_destruction')->latest()->paginate(20);
+        return Inertia::render('Control/Admin/Destructions', ['destructions' => $destructions]);
+    }
+
+    public function updateLocation(Request $request, WarehouseInventory $inventory)
+    {
+        $v = $request->validate([
+            'shelf_location' => 'nullable|string|max:100',
+            'rack_location' => 'nullable|string|max:100',
+        ]);
+
+        $inventory->update($v);
+
+        AuditTrail::log(
+            $request->user()->id,
+            'UPDATE_LOCATION',
+            "Ubah lokasi: {$inventory->medicine->nama_obat} batch {$inventory->batch_no} (Rak: {$inventory->rack_location}, Lemari: {$inventory->shelf_location})",
+            WarehouseInventory::class,
+            $inventory->id
+        );
+
+        return redirect()->back()->with('success', 'Lokasi inventaris diperbarui.');
+    }
+
+    public function requestInventoryAction(Request $request, WarehouseInventory $inventory)
+    {
+        $v = $request->validate([
+            'action' => 'required|in:return,destruction',
+            'note' => 'required|string|max:500',
+        ]);
+
+        $status = $v['action'] === 'return' ? 'pending_return' : 'pending_destruction';
+        $inventory->update(['status' => $status]);
+
+        $inventory->setMutationContext($v['action'], null, $v['note'])->save();
+
+        AuditTrail::log(
+            $request->user()->id,
+            'REQUEST_INVENTORY_ACTION',
+            "Pengajuan {$v['action']}: {$inventory->medicine->nama_obat} batch {$inventory->batch_no} - Alasan: {$v['note']}",
+            WarehouseInventory::class,
+            $inventory->id
+        );
+
+        return redirect()->back()->with('success', 'Pengajuan berhasil dikirim. Stok telah dikunci.');
+    }
+
+    public function distribution(Request $request)
+    {
+        $kasirs = \App\Models\User::where('role', 'kasir')->get();
+        $selectedKasirId = $request->query('kasir_id');
+        $search = $request->query('search', '');
+        
+        $medicines = collect();
+        if ($selectedKasirId) {
+            $query = \App\Models\Control\Medicine::with(['category', 'warehouseInventories' => function($q) use ($selectedKasirId) {
+                $q->where('stock_on_hand', '>', 0)
+                  ->where(function($sq) use ($selectedKasirId) {
+                      $sq->where('location_type', 'gudang')
+                         ->orWhere(function($ssq) use ($selectedKasirId) {
+                             $ssq->where('location_type', 'kasir')->where('location_id', $selectedKasirId);
+                         });
+                  })
+                  ->orderBy('expired_date', 'asc');
+            }])->whereHas('warehouseInventories', function($q) use ($selectedKasirId) {
+                $q->where('stock_on_hand', '>', 0)
+                  ->where(function($sq) use ($selectedKasirId) {
+                      $sq->where('location_type', 'gudang')
+                         ->orWhere(function($ssq) use ($selectedKasirId) {
+                             $ssq->where('location_type', 'kasir')->where('location_id', $selectedKasirId);
+                         });
+                  });
+            });
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('nama_obat', 'like', "%{$search}%")
+                      ->orWhere('kode_obat', 'like', "%{$search}%");
+                });
+            }
+            
+            $medicinesData = $query->paginate(12)->withQueryString();
+            
+            // Map the medicines to include aggregate totals
+            $medicinesData->getCollection()->transform(function ($medicine) {
+                $gudangStock = $medicine->warehouseInventories->where('location_type', 'gudang')->sum('stock_on_hand');
+                $kasirStock = $medicine->warehouseInventories->where('location_type', 'kasir')->sum('stock_on_hand');
+                
+                $medicine->stok_gudang = $gudangStock;
+                $medicine->stok_kasir = $kasirStock;
+                return $medicine;
+            });
+            
+            $medicines = $medicinesData;
+        }
+
+        return Inertia::render('Control/Admin/Distribution', [
+            'kasirs' => $kasirs,
+            'selectedKasirId' => $selectedKasirId,
+            'medicines' => $medicines,
+            'filters' => ['search' => $search]
+        ]);
+    }
+
+    public function processDistribution(Request $request)
+    {
+        $v = $request->validate([
+            'kasir_id' => 'required|exists:users,id',
+            'items' => 'required|array|min:1',
+            'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.action' => 'required|in:transfer,return',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+        ]);
+        
+        return DB::transaction(function () use ($v, $request) {
+            $kasirId = $v['kasir_id'];
+            
+            foreach ($v['items'] as $item) {
+                $medicineId = $item['medicine_id'];
+                $qtyNeeded = floatval($item['quantity']);
+                $action = $item['action'];
+                
+                if ($action === 'transfer') {
+                    // Transfer: Gudang -> Kasir
+                    // 1. Ambil stok Gudang dengan FEFO
+                    $gudangInventories = \App\Models\Control\WarehouseInventory::where('medicine_id', $medicineId)
+                        ->gudang()
+                        ->where('stock_on_hand', '>', 0)
+                        ->orderBy('expired_date', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+                        
+                    $totalAvailable = $gudangInventories->sum('stock_on_hand');
+                    if ($totalAvailable < $qtyNeeded) {
+                        throw new \Exception("Stok gudang tidak mencukupi untuk obat ID {$medicineId}.");
+                    }
+                    
+                    foreach ($gudangInventories as $sourceInv) {
+                        if ($qtyNeeded <= 0) break;
+                        
+                        $deductAmount = min($sourceInv->stock_on_hand, $qtyNeeded);
+                        
+                        // Deduct from Gudang
+                        $sourceInv->setMutationContext('out', null, "Distribusi ke Kasir ID: {$kasirId}");
+                        $sourceInv->stock_on_hand -= $deductAmount;
+                        $sourceInv->save();
+                        
+                        // Add to Kasir
+                        $destInv = \App\Models\Control\WarehouseInventory::firstOrNew([
+                            'incoming_stock_id' => $sourceInv->incoming_stock_id,
+                            'medicine_id' => $sourceInv->medicine_id,
+                            'batch_no' => $sourceInv->batch_no,
+                            'expired_date' => $sourceInv->expired_date,
+                            'location_type' => 'kasir',
+                            'location_id' => $kasirId
+                        ]);
+                        
+                        $destInv->stock_on_hand += $deductAmount;
+                        $destInv->status = $sourceInv->status;
+                        $destInv->is_frozen = $sourceInv->is_frozen;
+                        $destInv->setMutationContext('in', null, "Terima Distribusi dari Gudang (Admin: {$request->user()->id})");
+                        $destInv->save();
+                        
+                        $qtyNeeded -= $deductAmount;
+                    }
+                    
+                } else {
+                    // Return: Kasir -> Gudang
+                    // 1. Ambil stok Kasir dengan FEFO
+                    $kasirInventories = \App\Models\Control\WarehouseInventory::where('medicine_id', $medicineId)
+                        ->kasir($kasirId)
+                        ->where('stock_on_hand', '>', 0)
+                        ->orderBy('expired_date', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+                        
+                    $totalAvailable = $kasirInventories->sum('stock_on_hand');
+                    if ($totalAvailable < $qtyNeeded) {
+                        throw new \Exception("Stok kasir tidak mencukupi untuk obat ID {$medicineId}.");
+                    }
+                    
+                    foreach ($kasirInventories as $sourceInv) {
+                        if ($qtyNeeded <= 0) break;
+                        
+                        $deductAmount = min($sourceInv->stock_on_hand, $qtyNeeded);
+                        
+                        // Deduct from Kasir
+                        $sourceInv->setMutationContext('out', null, "Return dari Kasir ID: {$kasirId} ke Gudang");
+                        $sourceInv->stock_on_hand -= $deductAmount;
+                        $sourceInv->save();
+                        
+                        // Add to Gudang
+                        $destInv = \App\Models\Control\WarehouseInventory::firstOrNew([
+                            'incoming_stock_id' => $sourceInv->incoming_stock_id,
+                            'medicine_id' => $sourceInv->medicine_id,
+                            'batch_no' => $sourceInv->batch_no,
+                            'expired_date' => $sourceInv->expired_date,
+                            'location_type' => 'gudang',
+                            'location_id' => null
+                        ]);
+                        
+                        $destInv->stock_on_hand += $deductAmount;
+                        $destInv->status = $sourceInv->status;
+                        $destInv->is_frozen = $sourceInv->is_frozen;
+                        $destInv->setMutationContext('in', null, "Return Distribusi dari Kasir ID: {$kasirId}");
+                        $destInv->save();
+                        
+                        $qtyNeeded -= $deductAmount;
+                    }
+                }
+            }
+            
+            return redirect()->back()->with('success', 'Semua distribusi stok berhasil diproses.');
+        });
+    }
+}

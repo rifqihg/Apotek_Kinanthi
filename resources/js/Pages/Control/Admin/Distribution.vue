@@ -1,0 +1,391 @@
+<script setup>
+import { ref, reactive, watch, computed } from 'vue';
+import { Head, router, Link } from '@inertiajs/vue3';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
+import debounce from 'lodash/debounce';
+import Swal from 'sweetalert2';
+
+const props = defineProps({
+    kasirs: Array,
+    selectedKasirId: [String, Number],
+    medicines: Object,
+    filters: Object,
+});
+
+const dropdownOpen = ref(false);
+
+const form = reactive({
+    kasir_id: props.selectedKasirId || '',
+    search: props.filters.search || '',
+});
+
+// Watch kasir select & search
+watch(() => form.kasir_id, (newVal) => {
+    // Clear cart when changing kasir
+    cart.value = [];
+    router.get(route('control.admin.inventory.distribution'), {
+        kasir_id: newVal,
+        search: form.search
+    }, { preserveState: true, replace: true });
+});
+
+const debouncedSearch = debounce((newVal) => {
+    if (form.kasir_id) {
+        router.get(route('control.admin.inventory.distribution'), {
+            kasir_id: form.kasir_id,
+            search: newVal
+        }, { preserveState: true, replace: true });
+    }
+}, 300);
+
+watch(() => form.search, (newVal) => {
+    debouncedSearch(newVal);
+});
+
+// --- CART LOGIC ---
+const cart = ref([]);
+
+const openQtyPrompt = async (medicine, action) => {
+    let actionText = action === 'transfer' ? 'Transfer ke Kasir' : 'Return ke Gudang';
+    let maxQty = action === 'transfer' ? medicine.stok_gudang : medicine.stok_kasir;
+    let unit = medicine.satuan_terkecil || medicine.satuan_stok || 'Item';
+    
+    if (maxQty <= 0) {
+        Swal.fire('Stok Kosong', `Tidak ada stok yang tersedia untuk di-${actionText.toLowerCase()}.`, 'warning');
+        return;
+    }
+
+    const kemasanInfo = medicine.kemasan && medicine.kemasan !== unit 
+        ? `<div class="mb-3 inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-xs font-semibold"> Kemasan: ${medicine.kemasan}</div><br>` 
+        : '';
+
+    const { value: quantity } = await Swal.fire({
+        title: actionText,
+        html: `Berapa banyak <b>${medicine.nama_obat}</b> yang ingin dipindahkan?<br><br>${kemasanInfo}<span class="text-sm text-gray-500 font-medium">Maksimal: <b class="text-slate-800">${formatNumber(maxQty)} ${unit}</b></span>`,
+        input: 'number',
+        inputAttributes: {
+            min: 1,
+            max: maxQty,
+            step: 1
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Tambahkan ke Keranjang',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#4F46E5',
+        inputValidator: (value) => {
+            if (!value || value <= 0) {
+                return 'Kuantitas harus lebih dari 0';
+            }
+            if (parseFloat(value) > maxQty) {
+                return `Kuantitas melebihi stok maksimal (${maxQty} ${unit})`;
+            }
+        }
+    });
+
+    if (quantity) {
+        addToCart(medicine, action, parseFloat(quantity));
+    }
+};
+
+const addToCart = (medicine, action, quantity) => {
+    // Check if already in cart with SAME action
+    const existingIndex = cart.value.findIndex(item => item.medicine_id === medicine.id && item.action === action);
+    
+    if (existingIndex !== -1) {
+        // Update quantity
+        cart.value[existingIndex].quantity = quantity;
+    } else {
+        // Check if there is an OPPOSITE action in cart and remove it (cannot transfer and return same item at once safely without confusion)
+        const oppositeAction = action === 'transfer' ? 'return' : 'transfer';
+        const oppIndex = cart.value.findIndex(item => item.medicine_id === medicine.id && item.action === oppositeAction);
+        if (oppIndex !== -1) {
+            cart.value.splice(oppIndex, 1);
+        }
+        
+        const unit = medicine.satuan_terkecil || medicine.satuan_stok || 'Item';
+        cart.value.push({
+            medicine_id: medicine.id,
+            nama_obat: medicine.nama_obat,
+            satuan_terkecil: unit,
+            action: action,
+            quantity: quantity,
+            maxQty: action === 'transfer' ? medicine.stok_gudang : medicine.stok_kasir
+        });
+    }
+};
+
+const removeFromCart = (index) => {
+    cart.value.splice(index, 1);
+};
+
+const submitCart = () => {
+    if (cart.value.length === 0) return;
+
+    Swal.fire({
+        title: 'Proses Distribusi?',
+        text: `Anda akan memproses ${cart.value.length} item. Lanjutkan?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Ya, Proses Sekarang!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.post(route('control.admin.inventory.distribution.process'), {
+                kasir_id: form.kasir_id,
+                items: cart.value.map(item => ({
+                    medicine_id: item.medicine_id,
+                    action: item.action,
+                    quantity: item.quantity
+                }))
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    cart.value = []; // empty cart on success
+                    Swal.fire('Berhasil!', 'Semua distribusi stok berhasil diproses secara otomatis (FEFO).', 'success');
+                }
+            });
+        }
+    });
+};
+
+const formatNumber = (num) => parseFloat(num).toLocaleString('id-ID');
+
+const uploadPhoto = async (medicine) => {
+    const { value: file } = await Swal.fire({
+        title: 'Upload Foto Obat',
+        text: `Pilih foto untuk ${medicine.nama_obat}`,
+        input: 'file',
+        inputAttributes: {
+            'accept': 'image/*',
+            'aria-label': 'Upload foto obat'
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#4F46E5',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Upload',
+        showLoaderOnConfirm: true,
+        preConfirm: (file) => {
+            if (!file) {
+                Swal.showValidationMessage('Anda belum memilih file!');
+                return false;
+            }
+            return new Promise((resolve) => {
+                router.post(route('control.admin.medicines.updatePhoto', medicine.id), {
+                    _method: 'post',
+                    foto_obat: file
+                }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        resolve(true);
+                        Swal.fire('Berhasil!', 'Foto obat berhasil diperbarui.', 'success');
+                    },
+                    onError: (errors) => {
+                        const msg = typeof errors === 'object' ? Object.values(errors)[0] : 'Gagal mengupload foto';
+                        Swal.showValidationMessage(msg || 'Gagal mengupload foto');
+                        resolve(false);
+                    }
+                });
+            });
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    });
+};
+</script>
+
+<template>
+    <Head title="Distribusi Stok (Cart)" />
+
+    <ControlLayout>
+        <div class="h-[calc(100vh-65px)] flex flex-col bg-gray-100 overflow-hidden">
+            <!-- Header Filter -->
+            <div class="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
+                <div class="flex items-center gap-4 w-full">
+                    <div class="w-1/2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Kasir Tujuan/Sumber</label>
+                        <div class="relative">
+                            <button type="button" @click="dropdownOpen = !dropdownOpen" @blur="setTimeout(() => dropdownOpen = false, 200)" class="h-[48px] w-full bg-[#F5F9FF] border-none rounded-[16px] px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500/20 cursor-pointer outline-none transition-all flex items-center justify-between gap-3 hover:bg-slate-50 shadow-sm">
+                                <span>{{ form.kasir_id ? kasirs.find(k => k.id === form.kasir_id)?.name : '-- Pilih User Kasir --' }}</span>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-300" :class="{'rotate-180': dropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                            </button>
+                            <div v-show="dropdownOpen" class="absolute left-0 top-full mt-2 w-full bg-white border border-slate-200 rounded-[16px] shadow-xl overflow-hidden z-20 origin-top-left transition-all">
+                                <div class="p-1.5 space-y-0.5 max-h-60 overflow-y-auto">
+                                    <button type="button" @click="form.kasir_id = ''; dropdownOpen = false" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="form.kasir_id === '' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'">
+                                        -- Pilih User Kasir --
+                                    </button>
+                                    <div class="h-px bg-slate-100 my-1"></div>
+                                    <button type="button" v-for="kasir in kasirs" :key="kasir.id" @click="form.kasir_id = kasir.id; dropdownOpen = false" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="form.kasir_id === kasir.id ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'">
+                                        {{ kasir.name }}
+                                        <div v-if="form.kasir_id === kasir.id" class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-1/2" v-if="form.kasir_id">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cari Obat</label>
+                        <div class="relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input type="text" v-model="form.search" placeholder="Ketik nama atau kode..." class="pl-10 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State Kasir Not Selected -->
+            <div v-if="!form.kasir_id" class="flex-1 flex items-center justify-center">
+                <div class="text-center bg-white p-10 rounded-2xl shadow-sm border max-w-md">
+                    <div class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">Pilih User Kasir</h3>
+                    <p class="text-sm text-gray-500">Silakan pilih user Kasir terlebih dahulu di bagian atas untuk mulai mengelola dan memindahkan stok.</p>
+                </div>
+            </div>
+
+            <!-- Split Layout (Catalog & Cart) -->
+            <div v-else class="flex-1 flex overflow-hidden">
+                
+                <!-- Left Panel: Product Catalog Grid -->
+                <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                    <div v-if="medicines.data.length === 0" class="text-center py-20 text-gray-400">
+                        Tidak ada obat yang ditemukan.
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        <div v-for="medicine in medicines.data" :key="medicine.id" class="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+                            <!-- Image -->
+                            <div class="h-32 bg-gray-100 flex items-center justify-center relative group">
+                                <img v-if="medicine.foto_obat" :src="`/storage/medicines/${medicine.foto_obat}`" class="w-full h-full object-cover cursor-pointer" @click="uploadPhoto(medicine)" title="Klik untuk mengganti foto" />
+                                <div v-else @click="uploadPhoto(medicine)" class="w-full h-full flex flex-col items-center justify-center text-gray-400 hover:bg-gray-200 transition cursor-pointer" title="Klik untuk upload foto obat">
+                                    <svg class="h-10 w-10 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Tambah Foto</span>
+                                </div>
+                                
+                                <span class="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2.5 py-0.5 rounded-[8px] text-[10px] font-black uppercase tracking-wider text-indigo-700 border border-indigo-100 shadow-sm pointer-events-none">
+                                    {{ medicine.satuan_terkecil || medicine.satuan_stok || 'Item' }}
+                                </span>
+                            </div>
+                            
+                            <!-- Info -->
+                            <div class="p-3 flex-1 flex flex-col">
+                                <h4 class="text-sm font-bold text-gray-900 leading-tight mb-1 line-clamp-2" :title="medicine.nama_obat">{{ medicine.nama_obat }}</h4>
+                                <p class="text-[11px] text-gray-500 font-mono mb-2">{{ medicine.kode_obat || '-' }}</p>
+                                
+                                <div class="mt-auto space-y-1">
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="text-gray-500">Stok Gudang:</span>
+                                        <span class="font-bold text-blue-600">{{ formatNumber(medicine.stok_gudang) }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="text-gray-500">Stok Kasir:</span>
+                                        <span class="font-bold text-green-600">{{ formatNumber(medicine.stok_kasir) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="grid grid-cols-2 border-t divide-x">
+                                <button @click="openQtyPrompt(medicine, 'transfer')" 
+                                        :disabled="medicine.stok_gudang <= 0"
+                                        class="py-2.5 text-center text-blue-600 font-bold bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors flex items-center justify-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                    <span class="text-xs">Ke Kasir</span>
+                                </button>
+                                <button @click="openQtyPrompt(medicine, 'return')" 
+                                        :disabled="medicine.stok_kasir <= 0"
+                                        class="py-2.5 text-center text-red-600 font-bold bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors flex items-center justify-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                                    <span class="text-xs">Ke Gudang</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div v-if="medicines.links && medicines.data.length > 0" class="mt-8 pb-8 flex justify-center">
+                        <div class="flex gap-1 bg-white p-1 rounded-lg shadow-sm border">
+                            <template v-for="(link, idx) in medicines.links" :key="idx">
+                                <Component 
+                                    :is="link.url ? 'a' : 'span'"
+                                    :href="link.url"
+                                    v-html="link.label"
+                                    class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                                    :class="link.active ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100' + (!link.url ? ' opacity-50 cursor-not-allowed' : '')"
+                                    @click.prevent="link.url ? router.get(link.url, { kasir_id: form.kasir_id, search: form.search }, { preserveScroll: true, replace: true }) : null"
+                                />
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Cart Sidebar -->
+                <div class="w-[380px] bg-white border-l shadow-2xl flex flex-col z-20 shrink-0">
+                    <div class="p-4 border-b bg-gray-900 text-white flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                            <h3 class="font-bold text-lg">Keranjang Distribusi</h3>
+                        </div>
+                        <span class="bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">{{ cart.length }}</span>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto p-3 bg-gray-50">
+                        <div v-if="cart.length === 0" class="h-full flex flex-col items-center justify-center text-gray-400">
+                            <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            <p class="text-sm font-medium">Keranjang masih kosong.</p>
+                            <p class="text-xs mt-1">Pilih obat dari katalog di sebelah kiri.</p>
+                        </div>
+                        
+                        <div class="space-y-3" v-else>
+                            <div v-for="(item, index) in cart" :key="index" 
+                                 class="bg-white rounded-lg border p-3 shadow-sm relative group"
+                                 :class="item.action === 'transfer' ? 'border-blue-200' : 'border-red-200'">
+                                 
+                                <button @click="removeFromCart(index)" class="absolute -top-2 -right-2 bg-white rounded-full border shadow-sm p-1 text-gray-400 hover:text-red-600 hover:border-red-600 transition-colors opacity-0 group-hover:opacity-100">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                                
+                                <div class="flex gap-2">
+                                    <div class="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" :class="item.action === 'transfer' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'">
+                                        <svg v-if="item.action === 'transfer'" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                                        <svg v-else class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h5 class="text-sm font-bold text-gray-900 truncate">{{ item.nama_obat }}</h5>
+                                        <p class="text-[10px] font-semibold tracking-wider uppercase mb-1" :class="item.action === 'transfer' ? 'text-blue-600' : 'text-red-600'">
+                                            {{ item.action === 'transfer' ? 'Gudang ➝ Kasir' : 'Kasir ➝ Gudang' }}
+                                        </p>
+                                        
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <input type="number" v-model.number="item.quantity" class="block w-20 text-center rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-1 px-2 font-bold" min="1" :max="item.maxQty">
+                                            <span class="text-xs text-gray-500 font-medium">{{ item.satuan_terkecil }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 border-t bg-white">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-sm font-bold text-gray-500">Total Item:</span>
+                            <span class="text-xl font-black text-gray-900">{{ cart.length }}</span>
+                        </div>
+                        <button @click="submitCart" 
+                                :disabled="cart.length === 0"
+                                class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex justify-center items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                            Proses Semua Distribusi
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </ControlLayout>
+</template>
