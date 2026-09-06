@@ -1,7 +1,7 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
 
 const props = defineProps({ 
@@ -22,17 +22,14 @@ const handleFilter = debounce(() => {
     });
 }, 300);
 
-watch([search, roleFilter], () => {
-    handleFilter();
-});
+watch([search, roleFilter], handleFilter);
 
-const getActionClass = (action) => {
-    if (action.includes('CREATE')) return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-    if (action.includes('UPDATE')) return 'bg-blue-50 text-blue-600 border-blue-100';
-    if (action.includes('DELETE')) return 'bg-red-50 text-red-600 border-red-100';
-    if (action.includes('REJECT')) return 'bg-amber-50 text-amber-600 border-amber-100';
-    return 'bg-slate-50 text-slate-600 border-[#E8EEF6]';
-};
+const getActionClass = (a) =>
+    a.includes('CREATE') ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+    a.includes('UPDATE') ? 'bg-blue-50 text-blue-600 border-blue-100' :
+    a.includes('DELETE') ? 'bg-red-50 text-red-600 border-red-100' :
+    a.includes('REJECT') ? 'bg-amber-50 text-amber-600 border-amber-100' :
+    'bg-slate-50 text-slate-600 border-[#E8EEF6]';
 </script>
 
 <template>

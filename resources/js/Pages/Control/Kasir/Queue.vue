@@ -3,15 +3,8 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { ref, watch } from 'vue';
 
-const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(dateString));
-};
-
-const formatTime = (dateString) => {
-    if (!dateString) return '';
-    return new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' }).format(new Date(dateString));
-};
+const formatDate = (d) => d ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d)) : '';
+const formatTime = (d) => d ? new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' }).format(new Date(d)) : '';
 
 const props = defineProps({
     prescriptions: Array,
@@ -29,18 +22,9 @@ const filterData = () => {
 
 watch(() => form.value.date, filterData);
 
-const formatRupiah = (number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-};
+const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-const getUsiaResep = (date) => {
-    const today = new Date();
-    const rxDate = new Date(date);
-    today.setHours(0,0,0,0);
-    rxDate.setHours(0,0,0,0);
-    const diffTime = Math.abs(today - rxDate);
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-};
+const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000);
 </script>
 
 <template>

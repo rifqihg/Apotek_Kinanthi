@@ -260,17 +260,13 @@ watch(() => page.props.flash?.error, (newVal) => {
                         <span class="text-[11px] font-bold text-slate-700 tracking-wide">Sistem Normal</span>
                     </div>
                     <div class="space-y-2 mt-3 pt-3 border-t border-[#E8EEF6]">
-                        <div class="flex justify-between items-center text-[11px]">
-                            <span class="text-slate-500 font-medium">Server</span>
-                            <span class="text-slate-700 font-semibold">Online</span>
-                        </div>
-                        <div class="flex justify-between items-center text-[11px]">
-                            <span class="text-slate-500 font-medium">Backup</span>
-                            <span class="text-slate-700 font-semibold">10 mnt lalu</span>
-                        </div>
-                        <div class="flex justify-between items-center text-[11px]">
-                            <span class="text-slate-500 font-medium">Versi</span>
-                            <span class="text-blue-600 font-bold">v1.0.0</span>
+                        <div v-for="s in [
+                            { label: 'Server', val: 'Online', cls: 'text-slate-700 font-semibold' },
+                            { label: 'Backup', val: '10 mnt lalu', cls: 'text-slate-700 font-semibold' },
+                            { label: 'Versi', val: 'v1.0.0', cls: 'text-blue-600 font-bold' }
+                        ]" :key="s.label" class="flex justify-between items-center text-[11px]">
+                            <span class="text-slate-500 font-medium">{{ s.label }}</span>
+                            <span :class="s.cls">{{ s.val }}</span>
                         </div>
                     </div>
                 </div>

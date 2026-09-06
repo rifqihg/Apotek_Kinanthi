@@ -59,14 +59,8 @@ class InventoryLoss extends Model
         return $this->belongsTo(RawMaterialStock::class);
     }
 
-    /**
-     * Get the display name of the item being disposed.
-     */
     public function getItemNameAttribute(): string
     {
-        if ($this->medicine) return $this->medicine->nama_obat;
-        if ($this->compoundedProduct) return $this->compoundedProduct->nama_produk;
-        if ($this->rawMaterial) return $this->rawMaterial->nama_bahan;
-        return 'Unknown';
+        return $this->medicine?->nama_obat ?? $this->compoundedProduct?->nama_produk ?? $this->rawMaterial?->nama_bahan ?? 'Unknown';
     }
 }

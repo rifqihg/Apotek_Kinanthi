@@ -17,25 +17,11 @@
         <!-- Mock SVG -->
         <svg viewBox="0 0 800 200" class="w-full h-full overflow-visible" preserveAspectRatio="none">
           <!-- Grid lines -->
-          <line x1="0" y1="200" x2="800" y2="200" stroke="#f1f5f9" stroke-width="2" />
-          <line x1="0" y1="150" x2="800" y2="150" stroke="#f1f5f9" stroke-width="2" />
-          <line x1="0" y1="100" x2="800" y2="100" stroke="#f1f5f9" stroke-width="2" />
-          <line x1="0" y1="50" x2="800" y2="50" stroke="#f1f5f9" stroke-width="2" />
-          <line x1="0" y1="0" x2="800" y2="0" stroke="#f1f5f9" stroke-width="2" />
+          <line v-for="y in [200, 150, 100, 50, 0]" :key="y" x1="0" :y1="y" x2="800" :y2="y" stroke="#f1f5f9" stroke-width="2" />
           
-          <!-- Y Axis labels (Left) -->
-          <text x="-10" y="5" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="bold">10 Jt</text>
-          <text x="-10" y="55" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="bold">8 Jt</text>
-          <text x="-10" y="105" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="bold">6 Jt</text>
-          <text x="-10" y="155" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="bold">4 Jt</text>
-          <text x="-10" y="205" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="bold">0</text>
-
-          <!-- Y Axis labels (Right) -->
-          <text x="810" y="5" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="bold">100</text>
-          <text x="810" y="55" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="bold">80</text>
-          <text x="810" y="105" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="bold">60</text>
-          <text x="810" y="155" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="bold">40</text>
-          <text x="810" y="205" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="bold">0</text>
+          <!-- Y Axis labels (Left & Right) -->
+          <text v-for="(val, i) in ['10 Jt', '8 Jt', '6 Jt', '4 Jt', '0']" :key="'l-' + i" x="-10" :y="5 + i * 50" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="bold">{{ val }}</text>
+          <text v-for="(val, i) in ['100', '80', '60', '40', '0']" :key="'r-' + i" x="810" :y="5 + i * 50" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="bold">{{ val }}</text>
           
           <!-- Blue Fill under line -->
           <path d="M 0 150 C 80 130, 120 160, 200 140 S 300 120, 380 60 S 480 80, 550 50 S 650 130, 800 90 L 800 200 L 0 200 Z" fill="rgba(59, 130, 246, 0.05)" />
@@ -53,13 +39,7 @@
 
         <!-- X Axis labels -->
         <div class="absolute bottom-[-30px] left-0 w-full flex justify-between text-[11px] font-bold text-slate-400">
-          <span>13 Apr</span>
-          <span>18 Apr</span>
-          <span>23 Apr</span>
-          <span>28 Apr</span>
-          <span>3 Mei</span>
-          <span>8 Mei</span>
-          <span>12 Mei</span>
+          <span v-for="d in ['13 Apr', '18 Apr', '23 Apr', '28 Apr', '3 Mei', '8 Mei', '12 Mei']" :key="d">{{ d }}</span>
         </div>
 
         <!-- Tooltip Mock -->
@@ -101,21 +81,12 @@
       <div class="relative w-full h-72 pt-6">
         <!-- Grid lines for bars -->
         <div class="absolute top-0 left-0 w-full h-full flex flex-col justify-between pb-8">
-          <div class="w-full border-t border-slate-100"></div>
-          <div class="w-full border-t border-slate-100"></div>
-          <div class="w-full border-t border-slate-100"></div>
-          <div class="w-full border-t border-slate-100"></div>
-          <div class="w-full border-t border-slate-100"></div>
+          <div v-for="i in 5" :key="i" class="w-full border-t border-slate-100"></div>
         </div>
         
         <!-- Y Axis Text -->
         <div class="absolute top-[-10px] left-0 h-full flex flex-col justify-between pb-8 text-[10px] font-bold text-slate-400">
-          <span>10 Jt</span>
-          <span>8 Jt</span>
-          <span>6 Jt</span>
-          <span>4 Jt</span>
-          <span>2 Jt</span>
-          <span>0</span>
+          <span v-for="val in ['10 Jt', '8 Jt', '6 Jt', '4 Jt', '2 Jt', '0']" :key="val">{{ val }}</span>
         </div>
 
         <!-- Bars Container -->

@@ -1,65 +1,29 @@
 <?php
 
-namespace App\Http\Controllers\Control;
+namespace App\Http\Controllers\Control\Apoteker;
 
 use App\Http\Controllers\Controller;
 use App\Models\Control\AuditTrail;
+use App\Models\Control\CompoundedProduct;
 use App\Models\Control\CompoundingDetail;
 use App\Models\Control\CompoundingFormula;
 use App\Models\Control\CompoundingLabel;
+use App\Models\Control\CompoundingStockDeduction;
 use App\Models\Control\CompoundingSubmission;
-use App\Models\Control\Medicine;
 use App\Models\Control\RawMaterial;
 use App\Models\Control\RawMaterialStock;
-use App\Models\Control\WarehouseInventory;
-use App\Models\Control\CompoundedProduct;
-use App\Models\Control\CompoundingStockDeduction;
+use App\Models\PrescriptionItem;
+use App\Services\StockAuditService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
-class ApotekerController extends Controller
+class ApotekerCompoundingController extends Controller
 {
-    public function dashboard()
-    {
-        $activeSubmissions = CompoundingSubmission::with(['details.medicine', 'details.rawMaterial', 'label', 'formula'])
-            ->where('user_id', auth()->id())
-            ->whereIn('status', ['pending_physical_check', 'pending_final_verification'])
-            ->latest()
-            ->take(10)
-            ->get();
-
-        $queueCount = CompoundingSubmission::where('status', 'pending_physical_check')->count();
-
-        $lowStockMaterials = RawMaterial::belowThreshold()->get();
-
-        return Inertia::render('Control/Apoteker/Dashboard', [
-            'queueCount' => $queueCount,
-            'activeSubmissions' => $activeSubmissions,
-            'rawMaterialAlerts' => $lowStockMaterials,
-        ]);
-    }
-
-    public function formulas()
-    {
-        return Inertia::render('Control/Apoteker/Formulas', [
-            'formulas' => CompoundingFormula::active()->latest()->paginate(15),
-        ]);
-    }
-
-    public function storeFormula(Request $request)
-    {
-        $v = $request->validate([
-            'nama_resep' => 'required|string|max:255',
-            'kategori_sediaan' => 'nullable|string|max:100',
-            'instruksi_racik' => 'nullable|string|max:2000',
-        ]);
-        $f = CompoundingFormula::create($v);
-        AuditTrail::log($request->user()->id, 'CREATE_FORMULA', "Menambah resep: {$f->nama_resep}", CompoundingFormula::class, $f->id);
-        return redirect()->back()->with('success', 'Resep berhasil ditambahkan.');
-    }
-
+    /**
+     * Display listing of compounding submissions.
+     */
     public function submissions()
     {
         return Inertia::render('Control/Apoteker/Submissions', [
@@ -69,6 +33,9 @@ class ApotekerController extends Controller
         ]);
     }
 
+    /**
+     * Store and process a new compounding submission with mass balance and FEFO batch deduction.
+     */
     public function storeSubmission(Request $request)
     {
         // Validasi data input dengan penamaan field sesuai spesifikasi terbaru
@@ -119,14 +86,8 @@ class ApotekerController extends Controller
             $totalMassaNetoBahan = round(collect($v['bahan_baku'])->sum('qty_neto_mass'), 2);
             $totalMassaTarget = round($v['jumlah_unit'] * $v['berat_per_unit'], 2);
 
-            // Filler dibutuhkan jika massa bahan baku < massa target
+            // Filler otomatis dibutuhkan jika massa bahan baku < massa target
             $fillerQty = max(0, round($totalMassaTarget - $totalMassaNetoBahan, 2));
-
-            // Validasi Kritis: Syarat Mass Balance (Massa Bahan + Filler >= Massa Target)
-            // Izinkan jika bahan baku mencukupi target (termasuk jika melimpah)
-            if ($totalMassaNetoBahan < $totalMassaTarget && abs(($totalMassaNetoBahan + $fillerQty) - $totalMassaTarget) > 0.01) {
-                return redirect()->back()->with('error', "Gagal: Syarat Mass Balance tidak terpenuhi. Total massa aktual kurang dari target produksi.");
-            }
 
             // Estimasi Hasil Unit (Yield)
             $expectedYield = floor(round(($totalMassaNetoBahan + $fillerQty) / $v['berat_per_unit'], 2));
@@ -195,7 +156,7 @@ class ApotekerController extends Controller
                 }
                 $rm->recalculateStock();
 
-                \App\Services\StockAuditService::log(
+                StockAuditService::log(
                     $rm,
                     'Pengurangan Racikan',
                     (float) ($rm->stok_total + $d['qty_taken_pcs']),
@@ -210,7 +171,7 @@ class ApotekerController extends Controller
                 'nama_produk' => $sub->nama_racikan,
                 'batch_no' => 'RAC-' . now()->format('Ymd') . '-' . str_pad($sub->id, 4, '0', STR_PAD_LEFT),
                 'tanggal_racik' => $v['label']['tanggal_racik'],
-                'bud_date' => \Carbon\Carbon::parse($v['label']['tanggal_racik'])->addDays($v['label']['bud_hari']),
+                'bud_date' => Carbon::parse($v['label']['tanggal_racik'])->addDays($v['label']['bud_hari']),
                 'qty_hasil' => $v['jumlah_unit'],
                 'satuan' => $v['target_unit'],
                 'base_cost' => $totalBaseCost,
@@ -233,7 +194,7 @@ class ApotekerController extends Controller
 
             // Link ke item resep jika berasal dari pengerjaan resep
             if (!empty($v['prescription_item_id'])) {
-                $pItem = \App\Models\PrescriptionItem::find($v['prescription_item_id']);
+                $pItem = PrescriptionItem::find($v['prescription_item_id']);
                 if ($pItem) {
                     $pItem->update([
                         'compounding_id' => $sub->id,
@@ -249,12 +210,18 @@ class ApotekerController extends Controller
         });
     }
 
+    /**
+     * Display details of a compounding submission.
+     */
     public function showSubmission(CompoundingSubmission $submission)
     {
         $submission->load(['details.medicine', 'label', 'formula', 'user', 'approver']);
         return Inertia::render('Control/Apoteker/SubmissionDetail', ['submission' => $submission]);
     }
 
+    /**
+     * Display Beyond Use Date (BUD) tracking monitor.
+     */
     public function budTracker()
     {
         $activeCompounding = CompoundingSubmission::with(['label', 'user'])
@@ -270,18 +237,24 @@ class ApotekerController extends Controller
         ]);
     }
 
+    /**
+     * Get FEFO suggestion for a specific stock item.
+     */
     public function fefoSuggestion(Request $request, int $itemId)
     {
         $type = $request->query('type', 'raw_material');
         return response()->json(['suggestion' => CompoundingDetail::suggestFEFO($itemId, $type)]);
     }
 
+    /**
+     * Cancel compounding submission and refund deducted stocks back to source batches.
+     */
     public function cancelSubmission(Request $request, CompoundingSubmission $submission)
     {
         return DB::transaction(function () use ($submission, $request) {
             // Guard: Only pending can be cancelled automatically
             if ($submission->status === 'approved') {
-                return redirect()->back()->with('error', 'Racikan yang sudah disetujui tidak dapat dibatalkan secara otomatis demi keamanan medis. Silakan gunakan modul Pemusnahan untuk mencatat pembuangan bahan baku yang sudah keluar dari gudang steril.');
+                return redirect()->back()->with('error', 'Racikan yang sudah disetujui tidak dapat dibatalkan secara otomatis demi keamanan medis. Silakan hubungi admin untuk penyesuaian stok.');
             }
 
             if (!in_array($submission->status, ['pending_physical_check', 'pending_final_verification'])) {
@@ -296,8 +269,6 @@ class ApotekerController extends Controller
             $submission->update(['status' => 'cancelled']);
 
             // --- REVERSAL LOGIC: Refund stock to original batches ---
-            // Only happens for PENDING because for APPROVED, we don't refund to original batch (medical safety)
-            // But wait, the user said: "Hanya jika statusnya 'pending', jalankan logika Restock Otomatis"
             foreach ($submission->details as $detail) {
                 foreach ($detail->deductions as $deduction) {
                     $source = $deduction->stockSource;
@@ -309,7 +280,7 @@ class ApotekerController extends Controller
                         if ($rm) {
                             $qtyBefore = (float) $rm->stok_total;
                             $rm->recalculateStock();
-                            \App\Services\StockAuditService::log(
+                            StockAuditService::log(
                                 $rm,
                                 'Pembatalan Racikan',
                                 $qtyBefore,
@@ -320,7 +291,6 @@ class ApotekerController extends Controller
                     }
                 }
 
-                // Final recalculation for the material
                 if ($detail->rawMaterial) {
                     $detail->rawMaterial->recalculateStock();
                 }
@@ -336,24 +306,5 @@ class ApotekerController extends Controller
 
             return redirect()->back()->with('success', 'Racikan berhasil dibatalkan. Stok telah berhasil dikembalikan ke inventaris.');
         });
-    }
-
-    public function stockCheck()
-    {
-        return Inertia::render('Control/Apoteker/StockCheck', [
-            'rawMaterials' => RawMaterial::with(['stocks' => fn($q) => $q->where('stock_on_hand', '>', 0)->orderBy('expired_date')])->get(),
-            'medicines' => Medicine::with(['warehouseInventories' => fn($q) => $q->active()->where('stock_on_hand', '>', 0)->orderBy('expired_date')])
-                ->where('stok_total', '>', 0)
-                ->orderBy('nama_obat')
-                ->get(),
-        ]);
-    }
-
-    // ─── RAW MATERIALS (KATALOG BAHAN BAKU) ──────────────────
-    public function rawMaterials()
-    {
-        return Inertia::render('Control/Apoteker/RawMaterials', [
-            'rawMaterials' => RawMaterial::where('creator_id', auth()->id())->orWhere('status', 'active')->latest()->paginate(15),
-        ]);
     }
 }

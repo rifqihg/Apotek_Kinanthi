@@ -1,6 +1,6 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 const props = defineProps({
@@ -17,14 +17,7 @@ const form = useForm({
     alasan_retur: '',
 });
 
-// Helper for UI
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
-};
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-};
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 
 // State for filtering in modal
 const selectedSupplierId = ref('');

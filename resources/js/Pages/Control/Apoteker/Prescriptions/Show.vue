@@ -1,45 +1,29 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 
-const props = defineProps({
-    prescription: Object
-});
+defineOptions({ layout: ControlLayout });
 
-const statusColor = (status) => {
-    switch (status) {
-        case 'baru': return 'bg-slate-100 text-slate-700 border-[#E8EEF6]';
-        case 'diproses': return 'bg-blue-50 text-blue-700 border-blue-200';
-        case 'siap_ambil': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        case 'selesai': return 'bg-teal-50 text-teal-700 border-teal-200';
-        case 'batal': return 'bg-rose-50 text-rose-700 border-rose-200';
-        default: return 'bg-slate-50 text-slate-600 border-[#E8EEF6]';
-    }
-};
+const props = defineProps({ prescription: Object });
 
-const itemStatusColor = (status) => {
-    switch (status) {
-        case 'pending': return 'bg-slate-100 text-slate-600';
-        case 'dikerjakan': return 'bg-amber-100 text-amber-700';
-        case 'selesai': return 'bg-emerald-100 text-emerald-700';
-        default: return 'bg-slate-100 text-slate-600';
-    }
-};
+const statusColor = (s) => ({
+    baru: 'bg-slate-100 text-slate-700 border-[#E8EEF6]',
+    diproses: 'bg-blue-50 text-blue-700 border-blue-200',
+    siap_ambil: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    selesai: 'bg-teal-50 text-teal-700 border-teal-200',
+    batal: 'bg-rose-50 text-rose-700 border-rose-200',
+}[s] || 'bg-slate-50 text-slate-600 border-[#E8EEF6]');
 
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-};
+const itemStatusColor = (s) => ({
+    pending: 'bg-slate-100 text-slate-600',
+    dikerjakan: 'bg-amber-100 text-amber-700',
+    selesai: 'bg-emerald-100 text-emerald-700',
+}[s] || 'bg-slate-100 text-slate-600');
 
-const allItemsDone = computed(() => {
-    if (!props.prescription?.prescription_items) return false;
-    return props.prescription.prescription_items.every(item => item.status === 'selesai');
-});
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-';
+
+const allItemsDone = computed(() => props.prescription?.prescription_items?.every(item => item.status === 'selesai') ?? false);
 
 const updateStatus = (newStatus) => {
     if (newStatus === 'siap_ambil' && !allItemsDone.value) return;

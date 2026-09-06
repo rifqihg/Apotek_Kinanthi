@@ -1,16 +1,9 @@
 <script setup>
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 import Swal from 'sweetalert2';
 
-/**
- * EDIT PROFIL VIEW
- * Integrated Account Settings for Admin, Gudang, and Apoteker
- */
-
-const props = defineProps({
-    status: String,
-});
+defineOptions({ layout: ControlLayout });
 
 const user = usePage().props.auth.user;
 
@@ -22,44 +15,30 @@ const form = useForm({
     password_confirmation: '',
 });
 
-const isProcessing = ref(false);
-
 const updateProfile = () => {
-    isProcessing.value = true;
     form.put(route('profile.update'), {
         preserveScroll: true,
         onSuccess: () => {
-            isProcessing.value = false;
             form.reset('current_password', 'password', 'password_confirmation');
             Swal.fire({
                 title: 'Profil Diperbarui',
                 text: 'Informasi akun Anda telah berhasil diperbarui.',
                 icon: 'success',
                 confirmButtonColor: '#10b981',
-                customClass: {
-                    popup: 'rounded-[2rem]',
-                }
+                customClass: { popup: 'rounded-[2rem]' }
             });
         },
         onError: () => {
-            isProcessing.value = false;
             Swal.fire({
                 title: 'Gagal Memperbarui',
                 text: 'Mohon periksa kembali inputan Anda.',
                 icon: 'error',
                 confirmButtonColor: '#ef4444',
-                customClass: {
-                    popup: 'rounded-[1.5rem]',
-                }
+                customClass: { popup: 'rounded-[1.5rem]' }
             });
         },
     });
 };
-</script>
-
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
 </script>
 
 <template>

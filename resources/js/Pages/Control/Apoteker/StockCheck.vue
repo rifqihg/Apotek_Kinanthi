@@ -1,11 +1,9 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
 import { Head } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
+
+defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ 
     rawMaterials: { type: Array, default: () => [] },
@@ -34,10 +32,7 @@ const filteredMedicines = computed(() => {
     );
 });
 
-const isExpired = (dateStr) => {
-    if (!dateStr) return false;
-    return new Date(dateStr) < new Date();
-};
+const isExpired = (d) => !!d && new Date(d) < new Date();
 
 const isNearExpiry = (dateStr) => {
     if (!dateStr) return false;

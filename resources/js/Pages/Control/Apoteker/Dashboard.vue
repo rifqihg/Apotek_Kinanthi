@@ -1,13 +1,11 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 import DashboardCharts from '@/Components/DashboardCharts.vue';
 
-const props = defineProps({
+defineOptions({ layout: ControlLayout });
+
+defineProps({
     queueCount: { type: Number, default: 0 },
     activeSubmissions: { type: Array, default: () => [] },
     rawMaterialAlerts: { type: Array, default: () => [] }

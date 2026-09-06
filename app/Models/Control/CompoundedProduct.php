@@ -47,27 +47,8 @@ class CompoundedProduct extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /**
-     * Check if BUD has passed.
-     */
-    public function isBeyondUse(): bool
-    {
-        return \Carbon\Carbon::parse($this->bud_date)->isPast();
-    }
-
-    /**
-     * Scope: active products only.
-     */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
-    }
-
-    /**
-     * Scope: expiring soon within given days (BUD-based).
-     */
-    public function scopeBudExpiringSoon($query, int $days = 30)
-    {
-        return $query->whereBetween('bud_date', [now(), now()->addDays($days)]);
     }
 }

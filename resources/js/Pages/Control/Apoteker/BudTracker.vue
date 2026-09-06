@@ -1,13 +1,10 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 
-const props = defineProps({ submissions: Object });
+defineOptions({ layout: ControlLayout });
+
+defineProps({ submissions: Object });
 
 const getBudStatus = (expiryDate) => {
     if (!expiryDate) return { label: 'Unknown', color: 'bg-slate-500', text: 'text-slate-700', bg: 'bg-slate-50', border: 'border-[#E8EEF6]', progress: 0 };

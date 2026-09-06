@@ -41,47 +41,26 @@ class StockConfirmation extends Model
         ];
     }
 
-    /**
-     * User (gudang) who confirmed.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Check if there's a discrepancy between expected and received qty.
-     */
     public function hasDiscrepancy(): bool
     {
-        if ($this->qty_received === null) {
-            return false;
-        }
-        return abs($this->qty_expected - $this->qty_received) > 0.01;
+        return $this->qty_received !== null && abs($this->qty_expected - $this->qty_received) > 0.01;
     }
 
-    /**
-     * Get the discrepancy amount.
-     */
     public function getDiscrepancy(): float
     {
-        if ($this->qty_received === null) {
-            return 0;
-        }
-        return round($this->qty_received - $this->qty_expected, 2);
+        return $this->qty_received !== null ? round($this->qty_received - $this->qty_expected, 2) : 0.0;
     }
 
-    /**
-     * Scope: unconfirmed.
-     */
     public function scopeUnconfirmed($query)
     {
         return $query->where('is_confirmed', false);
     }
 
-    /**
-     * Scope: by reference type.
-     */
     public function scopeOfType($query, string $type)
     {
         return $query->where('reference_type', $type);

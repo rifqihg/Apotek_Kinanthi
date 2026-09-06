@@ -1,12 +1,10 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 import axios from 'axios';
+
+defineOptions({ layout: ControlLayout });
 
 const props = defineProps({
     patients: Array,

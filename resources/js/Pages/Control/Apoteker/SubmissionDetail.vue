@@ -1,11 +1,9 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
+
+defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ submission: Object });
 
@@ -87,13 +85,9 @@ function proceedCancel() {
                         <h4 class="font-black text-sm uppercase tracking-widest text-emerald-400">Protokol Produksi Tervalidasi</h4>
                         <p class="text-emerald-100/70 text-xs font-bold uppercase tracking-tight leading-relaxed mt-2">
                             Bahan baku dianggap telah keluar dari grid steril. Jika terjadi kegagalan produksi atau pembatalan setelah persetujuan, 
-                            <span class="text-white">gunakan modul pemusnahan</span> untuk audit stok yang akurat.
+                            <span class="text-white">silakan hubungi admin untuk penyesuaian stok</span> secara manual.
                         </p>
                     </div>
-                    <Link :href="route('control.apoteker.disposals')" class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-5 py-2.5 rounded-[16px] text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-950/20 active:scale-95">
-                        Buka Modul Pemusnahan
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
-                    </Link>
                 </div>
             </div>
         </div>

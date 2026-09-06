@@ -16,28 +16,17 @@ const form = ref({
 
 const expandedRows = ref({});
 
-const toggleRow = (id) => {
-    expandedRows.value[id] = !expandedRows.value[id];
-};
+const toggleRow = (id) => { expandedRows.value[id] = !expandedRows.value[id]; };
 
 const filterData = () => {
     router.get(route('control.admin.reports.cashier-monitoring'), form.value, { preserveState: true });
 };
 
-watch(() => form.value.start_date, filterData);
-watch(() => form.value.end_date, filterData);
+watch(() => [form.value.start_date, form.value.end_date], filterData);
 
-const formatRupiah = (number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-};
+const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-};
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 </script>
 
 <template>

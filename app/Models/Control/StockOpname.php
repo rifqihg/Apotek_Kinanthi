@@ -23,19 +23,14 @@ class StockOpname extends Model
         ];
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(\App\Models\User::class, 'created_by');
-    }
-
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function finalizer(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'finalized_by');
+        return $this->belongsTo(User::class, 'finalized_by');
     }
 
     public function items(): HasMany

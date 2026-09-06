@@ -1,6 +1,6 @@
 <script setup>
-import { ref, reactive, watch, computed } from 'vue';
-import { Head, router, Link } from '@inertiajs/vue3';
+import { ref, reactive, watch } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import debounce from 'lodash/debounce';
 import Swal from 'sweetalert2';

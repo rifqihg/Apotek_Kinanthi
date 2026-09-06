@@ -1,6 +1,6 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 const props = defineProps({ materials: Object });

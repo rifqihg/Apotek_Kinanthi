@@ -18,7 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleControl::class,
-            'frozen_stock' => \App\Http\Middleware\CheckFrozenStock::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

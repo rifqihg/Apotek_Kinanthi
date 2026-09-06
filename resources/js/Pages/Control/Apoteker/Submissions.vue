@@ -1,12 +1,10 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 import axios from 'axios';
+
+defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ submissions: Object, formulas: Array, rawMaterials: Array });
 const showModal = ref(false);

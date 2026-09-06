@@ -1,12 +1,10 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 
-const props = defineProps({ logs: Object });
+defineOptions({ layout: ControlLayout });
+
+defineProps({ logs: Object });
 
 const actionClass = (a) => ({
     'Adjustment': 'text-amber-600 bg-amber-50 border-amber-100',

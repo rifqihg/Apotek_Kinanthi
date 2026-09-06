@@ -1,7 +1,3 @@
-<script setup>
-import { Link } from '@inertiajs/vue3';
-</script>
-
 <template>
     <div class="flex min-h-screen items-center justify-center bg-[#F8FAFC] p-4 relative overflow-hidden">
         <!-- Abstract Ornaments -->

@@ -12,37 +12,24 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create default settings
         Setting::create(['default_ppn' => 11.00, 'default_margin' => 25.00]);
 
-        // Create users for each role
-        User::create([
-            'name' => 'Admin Kinanthi',
-            'email' => 'admin@kinanthi.com',
-            'password' => bcrypt('password'),
-            'role' => 'admin',
-        ]);
+        foreach ([
+            ['Admin Kinanthi', 'admin@kinanthi.com', 'admin'],
+            ['Apoteker Kinanthi', 'apoteker@kinanthi.com', 'apoteker'],
+            ['Kasir Apotek', 'kasir@kinanthi.com', 'kasir'],
+        ] as [$name, $email, $role]) {
+            User::create(compact('name', 'email', 'role') + ['password' => bcrypt('password')]);
+        }
 
-        User::create([
-            'name' => 'Apoteker Kinanthi',
-            'email' => 'apoteker@kinanthi.com',
-            'password' => bcrypt('password'),
-            'role' => 'apoteker',
-        ]);
+        foreach ([
+            ['PT Kimia Farma Tbk', 'Jakarta', '021-1234567'],
+            ['PT Kalbe Farma Tbk', 'Jakarta', '021-7654321'],
+            ['PT Sanbe Farma', 'Bandung', '022-1234567'],
+        ] as [$nama_pbf, $alamat, $telepon]) {
+            Supplier::create(compact('nama_pbf', 'alamat', 'telepon') + ['is_active' => true]);
+        }
 
-        User::create([
-            'name' => 'Kasir Apotek',
-            'email' => 'kasir@kinanthi.com',
-            'password' => bcrypt('password'),
-            'role' => 'kasir',
-        ]);
-
-        // Sample suppliers
-        Supplier::create(['nama_pbf' => 'PT Kimia Farma Tbk', 'alamat' => 'Jakarta', 'telepon' => '021-1234567', 'is_active' => true]);
-        Supplier::create(['nama_pbf' => 'PT Kalbe Farma Tbk', 'alamat' => 'Jakarta', 'telepon' => '021-7654321', 'is_active' => true]);
-        Supplier::create(['nama_pbf' => 'PT Sanbe Farma', 'alamat' => 'Bandung', 'telepon' => '022-1234567', 'is_active' => true]);
-
-        // Sample medicines
         $medicines = [
             ['nama_obat' => 'Amoxicillin 500mg', 'kode_obat' => 'AMX500', 'satuan_stok' => 'Kapsul', 'threshold_min' => 50],
             ['nama_obat' => 'Paracetamol 500mg', 'kode_obat' => 'PCT500', 'satuan_stok' => 'Tablet', 'threshold_min' => 100],

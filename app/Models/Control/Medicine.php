@@ -2,7 +2,9 @@
 
 namespace App\Models\Control;
 
+use App\Models\SaleItem;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Medicine extends Model
@@ -50,82 +52,51 @@ class Medicine extends Model
         ];
     }
 
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
-    /**
-     * Incoming stocks for this medicine.
-     */
     public function incomingStocks(): HasMany
     {
         return $this->hasMany(IncomingStock::class);
     }
 
-    /**
-     * Compounding details using this medicine.
-     */
     public function compoundingDetails(): HasMany
     {
         return $this->hasMany(CompoundingDetail::class);
     }
 
-    /**
-     * Warehouse inventory entries for this medicine.
-     */
     public function warehouseInventories(): HasMany
     {
         return $this->hasMany(WarehouseInventory::class);
     }
 
-    /**
-     * Sale items for this medicine.
-     */
     public function saleItems(): HasMany
     {
-        return $this->hasMany(\App\Models\SaleItem::class);
+        return $this->hasMany(SaleItem::class);
     }
 
-    /**
-     * Check if stock is below minimum threshold.
-     */
-    public function isBelowThreshold(): bool
-    {
-        return $this->stok_total < $this->threshold_min;
-    }
-
-    /**
-     * Scope: medicines below threshold.
-     */
     public function scopeBelowThreshold($query)
     {
         return $query->whereColumn('stok_total', '<', 'threshold_min');
     }
 
-    /**
-     * Recalculate total stock from all locations (Karantina + Gudang Aktif + Etalase).
-     * Stok Total = Stok Karantina (Pending) + Stok Aktif Gudang + Stok Etalase.
-     */
     public function recalculateStock(): void
     {
         $stokAktifGudang = (float) $this->warehouseInventories()->sum('stock_on_hand');
 
-        $transferredIds = \App\Models\Control\WarehouseInventory::whereNotNull('incoming_stock_id')
+        $transferredIds = WarehouseInventory::whereNotNull('incoming_stock_id')
             ->pluck('incoming_stock_id')
             ->toArray();
 
         $stokKarantina = (float) $this->incomingStocks()
             ->whereNotIn('id', $transferredIds)
             ->get()
-            ->sum(function($stock) {
-                return $stock->qty_fisik_verify !== null ? $stock->qty_fisik_verify : $stock->qty_converted;
-            });
-
-        $stokEtalase = 0.00;
+            ->sum(fn($stock) => $stock->qty_fisik_verify ?? $stock->qty_converted);
 
         $this->update([
-            'stok_total' => $stokKarantina + $stokAktifGudang + $stokEtalase,
+            'stok_total' => $stokKarantina + $stokAktifGudang,
         ]);
     }
 }

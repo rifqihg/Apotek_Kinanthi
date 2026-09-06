@@ -3,13 +3,12 @@
 namespace App\Services;
 
 use App\Models\Control\AuditTrail;
+use App\Models\Control\CompoundedProduct;
+use App\Models\Control\InventoryLoss;
+use App\Models\Control\RawMaterialStock;
 use App\Models\Control\StockOpname;
 use App\Models\Control\StockOpnameItem;
 use App\Models\Control\WarehouseInventory;
-use App\Models\Control\RawMaterialStock;
-use App\Models\Control\Medicine;
-use App\Models\Control\RawMaterial;
-use App\Models\Control\StockMutation;
 use Illuminate\Support\Facades\DB;
 
 class StockOpnameService
@@ -21,11 +20,11 @@ class StockOpnameService
     {
         return DB::transaction(function () use ($userId, $isBlindCount, $categoryId) {
             $opname = StockOpname::create([
-                'created_by' => $userId,
-                'category_id' => $categoryId,
-                'opname_date' => now()->toDateString(),
+                'created_by'     => $userId,
+                'category_id'    => $categoryId,
+                'opname_date'    => now()->toDateString(),
                 'is_blind_count' => $isBlindCount,
-                'status' => 'draft',
+                'status'         => 'draft',
             ]);
 
             // 1. Process Medicines
@@ -33,18 +32,14 @@ class StockOpnameService
             if ($categoryId) {
                 $medicinesQuery->whereHas('medicine', fn($q) => $q->where('category_id', $categoryId));
             }
-            $batches = $medicinesQuery->get();
-
-            foreach ($batches as $batch) {
+            foreach ($medicinesQuery->get() as $batch) {
                 StockOpnameItem::create([
-                    'stock_opname_id' => $opname->id,
-                    'medicine_id' => $batch->medicine_id,
+                    'stock_opname_id'        => $opname->id,
+                    'medicine_id'            => $batch->medicine_id,
                     'warehouse_inventory_id' => $batch->id,
-                    'batch_no' => $batch->batch_no,
-                    'system_stock' => $batch->stock_on_hand,
+                    'batch_no'               => $batch->batch_no,
+                    'system_stock'           => $batch->stock_on_hand,
                 ]);
-                
-                // Freeze stock
                 $batch->update(['is_frozen' => true]);
             }
 
@@ -53,38 +48,27 @@ class StockOpnameService
             if ($categoryId) {
                 $materialsQuery->whereHas('rawMaterial', fn($q) => $q->where('category_id', $categoryId));
             }
-            $rawBatches = $materialsQuery->get();
-
-            foreach ($rawBatches as $batch) {
+            foreach ($materialsQuery->get() as $batch) {
                 StockOpnameItem::create([
-                    'stock_opname_id' => $opname->id,
-                    'raw_material_id' => $batch->raw_material_id,
+                    'stock_opname_id'       => $opname->id,
+                    'raw_material_id'       => $batch->raw_material_id,
                     'raw_material_stock_id' => $batch->id,
-                    'batch_no' => $batch->batch_no,
-                    'system_stock' => $batch->stock_on_hand,
+                    'batch_no'              => $batch->batch_no,
+                    'system_stock'          => $batch->stock_on_hand,
                 ]);
-
-                // Freeze stock
                 $batch->update(['is_frozen' => true]);
             }
 
-            // 3. Process Compounded Products
-            $compoundedQuery = \App\Models\Control\CompoundedProduct::where('qty_hasil', '>', 0)->where('status', 'active');
-            // Category might not apply directly to racikan, or we can skip category filter for racikan
-            // since they don't have a direct category_id in their table. If $categoryId is provided, 
-            // maybe we only include medicines and raw materials, or include racikan if we mapped them.
-            // For now, if $categoryId is set, we skip racikan to avoid mapping issues unless requested.
+            // 3. Process Compounded Products (skip if category filter applies)
             if (!$categoryId) {
-                $compoundedBatches = $compoundedQuery->get();
+                $compoundedBatches = CompoundedProduct::where('qty_hasil', '>', 0)->where('status', 'active')->get();
                 foreach ($compoundedBatches as $batch) {
                     StockOpnameItem::create([
-                        'stock_opname_id' => $opname->id,
+                        'stock_opname_id'       => $opname->id,
                         'compounded_product_id' => $batch->id,
-                        'batch_no' => $batch->batch_no,
-                        'system_stock' => $batch->qty_hasil,
+                        'batch_no'              => $batch->batch_no,
+                        'system_stock'          => $batch->qty_hasil,
                     ]);
-
-                    // Freeze stock
                     $batch->update(['is_frozen' => true]);
                 }
             }
@@ -109,10 +93,9 @@ class StockOpnameService
 
             $updateData = [
                 'physical_stock' => $itemData['physical_stock'],
-                'reason' => $itemData['reason'] ?? null,
+                'reason'         => $itemData['reason'] ?? null,
             ];
 
-            // Handle evidence photo upload
             if ($request && $request->hasFile("items.{$index}.evidence_photo")) {
                 $updateData['evidence_photo'] = $request->file("items.{$index}.evidence_photo")->store('opname', 'public');
             }
@@ -127,15 +110,12 @@ class StockOpnameService
     public function finalize(StockOpname $opname, int $userId): array
     {
         $errors = [];
-
-        // Validate: all items must have physical stock input
         $items = $opname->items()->get();
+
         foreach ($items as $item) {
             if ($item->physical_stock === null) {
                 $errors[] = "Item batch {$item->batch_no} belum diinput stok fisik.";
-                continue;
-            }
-            if ($item->hasDiscrepancy() && empty($item->reason)) {
+            } elseif ($item->hasDiscrepancy() && empty($item->reason)) {
                 $errors[] = "Item batch {$item->batch_no} ada selisih tapi belum ada alasan.";
             }
         }
@@ -149,30 +129,22 @@ class StockOpnameService
                 $difference = $item->physical_stock - $item->system_stock;
                 $item->update(['difference' => $difference]);
 
-                if ($item->warehouse_inventory_id) {
-                    WarehouseInventory::where('id', $item->warehouse_inventory_id)->update(['is_frozen' => false]);
-                } elseif ($item->raw_material_stock_id) {
-                    RawMaterialStock::where('id', $item->raw_material_stock_id)->update(['is_frozen' => false]);
-                } elseif ($item->compounded_product_id) {
-                    \App\Models\Control\CompoundedProduct::where('id', $item->compounded_product_id)->update(['is_frozen' => false]);
-                }
+                $this->unfreezeItem($item);
 
                 if ($difference != 0) {
-                    \App\Models\Control\InventoryLoss::create([
-                        'medicine_id' => $item->medicine_id,
-                        'raw_material_id' => $item->raw_material_id,
-                        'compounded_product_id' => $item->compounded_product_id,
+                    InventoryLoss::create([
+                        'medicine_id'            => $item->medicine_id,
+                        'raw_material_id'        => $item->raw_material_id,
+                        'compounded_product_id'  => $item->compounded_product_id,
                         'warehouse_inventory_id' => $item->warehouse_inventory_id,
-                        'raw_material_stock_id' => $item->raw_material_stock_id,
-                        'qty_lost' => abs($difference),
-                        'tipe_loss' => $difference < 0 ? 'stock_opname_shortage' : 'stock_opname_surplus',
-                        'reason' => $item->reason ?: 'Selisih Stock Opname #' . $opname->id,
-                        'status' => 'pending',
-                        'user_id' => $userId,
+                        'raw_material_stock_id'  => $item->raw_material_stock_id,
+                        'qty_lost'               => abs($difference),
+                        'tipe_loss'              => $difference < 0 ? 'stock_opname_shortage' : 'stock_opname_surplus',
+                        'reason'                 => $item->reason ?: 'Selisih Stock Opname #' . $opname->id,
+                        'status'                 => 'pending',
+                        'user_id'                => $userId,
                     ]);
-                }
 
-                if ($difference != 0) {
                     AuditTrail::log($userId, 'OPNAME_ADJUSTMENT',
                         "Opname #{$opname->id}: batch {$item->batch_no} sistem={$item->system_stock} fisik={$item->physical_stock} selisih={$difference}. Alasan: {$item->reason}",
                         StockOpnameItem::class, $item->id
@@ -181,7 +153,7 @@ class StockOpnameService
             }
 
             $opname->update([
-                'status' => 'completed',
+                'status'       => 'completed',
                 'finalized_at' => now(),
                 'finalized_by' => $userId,
             ]);
@@ -201,20 +173,24 @@ class StockOpnameService
     public function cancel(StockOpname $opname, int $userId): void
     {
         DB::transaction(function () use ($opname, $userId) {
-            $items = StockOpnameItem::where('stock_opname_id', $opname->id)->get();
-            foreach ($items as $item) {
-                if ($item->warehouse_inventory_id) {
-                    WarehouseInventory::where('id', $item->warehouse_inventory_id)->update(['is_frozen' => false]);
-                } elseif ($item->raw_material_stock_id) {
-                    RawMaterialStock::where('id', $item->raw_material_stock_id)->update(['is_frozen' => false]);
-                } elseif ($item->compounded_product_id) {
-                    \App\Models\Control\CompoundedProduct::where('id', $item->compounded_product_id)->update(['is_frozen' => false]);
-                }
+            foreach (StockOpnameItem::where('stock_opname_id', $opname->id)->get() as $item) {
+                $this->unfreezeItem($item);
             }
 
             $opname->update(['status' => 'cancelled']);
 
             AuditTrail::log($userId, 'CANCEL_OPNAME', "Membatalkan sesi opname #{$opname->id}", StockOpname::class, $opname->id);
         });
+    }
+
+    private function unfreezeItem(StockOpnameItem $item): void
+    {
+        if ($item->warehouse_inventory_id) {
+            WarehouseInventory::where('id', $item->warehouse_inventory_id)->update(['is_frozen' => false]);
+        } elseif ($item->raw_material_stock_id) {
+            RawMaterialStock::where('id', $item->raw_material_stock_id)->update(['is_frozen' => false]);
+        } elseif ($item->compounded_product_id) {
+            CompoundedProduct::where('id', $item->compounded_product_id)->update(['is_frozen' => false]);
+        }
     }
 }

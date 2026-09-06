@@ -33,22 +33,8 @@ class Prescription extends Model
             // generate the 4-digit sequence
             $count = static::whereDate('created_at', now())
                            ->count() + 1;
-            $prescription->prescription_number =
-                'RX-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+            $prescription->prescription_number = 'RX-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
         });
-    }
-
-    // Accessor for Indonesian status labels
-    public function getStatusLabelAttribute(): string
-    {
-        return match($this->status) {
-            'baru'       => 'Baru',
-            'diproses'   => 'Sedang Diproses',
-            'siap_ambil' => 'Siap Diambil',
-            'selesai'    => 'Selesai',
-            'batal'      => 'Dibatalkan',
-            default      => ucfirst($this->status),
-        };
     }
 
     public function patient(): BelongsTo

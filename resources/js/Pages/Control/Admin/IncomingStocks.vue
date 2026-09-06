@@ -1,12 +1,10 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { Head, useForm, router } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({ stocks: Object, suppliers: Array, medicines: Array, settings: Object, filters: Object });
 const showModal = ref(false);
-const activeTab = ref('all');
-const page = usePage();
 const searchInvoiceQuery = ref(props.filters?.search || '');
 
 const handleSearch = () => {
@@ -150,15 +148,6 @@ const unitCategories = [
     { name: 'Sediaan Steril & Injeksi', units: ['Ampul', 'Amp', 'Vial'] },
     { name: 'Sediaan Khusus', units: ['Suppositoria', 'Supp', 'Canister', 'Inhaler'] },
 ];
-
-const getSmallestUnitLabel = (item) => {
-    if (item.is_new_medicine) return item.new_medicine_satuan_kecil || 'Unit';
-    if (item.medicine_id) {
-        const m = props.medicines?.find(x => x.id === item.medicine_id);
-        return m ? m.satuan_stok : 'Unit';
-    }
-    return 'Unit';
-};
 
 const calculateItemSubtotal = (item) => {
     const h = Number(item.harga_beli_satuan) || 0;

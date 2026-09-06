@@ -2,8 +2,10 @@
 
 namespace App\Models\Control;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WarehouseInventory extends Model
 {
@@ -34,85 +36,42 @@ class WarehouseInventory extends Model
         ];
     }
 
-    /**
-     * Mutation logs for this inventory entry.
-     */
-    public function mutations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function mutations(): HasMany
     {
         return $this->hasMany(StockMutation::class);
     }
 
-    /**
-     * Medicine for this inventory entry.
-     */
     public function medicine(): BelongsTo
     {
         return $this->belongsTo(Medicine::class);
     }
 
-    /**
-     * Kasir for this inventory entry (if location_type is 'kasir').
-     */
     public function kasir(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'location_id');
+        return $this->belongsTo(User::class, 'location_id');
     }
 
-    /**
-     * Source incoming stock (faktur) for this inventory entry.
-     */
     public function incomingStock(): BelongsTo
     {
         return $this->belongsTo(IncomingStock::class);
     }
 
-    /**
-     * Scope for Gudang stock.
-     */
     public function scopeGudang($query)
     {
         return $query->where('location_type', 'gudang');
     }
 
-    /**
-     * Scope for Kasir stock.
-     */
     public function scopeKasir($query, $kasirId = null)
     {
-        $query->where('location_type', 'kasir');
-        if ($kasirId) {
-            $query->where('location_id', $kasirId);
-        }
-        return $query;
+        return $query->where('location_type', 'kasir')
+            ->when($kasirId, fn($q) => $q->where('location_id', $kasirId));
     }
 
-    /**
-     * Check if this batch is expired.
-     */
-    public function isExpired(): bool
-    {
-        return $this->expired_date->isPast();
-    }
-
-    /**
-     * Check if this batch is expiring soon (within 90 days).
-     */
-    public function isExpiringSoon(int $days = 90): bool
-    {
-        return $this->expired_date->between(now(), now()->addDays($days));
-    }
-
-    /**
-     * Scope: only non-expired stock.
-     */
     public function scopeNotExpired($query)
     {
         return $query->where($this->qualifyColumn('expired_date'), '>', now());
     }
 
-    /**
-     * Scope: FEFO ordering (First Expired First Out).
-     */
     public function scopeFefo($query)
     {
         return $query->orderBy($this->qualifyColumn('expired_date'), 'asc');

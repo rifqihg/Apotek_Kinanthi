@@ -1,11 +1,9 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
+
+defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ rawMaterials: Object });
 const showModal = ref(false);

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Control;
+namespace App\Http\Controllers\Control\Apoteker;
 
 use App\Http\Controllers\Controller;
 use App\Models\Patient;
@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class PrescriptionController extends Controller
+class ApotekerPrescriptionController extends Controller
 {
     public function index()
     {
@@ -132,6 +132,15 @@ class PrescriptionController extends Controller
             $daysOld = \Carbon\Carbon::parse($prescription->prescription_date)->diffInDays(now());
             if ($daysOld > 30) {
                 return back()->withErrors(['status' => 'Resep sudah kadaluarsa (lebih dari 30 hari). Tidak dapat diproses.']);
+            }
+        }
+
+        if ($newStatus === 'siap_ambil') {
+            $hasUnfinishedItems = !$prescription->prescriptionItems()->exists() 
+                || $prescription->prescriptionItems()->where('status', '!=', 'selesai')->exists();
+
+            if ($hasUnfinishedItems) {
+                return back()->withErrors(['status' => 'Semua item resep harus diselesaikan terlebih dahulu sebelum resep siap diambil.']);
             }
         }
 

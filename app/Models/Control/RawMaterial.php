@@ -2,6 +2,7 @@
 
 namespace App\Models\Control;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -52,24 +53,17 @@ class RawMaterial extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'creator_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function verifier(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'verified_by');
+        return $this->belongsTo(User::class, 'verified_by');
     }
-
-
 
     public function stocks(): HasMany
     {
         return $this->hasMany(RawMaterialStock::class);
-    }
-
-    public function isBelowThreshold(): bool
-    {
-        return $this->stok_total < $this->threshold_min;
     }
 
     public function scopeBelowThreshold($query)
@@ -77,9 +71,6 @@ class RawMaterial extends Model
         return $query->whereColumn('stok_total', '<', 'threshold_min');
     }
 
-    /**
-     * Recalculate total stock from batch stocks.
-     */
     public function recalculateStock(): void
     {
         $this->update([

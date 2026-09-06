@@ -1,7 +1,7 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
     prescription: Object,
@@ -27,33 +27,20 @@ const form = useForm({
     }))
 });
 
-const subtotalAmount = computed(() => {
-    return form.items.reduce((sum, item) => sum + ((Number(item.unit_price) || 0) * item.quantity), 0);
-});
+const subtotalAmount = computed(() => form.items.reduce((sum, item) => sum + ((Number(item.unit_price) || 0) * item.quantity), 0));
 
 const discountAmount = computed(() => {
     const val = Number(form.discount_amount) || 0;
     return val > subtotalAmount.value ? subtotalAmount.value : val;
 });
 
-const finalTotalAmount = computed(() => {
-    const total = subtotalAmount.value - discountAmount.value;
-    return total > 0 ? total : 0;
-});
+const finalTotalAmount = computed(() => Math.max(0, subtotalAmount.value - discountAmount.value));
 
-const changeAmount = computed(() => {
-    const paid = Number(form.paid_amount) || 0;
-    const diff = paid - finalTotalAmount.value;
-    return diff > 0 ? diff : 0;
-});
+const changeAmount = computed(() => Math.max(0, (Number(form.paid_amount) || 0) - finalTotalAmount.value));
 
-const isPaidValid = computed(() => {
-    return (Number(form.paid_amount) || 0) >= finalTotalAmount.value && finalTotalAmount.value >= 0;
-});
+const isPaidValid = computed(() => (Number(form.paid_amount) || 0) >= finalTotalAmount.value && finalTotalAmount.value >= 0);
 
-const formatRupiah = (number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-};
+const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
 const submit = () => {
     if (!isPaidValid.value) return;

@@ -34,20 +34,6 @@ class CompoundingLabel extends Model
         return $this->belongsTo(CompoundingSubmission::class, 'compounding_id');
     }
 
-    /**
-     * Calculate BUD (Beyond Use Date) from tanggal_racik + bud_hari.
-     */
-    public function calculateBUD(): ?string
-    {
-        if ($this->tanggal_racik) {
-            return $this->tanggal_racik->addDays($this->bud_hari)->toDateString();
-        }
-        return null;
-    }
-
-    /**
-     * Boot: auto-calculate BUD before saving.
-     */
     protected static function booted(): void
     {
         static::saving(function (CompoundingLabel $label) {

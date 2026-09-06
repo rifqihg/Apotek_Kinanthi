@@ -1,30 +1,20 @@
-<script>
-import ControlLayout from '@/Layouts/ControlLayout.vue';
-export default { layout: ControlLayout };
-</script>
-
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
+import ControlLayout from '@/Layouts/ControlLayout.vue';
 
-const props = defineProps({
-    prescriptions: Object
-});
+defineOptions({ layout: ControlLayout });
 
-const statusColor = (status) => {
-    switch (status) {
-        case 'baru': return 'bg-slate-50 text-slate-700 border-[#E8EEF6]';
-        case 'diproses': return 'bg-blue-50 text-blue-700 border-blue-200';
-        case 'siap_ambil': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        case 'selesai': return 'bg-teal-50 text-teal-700 border-teal-200';
-        case 'batal': return 'bg-rose-50 text-rose-700 border-rose-200';
-        default: return 'bg-slate-50 text-slate-600 border-[#E8EEF6]';
-    }
-};
+defineProps({ prescriptions: Object });
 
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
+const statusColor = (s) => ({
+    baru: 'bg-slate-50 text-slate-700 border-[#E8EEF6]',
+    diproses: 'bg-blue-50 text-blue-700 border-blue-200',
+    siap_ambil: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    selesai: 'bg-teal-50 text-teal-700 border-teal-200',
+    batal: 'bg-rose-50 text-rose-700 border-rose-200',
+}[s] || 'bg-slate-50 text-slate-600 border-[#E8EEF6]');
+
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
 </script>
 
 <template>

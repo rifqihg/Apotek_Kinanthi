@@ -2,26 +2,19 @@
 
 namespace App\Providers;
 
+use App\Models\Control\RawMaterialStock;
+use App\Models\Control\WarehouseInventory;
+use App\Observers\RawMaterialStockObserver;
+use App\Observers\WarehouseInventoryObserver;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
-
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
-        \App\Models\Control\WarehouseInventory::observe(\App\Observers\WarehouseInventoryObserver::class);
-        \App\Models\Control\RawMaterialStock::observe(\App\Observers\RawMaterialStockObserver::class);
+        WarehouseInventory::observe(WarehouseInventoryObserver::class);
+        RawMaterialStock::observe(RawMaterialStockObserver::class);
     }
 }

@@ -51,11 +51,6 @@ class RawMaterialStock extends Model
         return $this->belongsTo(RawMaterial::class);
     }
 
-    public function isExpired(): bool
-    {
-        return $this->expired_date && $this->expired_date->isPast();
-    }
-
     public function scopeActive($query)
     {
         return $query->where('status', 'active')->where('is_frozen', false);

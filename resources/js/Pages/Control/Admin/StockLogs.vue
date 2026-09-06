@@ -23,27 +23,18 @@ const displayType = (l) => {
     return l.type;
 };
 
-const getLogTypeClass = (type) => {
-    if (type === 'Masuk') return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-    if (type === 'Retur') return 'bg-amber-50 text-amber-600 border-amber-100';
-    if (type === 'Terjual') return 'bg-blue-50 text-blue-600 border-blue-100';
-    return 'bg-slate-50 text-slate-600 border-slate-200';
-};
+const getLogTypeClass = (type) => ({
+    Masuk: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    Retur: 'bg-amber-50 text-amber-600 border-amber-100',
+    Terjual: 'bg-blue-50 text-blue-600 border-blue-100',
+}[type] || 'bg-slate-50 text-slate-600 border-slate-200');
 
 // Format Referensi
+const refTitles = { ReturnForm: 'Retur Pembelian', Sale: 'Penjualan (Kasir)', StockOpname: 'Stock Opname', IncomingStock: 'Faktur Masuk' };
 const formatReference = (l) => {
     if (l.reference_type) {
         const type = l.reference_type.split('\\').pop();
-        let title = type;
-        if (type === 'ReturnForm') title = 'Retur Pembelian';
-        else if (type === 'Sale') title = 'Penjualan (Kasir)';
-        else if (type === 'StockOpname') title = 'Stock Opname';
-        else if (type === 'IncomingStock') title = 'Faktur Masuk';
-        
-        return {
-            title: title,
-            id: 'ID: ' + l.reference_id
-        };
+        return { title: refTitles[type] || type, id: 'ID: ' + l.reference_id };
     }
 
     if (l.type === 'Masuk' && l.inventory?.incoming_stock) {

@@ -1,28 +1,21 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
 const props = defineProps({ products: Object });
 const expandedId = ref(null);
-function toggle(id) { expandedId.value = expandedId.value === id ? null : id; }
+const toggle = (id) => { expandedId.value = expandedId.value === id ? null : id; };
 
-function budClass(bud) {
-    const d = new Date(bud), now = new Date();
-    const diff = (d - now) / (1000*60*60*24);
-    if (diff < 0) return 'bg-gray-100 text-gray-500 border-gray-200';
-    if (diff < 30) return 'bg-red-50 text-red-600 border-red-200';
-    if (diff < 90) return 'bg-amber-50 text-amber-600 border-amber-200';
-    return 'bg-teal-50 text-teal-600 border-teal-200';
-}
-function budLabel(bud) {
-    const d = new Date(bud), now = new Date();
-    const diff = (d - now) / (1000*60*60*24);
-    if (diff < 0) return 'Expired';
-    if (diff < 30) return '< 1 Bulan';
-    if (diff < 90) return '< 3 Bulan';
-    return 'Aman';
-}
+const getDiff = (bud) => (new Date(bud) - new Date()) / 86400000;
+const budClass = (bud) => {
+    const d = getDiff(bud);
+    return d < 0 ? 'bg-gray-100 text-gray-500 border-gray-200' : d < 30 ? 'bg-red-50 text-red-600 border-red-200' : d < 90 ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-teal-50 text-teal-600 border-teal-200';
+};
+const budLabel = (bud) => {
+    const d = getDiff(bud);
+    return d < 0 ? 'Expired' : d < 30 ? '< 1 Bulan' : d < 90 ? '< 3 Bulan' : 'Aman';
+};
 </script>
 
 <template>

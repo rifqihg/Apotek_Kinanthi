@@ -14,13 +14,8 @@ class RoleControl
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user()) {
-            return redirect()->route('login');
-        }
-
-        if (!in_array($request->user()->role, $roles)) {
-            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
-        }
+        if (!$request->user()) return redirect()->route('login');
+        abort_if(!in_array($request->user()->role, $roles), 403, 'Anda tidak memiliki akses ke halaman ini.');
 
         return $next($request);
     }
