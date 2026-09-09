@@ -1,18 +1,39 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+
+defineOptions({ layout: ControlLayout });
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import axios from 'axios';
 
 const props = defineProps({ stocks: Object, suppliers: Array, medicines: Array, settings: Object, filters: Object });
 const showModal = ref(false);
+const page = usePage();
 const searchInvoiceQuery = ref(props.filters?.search || '');
+const activeSearch = ref(props.filters?.search || '');
+
+const { data: queryStocks, isFetching } = useQuery({
+    queryKey: computed(() => ['admin-incoming-stocks', activeSearch.value]),
+    queryFn: async () => {
+        const res = await axios.get(route('control.admin.incoming-stocks'), {
+            params: { search: activeSearch.value },
+            headers: {
+                'X-Inertia': 'true',
+                'X-Inertia-Version': page.version,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        return res.data.props.stocks;
+    },
+    initialData: () => props.stocks,
+    placeholderData: (prev) => prev,
+});
+
+const activeStocks = computed(() => queryStocks.value || props.stocks);
 
 const handleSearch = () => {
-    router.get(
-        route('control.admin.incoming-stocks'),
-        { search: searchInvoiceQuery.value },
-        { preserveState: true, preserveScroll: true }
-    );
+    activeSearch.value = searchInvoiceQuery.value;
 };
 
 const hideDropdown = (item) => {
@@ -42,7 +63,7 @@ const toggleAccordion = (faktur_no) => {
 };
 
 const groupedInvoices = computed(() => {
-    let rawStocks = props.stocks?.data || [];
+    let rawStocks = activeStocks.value?.data || [];
     
     // Group by faktur_no
     const groups = {};
@@ -190,119 +211,127 @@ function submit() {
 
 <template>
 <Head title="Faktur Masuk" />
-<ControlLayout>
+<div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-[24px] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-5 rounded-lg border border-border">
         <div>
-            <h2 class="text-xl font-black text-slate-900 uppercase tracking-tighter">Faktur Masuk</h2>
-            <p class="text-slate-500 text-xs font-bold uppercase tracking-tight mt-1">Sistem Pencatatan Pembelian Obat (Multi-Item)</p>
+            <h2 class="text-lg font-semibold tracking-tight text-foreground">Faktur Masuk</h2>
+            <p class="text-sm text-muted-foreground mt-0.5">Sistem pencatatan pembelian obat (multi-item).</p>
         </div>
         <div class="flex items-center gap-3 w-full sm:w-auto">
-            <button @click="showModal=true; form.reset(); form.items=[getEmptyItem()]; form.clearErrors()" class="whitespace-nowrap inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-[42px] px-6 rounded-[16px] text-[11px] font-bold uppercase tracking-widest shadow-[0_8px_24px_rgba(15,23,42,0.04)] active:scale-95 transition-all w-full sm:w-auto">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            <button @click="showModal=true; form.reset(); form.items=[getEmptyItem()]; form.clearErrors()" class="h-9 px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Input Faktur Baru
             </button>
         </div>
     </div>
 
     <!-- SEARCH & FILTER BAR -->
-    <div class="mt-6 bg-white p-4 rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] border border-[#E8EEF6] flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div class="flex items-center gap-3 w-full">
-            <div class="flex-1 relative group">
-                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+    <div class="mt-4 bg-card p-3 rounded-lg border border-border flex flex-col md:flex-row gap-3 justify-between items-center">
+        <div class="flex items-center gap-2 w-full">
+            <div class="flex-1 relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 <input 
                     type="text" 
                     v-model="searchInvoiceQuery"
                     @keyup.enter="handleSearch"
-                    placeholder="Cari No Faktur atau Nama Supplier..." 
-                    class="w-full h-[48px] pl-11 pr-4 bg-slate-50 border-[#E8EEF6] focus:bg-white focus:border-blue-500 focus:ring focus:ring-blue-200/50 rounded-[16px] text-sm font-medium transition-all outline-none shadow-[0_8px_24px_rgba(15,23,42,0.04)]"
+                    placeholder="Cari no faktur atau nama supplier..." 
+                    class="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-md text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
                 />
             </div>
             <button 
                 @click="handleSearch"
-                class="h-[48px] px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-[16px] transition-colors flex items-center justify-center shadow-[0_8px_24px_rgba(37,99,235,0.2)]"
+                :disabled="isFetching"
+                class="h-9 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2 shrink-0 shadow-sm"
             >
-                Cari
+                <svg v-if="isFetching" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Cari</span>
             </button>
         </div>
     </div>
 
     <!-- Accordion List -->
-    <div class="mt-6 space-y-4">
-        <div v-if="groupedInvoices.length === 0" class="text-center py-12 bg-white rounded-[24px] border border-dashed border-slate-300">
-            <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-            <p class="text-slate-500 font-medium">Belum ada faktur yang tercatat.</p>
+    <div class="mt-4 space-y-3">
+        <div v-if="groupedInvoices.length === 0" class="text-center py-12 bg-card rounded-lg border border-border text-sm text-muted-foreground">
+            <p>Belum ada faktur yang tercatat.</p>
         </div>
 
-        <div v-for="group in groupedInvoices" :key="group.faktur_no" class="bg-white rounded-[24px] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden transition-all duration-300">
+        <div v-for="group in groupedInvoices" :key="group.faktur_no" class="bg-card rounded-lg border border-border overflow-hidden transition-colors">
             <!-- Accordion Header -->
-            <button @click="toggleAccordion(group.faktur_no)" class="w-full flex flex-col md:flex-row md:items-center justify-between p-5 md:px-6 hover:bg-slate-50 transition-colors gap-4 text-left">
-                <div class="flex items-center gap-4 md:gap-6">
-                    <div class="w-12 h-12 rounded-[16px] bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <button @click="toggleAccordion(group.faktur_no)" class="w-full flex flex-col md:flex-row md:items-center justify-between p-4 md:px-5 hover:bg-muted/50 transition-colors gap-3 text-left">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
                     <div>
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-slate-900 font-black tracking-tight text-lg">{{ group.faktur_no }}</span>
-                            <span class="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px] font-bold uppercase">{{ group.items.length }} Item</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold text-base text-foreground tracking-tight">{{ group.faktur_no }}</span>
+                            <span class="px-2 py-0.5 bg-muted text-muted-foreground rounded-md text-xs font-medium">{{ group.items.length }} Item</span>
                         </div>
-                        <div class="text-sm font-semibold text-slate-500">{{ group.supplier?.nama_pbf }} &bull; {{ new Date(group.tanggal_faktur).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) }}</div>
+                        <div class="text-sm text-muted-foreground mt-0.5">{{ group.supplier?.nama_pbf }} &bull; {{ new Date(group.tanggal_faktur).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) }}</div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between md:justify-end gap-6 md:w-auto w-full border-t md:border-t-0 pt-4 md:pt-0 border-slate-100">
+                <div class="flex items-center justify-between md:justify-end gap-5 md:w-auto w-full border-t md:border-t-0 pt-3 md:pt-0 border-border">
                     <div class="text-left md:text-right">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Tagihan (Inc PPN {{ group.ppn_persen }}%)</p>
-                        <p class="text-emerald-600 font-black text-xl">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</p>
+                        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Total Tagihan (Inc PPN {{ group.ppn_persen }}%)</p>
+                        <p class="text-base font-bold text-emerald-600 dark:text-emerald-400">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</p>
                     </div>
-                    <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 transition-transform duration-300" :class="{'rotate-180': openAccordions[group.faktur_no]}">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    <div class="w-7 h-7 rounded-md bg-muted/60 flex items-center justify-center text-muted-foreground shrink-0 transition-transform duration-200" :class="{'rotate-180': openAccordions[group.faktur_no]}">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                     </div>
                 </div>
             </button>
 
             <!-- Accordion Body (Table) -->
-            <div v-show="openAccordions[group.faktur_no]" class="border-t border-[#E8EEF6] bg-slate-50/50">
+            <div v-show="openAccordions[group.faktur_no]" class="border-t border-border bg-muted/20">
                 <div class="w-full overflow-x-auto custom-scrollbar">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-slate-100/50 border-b border-slate-200">
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Barang</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Batch</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Exp Date</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Jumlah Barang (Qty)</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Harga Beli</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Disc (%)</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Jumlah Harga</th>
+                            <tr class="bg-muted/40 border-b border-border">
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Barang</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Exp Date</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Barang (Qty)</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Beli</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Disc (%)</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Jumlah Harga</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr v-for="item in group.items" :key="item.id" class="hover:bg-white transition-colors">
-                                <td class="px-6 py-4">
-                                    <p class="text-sm font-bold text-slate-900">{{ item.medicine?.nama_obat }}</p>
-                                    <p class="text-[11px] text-slate-500">{{ item.satuan_input }}</p>
+                        <tbody class="divide-y divide-border">
+                            <tr v-for="item in group.items" :key="item.id" class="hover:bg-muted/30 transition-colors">
+                                <td class="px-4 py-3">
+                                    <p class="text-sm font-semibold text-foreground">{{ item.medicine?.nama_obat }}</p>
+                                    <p class="text-xs text-muted-foreground mt-0.5">{{ item.satuan_input }}</p>
                                 </td>
-                                <td class="px-6 py-4 text-sm font-mono text-slate-600">{{ item.batch_no }}</td>
-                                <td class="px-6 py-4 text-sm font-semibold text-slate-600">
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center text-xs px-2 py-0.5 rounded border border-border bg-muted/40 text-muted-foreground tracking-wide">
+                                        {{ item.batch_no }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-muted-foreground">
                                     {{ new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) }}
                                 </td>
-                                <td class="px-6 py-4 text-center font-bold text-slate-900">{{ item.qty_masuk }}</td>
-                                <td class="px-6 py-4 text-right font-mono font-semibold text-slate-600">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</td>
-                                <td class="px-6 py-4 text-center font-bold text-rose-500">{{ Number(item.diskon_persen) }}%</td>
-                                <td class="px-6 py-4 text-right font-mono font-black text-emerald-600">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</td>
+                                <td class="px-4 py-3 text-center font-bold text-sm text-foreground">{{ item.qty_masuk }}</td>
+                                <td class="px-4 py-3 text-right text-sm text-muted-foreground">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</td>
+                                <td class="px-4 py-3 text-center text-sm text-muted-foreground">{{ Number(item.diskon_persen) }}%</td>
+                                <td class="px-4 py-3 text-right font-bold text-sm text-emerald-600 dark:text-emerald-400">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</td>
                             </tr>
                         </tbody>
-                        <tfoot class="bg-white border-t border-slate-200">
+                        <tfoot class="bg-card border-t border-border">
                             <tr>
-                                <td colspan="6" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">Sub Nota</td>
-                                <td class="px-6 py-3 text-right font-mono font-bold text-slate-900">Rp {{ group.subtotal.toLocaleString('id-ID') }}</td>
+                                <td colspan="6" class="px-4 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub Nota</td>
+                                <td class="px-4 py-2 text-right font-semibold text-sm text-foreground">Rp {{ group.subtotal.toLocaleString('id-ID') }}</td>
                             </tr>
                             <tr>
-                                <td colspan="6" class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">PPN ({{ group.ppn_persen }}%)</td>
-                                <td class="px-6 py-3 text-right font-mono font-bold text-rose-500">+ Rp {{ (group.subtotal * (group.ppn_persen/100)).toLocaleString('id-ID') }}</td>
+                                <td colspan="6" class="px-4 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">PPN ({{ group.ppn_persen }}%)</td>
+                                <td class="px-4 py-2 text-right font-semibold text-sm text-rose-600 dark:text-rose-400">+ Rp {{ (group.subtotal * (group.ppn_persen/100)).toLocaleString('id-ID') }}</td>
                             </tr>
-                            <tr class="bg-slate-50">
-                                <td colspan="6" class="px-6 py-4 text-right text-sm font-black text-slate-900 uppercase">Total</td>
-                                <td class="px-6 py-4 text-right font-mono font-black text-emerald-600 text-lg">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</td>
+                            <tr class="bg-muted/30">
+                                <td colspan="6" class="px-4 py-3 text-right text-sm font-bold text-foreground uppercase tracking-wider">Total</td>
+                                <td class="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 text-base">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -312,75 +341,75 @@ function submit() {
     </div>
 
     <!-- Modal Input Faktur Baru -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-900/40 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-[32px] shadow-2xl w-full max-w-3xl max-h-full flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100" @click.stop>
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-card rounded-lg border border-border shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" @click.stop>
             <!-- Modal Header -->
-            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-[16px] flex items-center justify-center">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <div class="px-6 py-4 border-b border-border flex items-center justify-between bg-card shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-muted text-foreground rounded-md flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
                     <div>
-                        <h3 class="text-xl font-black text-slate-900 tracking-tight">Input Faktur Pembelian</h3>
-                        <p class="text-sm font-semibold text-slate-500 mt-0.5">Tambahkan satu atau banyak obat dalam satu faktur.</p>
+                        <h3 class="text-base font-semibold text-foreground tracking-tight">Input Faktur Pembelian</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">Tambahkan satu atau banyak obat dalam satu faktur.</p>
                     </div>
                 </div>
-                <button @click="showModal=false" class="w-10 h-10 rounded-[14px] bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 flex items-center justify-center transition-all">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                <button @click="showModal=false" class="w-8 h-8 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
 
-            <form @submit.prevent="submit" class="flex-1 overflow-y-auto bg-slate-50 custom-scrollbar p-6 space-y-6">
+            <form @submit.prevent="submit" class="flex-1 overflow-y-auto bg-card custom-scrollbar p-6 space-y-5">
                 <!-- Bagian 1: Data Faktur -->
-                <div class="bg-white p-6 rounded-[24px] border border-[#E8EEF6] shadow-sm">
-                    <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">1</span>
+                <div class="bg-card p-4 rounded-lg border border-border space-y-4">
+                    <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-md bg-muted text-foreground flex items-center justify-center text-xs font-bold">1</span>
                         Informasi Faktur Utama
                     </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label class="block text-slate-700 text-sm font-semibold mb-2">No. Faktur <span class="text-red-500">*</span></label>
-                            <input v-model="form.faktur_no" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-[16px] px-4 py-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono font-bold" required />
-                            <p v-if="form.errors.faktur_no" class="mt-1 text-xs text-red-500">{{ form.errors.faktur_no }}</p>
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">No. Faktur <span class="text-destructive">*</span></label>
+                            <input v-model="form.faktur_no" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                            <p v-if="form.errors.faktur_no" class="mt-1 text-xs text-destructive">{{ form.errors.faktur_no }}</p>
                         </div>
                         <div>
-                            <label class="block text-slate-700 text-sm font-semibold mb-2">Supplier <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Supplier <span class="text-destructive">*</span></label>
                             <div class="relative">
                                 <div 
                                     @click.stop="toggleDropdown('supplier', 0)"
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-[16px] px-4 py-3 text-sm font-bold text-slate-900 transition-all cursor-pointer flex justify-between items-center"
-                                    :class="{'border-blue-500 ring-2 ring-blue-500/20': activeDropdown === 'supplier_0'}"
+                                    class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-medium text-foreground transition-colors cursor-pointer flex justify-between items-center"
+                                    :class="{'ring-1 ring-ring border-input': activeDropdown === 'supplier_0'}"
                                 >
-                                    <span class="truncate" :class="{'text-slate-400': !form.supplier_id}">
+                                    <span class="truncate" :class="{'text-muted-foreground': !form.supplier_id}">
                                         {{ suppliers?.find(s => s.id === form.supplier_id)?.nama_pbf || 'Pilih Supplier...' }}
                                     </span>
-                                    <svg class="w-4 h-4 text-slate-400 transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'supplier_0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'supplier_0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                                 
-                                <div v-if="activeDropdown === 'supplier_0'" class="absolute z-30 w-full mt-2 bg-white border border-slate-200 rounded-[16px] shadow-xl overflow-hidden animate-in fade-in">
-                                    <div class="max-h-56 overflow-y-auto custom-scrollbar p-2 grid grid-cols-1 gap-1">
+                                <div v-if="activeDropdown === 'supplier_0'" class="absolute z-30 w-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
+                                    <div class="max-h-56 overflow-y-auto custom-scrollbar p-1 grid grid-cols-1 gap-0.5">
                                         <div 
                                             v-for="sup in suppliers" 
                                             :key="sup.id" 
                                             @click.stop="form.supplier_id = sup.id; activeDropdown = null"
-                                            class="px-4 py-2.5 text-sm hover:bg-blue-50 rounded-[12px] cursor-pointer font-bold transition-colors"
-                                            :class="{'bg-blue-50 text-blue-700': form.supplier_id === sup.id, 'text-slate-700': form.supplier_id !== sup.id}"
+                                            class="px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer transition-colors"
+                                            :class="{'bg-accent text-accent-foreground font-semibold': form.supplier_id === sup.id}"
                                         >
                                             {{ sup.nama_pbf }}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <p v-if="form.errors.supplier_id" class="mt-1 text-xs text-red-500">{{ form.errors.supplier_id }}</p>
+                            <p v-if="form.errors.supplier_id" class="mt-1 text-xs text-destructive">{{ form.errors.supplier_id }}</p>
                         </div>
                         <div>
-                            <label class="block text-slate-700 text-sm font-semibold mb-2">Tanggal Faktur <span class="text-red-500">*</span></label>
-                            <input v-model="form.tanggal_faktur" type="date" class="w-full bg-slate-50 border border-slate-200 rounded-[16px] px-4 py-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" required />
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tanggal Faktur <span class="text-destructive">*</span></label>
+                            <input v-model="form.tanggal_faktur" type="date" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                         </div>
                         <div class="md:col-span-3">
-                            <label class="block text-slate-700 text-sm font-semibold mb-2">Upload Foto Faktur (Opsional)</label>
-                            <input type="file" @change="e => form.foto_faktur = e.target.files[0]" class="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-[12px] file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer bg-slate-50 border border-slate-200 rounded-[16px] p-1.5 transition-all" accept="image/*,.pdf" />
-                            <p v-if="form.errors.foto_faktur" class="mt-1 text-xs text-red-500">{{ form.errors.foto_faktur }}</p>
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Upload Foto Faktur (Opsional)</label>
+                            <input type="file" @change="e => form.foto_faktur = e.target.files[0]" class="block w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 cursor-pointer bg-background border border-input rounded-md p-1 transition-colors" accept="image/*,.pdf" />
+                            <p v-if="form.errors.foto_faktur" class="mt-1 text-xs text-destructive">{{ form.errors.foto_faktur }}</p>
                         </div>
                     </div>
                 </div>
@@ -388,122 +417,122 @@ function submit() {
                 <!-- Bagian 2: Daftar Obat (Multi-Item) -->
                 <div>
                     <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">2</span>
-                            Daftar Obat (Items) <span class="text-red-500">*</span>
+                        <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-5 h-5 rounded-md bg-muted text-foreground flex items-center justify-center text-xs font-bold">2</span>
+                            Daftar Obat (Items) <span class="text-destructive">*</span>
                         </h4>
-                        <button type="button" @click="addItem" class="text-xs font-bold bg-emerald-50 text-emerald-600 px-4 py-2 rounded-[12px] hover:bg-emerald-100 transition-colors uppercase tracking-widest flex items-center gap-2">
+                        <button type="button" @click="addItem" class="text-xs font-medium bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 border border-border">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                             Tambah Baris Obat
                         </button>
                     </div>
 
-                    <div class="space-y-4">
-                        <div v-for="(item, index) in form.items" :key="index" class="p-6 bg-white border border-[#E8EEF6] rounded-[24px] shadow-[0_4px_12px_rgba(15,23,42,0.03)] relative group transition-all duration-300">
+                    <div class="space-y-3">
+                        <div v-for="(item, index) in form.items" :key="index" class="p-4 bg-background border border-border rounded-lg relative space-y-4">
                             <!-- Hapus Baris -->
-                            <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 transition-colors" title="Hapus Baris">
+                            <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="absolute top-4 right-4 w-7 h-7 rounded-md bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors" title="Hapus Baris">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
 
                             <!-- Checkbox Obat Baru -->
-                            <div class="mb-4 flex items-center justify-between pr-10">
-                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer uppercase tracking-wide">
-                                    <input type="checkbox" v-model="item.is_new_medicine" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 w-4 h-4">
+                            <div class="flex items-center justify-between pr-10">
+                                <label class="flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer uppercase tracking-wider">
+                                    <input type="checkbox" v-model="item.is_new_medicine" class="rounded border-input text-primary focus:ring-ring w-4 h-4">
                                     Input Obat Baru (Belum ada di katalog)
                                 </label>
                             </div>
 
-                            <div class="grid grid-cols-12 gap-5">
+                            <div class="grid grid-cols-12 gap-3">
                                 <!-- PILIH OBAT (col-span-12 or 4) -->
                                 <div class="col-span-12 md:col-span-4 relative">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">{{ item.is_new_medicine ? 'Nama Obat Baru' : 'Pilih Obat' }} <span class="text-rose-500">*</span></label>
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{{ item.is_new_medicine ? 'Nama Obat Baru' : 'Pilih Obat' }} <span class="text-destructive">*</span></label>
                                     
                                     <div v-if="!item.is_new_medicine" class="relative">
-                                        <input type="text" v-model="item.search_query" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm font-semibold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Ketik nama obat..." required />
-                                        <div v-if="item.active_dropdown" class="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-[12px] shadow-xl max-h-48 overflow-y-auto">
-                                            <div v-for="m in filteredMedicines(item.search_query)" :key="m.id" @click.prevent="selectMedicine(index, m)" class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm flex justify-between items-center group">
-                                                <span class="font-medium text-slate-700 group-hover:text-blue-700">{{ m.nama_obat }}</span>
-                                                <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ m.satuan_stok }}</span>
+                                        <input type="text" v-model="item.search_query" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Ketik nama obat..." required />
+                                        <div v-if="item.active_dropdown" class="absolute z-20 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto p-1">
+                                            <div v-for="m in filteredMedicines(item.search_query)" :key="m.id" @click.prevent="selectMedicine(index, m)" class="px-3 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer text-sm flex justify-between items-center">
+                                                <span class="font-medium text-foreground">{{ m.nama_obat }}</span>
+                                                <span class="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{{ m.satuan_stok }}</span>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <input v-else v-model="item.new_medicine_name" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm font-semibold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" placeholder="Masukkan nama obat baru..." required />
+                                    <input v-else v-model="item.new_medicine_name" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Masukkan nama obat baru..." required />
                                 </div>
                                 
                                 <!-- QTY (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Qty <span class="text-rose-500">*</span></label>
-                                    <input v-model="item.qty_masuk" type="number" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm font-bold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" required />
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Qty <span class="text-destructive">*</span></label>
+                                    <input v-model="item.qty_masuk" type="number" min="1" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
 
                                 <!-- HARGA BELI (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Harga Beli <span class="text-rose-500">*</span></label>
-                                    <input v-model="item.harga_beli_satuan" type="number" step="0.01" min="0" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm font-mono font-semibold focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" required />
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Harga Beli <span class="text-destructive">*</span></label>
+                                    <input v-model="item.harga_beli_satuan" type="number" step="0.01" min="0" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
 
                                 <!-- DISC (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Disc (%) <span class="text-rose-500">*</span></label>
-                                    <input v-model="item.diskon_persen" type="number" step="0.01" min="0" max="100" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm font-bold text-rose-500 focus:bg-white focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none transition-all" required />
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Disc (%) <span class="text-destructive">*</span></label>
+                                    <input v-model="item.diskon_persen" type="number" step="0.01" min="0" max="100" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
 
                                 <!-- JUMLAH NETTO (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Total</label>
-                                    <input :value="calculateItemSubtotal(item).toLocaleString('id-ID')" type="text" class="w-full bg-slate-100/50 border-transparent rounded-[12px] px-4 py-2.5 text-sm text-right font-mono font-bold text-emerald-600" disabled />
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Total</label>
+                                    <input :value="calculateItemSubtotal(item).toLocaleString('id-ID')" type="text" class="w-full h-9 bg-muted/40 border border-border rounded-md px-3 py-1 text-sm text-right font-semibold text-foreground" disabled />
                                 </div>
                             </div>
 
                             <!-- BATCH & EXP DATE & KATEGORI (for new med) -->
-                            <div class="grid grid-cols-12 gap-5 mt-5">
+                            <div class="grid grid-cols-12 gap-3">
                                 <div class="col-span-6 md:col-span-3">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Batch No <span class="text-rose-500">*</span></label>
-                                    <input v-model="item.batch_no" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm font-mono focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all" required />
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Batch No <span class="text-destructive">*</span></label>
+                                    <input v-model="item.batch_no" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
                                 <div class="col-span-6 md:col-span-3">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Exp Date <span class="text-rose-500">*</span></label>
-                                    <input v-model="item.expired_date" type="date" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all" required />
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Exp Date <span class="text-destructive">*</span></label>
+                                    <input v-model="item.expired_date" type="date" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
                                 <div v-if="item.is_new_medicine" class="col-span-12 md:col-span-6">
-                                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Kategori Obat</label>
-                                    <input v-model="item.new_medicine_kategori" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-4 py-2.5 text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="Contoh: Analgesik, Antibiotik..."/>
+                                    <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Kategori Obat</label>
+                                    <input v-model="item.new_medicine_kategori" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Contoh: Analgesik, Antibiotik..."/>
                                 </div>
                             </div>
 
                             <!-- UNIT CONVERSION SECTION -->
-                            <div class="mt-6 p-3 md:p-4 bg-slate-50 border border-slate-100 rounded-[20px]">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h5 class="text-[11px] font-black text-slate-700 uppercase tracking-widest">Konversi Multi-Satuan (Opsional)</h5>
-                                    <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-200 hover:border-blue-300 transition-colors">
-                                        <input type="checkbox" v-model="item.small_unit_skipped" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 w-3.5 h-3.5">
+                            <div class="mt-4 p-3 bg-muted/20 border border-border rounded-lg space-y-3">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h5 class="text-xs font-semibold text-foreground uppercase tracking-wider">Konversi Multi-Satuan (Opsional)</h5>
+                                    <label class="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer bg-card px-2.5 py-1 rounded-md border border-border hover:bg-muted transition-colors">
+                                        <input type="checkbox" v-model="item.small_unit_skipped" class="rounded border-input text-primary focus:ring-ring w-3.5 h-3.5">
                                         Abaikan Satuan Menengah
                                     </label>
                                 </div>
                                 
                                 <div class="flex flex-col md:flex-row gap-3">
                                     <!-- LEVEL 1 -->
-                                    <div class="p-3 bg-white border border-slate-200 rounded-[16px] space-y-2 flex-none w-full transition-all" 
+                                    <div class="p-3 bg-card border border-border rounded-md space-y-2 flex-none w-full transition-all" 
                                          :class="item.small_unit_skipped ? 'md:flex-1' : 'md:w-[140px]'">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tersier (Terbesar)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tersier (Terbesar)</label>
                                         </div>
                                         <div class="relative">
                                             <div 
                                                 @click.stop="toggleDropdown('unit1', index)"
-                                                class="w-full bg-slate-50 border border-slate-200 rounded-[12px] px-3 py-2 text-sm font-bold flex justify-between items-center cursor-pointer transition-all hover:bg-white"
-                                                :class="{'border-blue-500 ring-2 ring-blue-500/20': activeDropdown === 'unit1_' + index}"
+                                                class="w-full h-9 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
+                                                :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit1_' + index}"
                                             >
-                                                <span class="truncate text-slate-700">{{ item.satuan_input || 'Pilih Satuan' }}</span>
-                                                <svg class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': activeDropdown === 'unit1_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                <span class="truncate text-foreground">{{ item.satuan_input || 'Pilih Satuan' }}</span>
+                                                <svg class="w-4 h-4 text-muted-foreground transition-transform" :class="{'rotate-180': activeDropdown === 'unit1_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                             </div>
-                                            <div v-if="activeDropdown === 'unit1_' + index" class="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-[12px] shadow-xl overflow-hidden animate-in fade-in">
+                                            <div v-if="activeDropdown === 'unit1_' + index" class="absolute z-30 w-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
                                                 <div class="max-h-32 overflow-y-auto custom-scrollbar p-1 grid grid-cols-1 gap-0.5">
                                                     <div 
                                                         v-for="u in ['Box', 'Karton', 'Dus', 'Kaleng', 'Botol', 'Tube', 'Pcs']" 
                                                         :key="u" @click.stop="item.satuan_input = u; activeDropdown = null"
-                                                        class="px-3 py-1.5 text-xs hover:bg-blue-50 rounded-[8px] cursor-pointer font-bold text-slate-600"
+                                                        class="px-2.5 py-1 text-xs hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer font-medium text-foreground"
                                                     >{{ u }}</div>
                                                 </div>
                                             </div>
@@ -511,36 +540,36 @@ function submit() {
                                     </div>
 
                                     <!-- LEVEL 2 (Menengah) -->
-                                    <div v-if="!item.small_unit_skipped" class="p-3 bg-white border border-slate-200 rounded-[16px] space-y-2 flex-none w-full md:w-auto">
+                                    <div v-if="!item.small_unit_skipped" class="p-3 bg-card border border-border rounded-md space-y-2 flex-none w-full md:w-auto">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-[9px] font-black text-slate-500 uppercase tracking-wider">Sekunder (Menengah)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sekunder (Menengah)</label>
                                         </div>
                                         <div class="flex gap-1.5 relative">
-                                            <div class="flex items-center gap-1 shrink-0 bg-slate-100 border border-slate-200 rounded-[10px] px-1.5 py-1">
-                                                <span class="text-[10px] font-bold text-slate-500 truncate max-w-[60px]">1 {{ item.satuan_input || 'Box' }} =</span>
-                                                <input v-model="item.mid_to_big_ratio" type="number" min="1" class="w-14 bg-white border border-slate-300 rounded-[8px] px-1.5 py-1 text-sm font-black text-center text-blue-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" required />
+                                            <div class="flex items-center gap-1 shrink-0 bg-muted border border-border rounded-md px-2 py-0.5">
+                                                <span class="text-xs font-semibold text-muted-foreground truncate max-w-[60px]">1 {{ item.satuan_input || 'Box' }} =</span>
+                                                <input v-model="item.mid_to_big_ratio" type="number" min="1" class="w-14 h-8 bg-background border border-input rounded-md px-1 text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                             </div>
                                             
                                             <div class="flex-1 min-w-0">
                                                 <div 
                                                     @click.stop="toggleDropdown('unit2', index)"
-                                                    class="w-full h-full bg-slate-50 border border-slate-200 rounded-[12px] px-2.5 py-2 text-sm font-bold flex justify-between items-center cursor-pointer transition-all hover:bg-white"
-                                                    :class="{'border-blue-500 ring-2 ring-blue-500/20': activeDropdown === 'unit2_' + index}"
+                                                    class="w-full h-8 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
+                                                    :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit2_' + index}"
                                                 >
-                                                    <span class="truncate text-slate-700">{{ item.mid_unit || 'Pilih' }}</span>
-                                                    <svg class="w-4 h-4 text-slate-400 transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'unit2_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    <span class="truncate text-foreground">{{ item.mid_unit || 'Pilih' }}</span>
+                                                    <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'unit2_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                 </div>
                                             </div>
                                             
-                                            <div v-if="activeDropdown === 'unit2_' + index" class="absolute z-30 w-full left-0 top-full mt-1 bg-white border border-slate-200 rounded-[12px] shadow-xl overflow-hidden animate-in fade-in">
+                                            <div v-if="activeDropdown === 'unit2_' + index" class="absolute z-30 w-full left-0 top-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
                                                 <div class="max-h-56 overflow-y-auto custom-scrollbar">
-                                                    <div v-for="category in midUnitCategories" :key="category.name" class="border-b border-slate-100 last:border-0">
-                                                        <div class="px-3 py-2 bg-slate-50 sticky top-0 z-10 text-[10px] font-black text-slate-500 uppercase tracking-wider">{{ category.name }}</div>
+                                                    <div v-for="category in midUnitCategories" :key="category.name" class="border-b border-border last:border-0">
+                                                        <div class="px-3 py-1.5 bg-muted sticky top-0 z-10 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{{ category.name }}</div>
                                                         <div class="p-1 grid grid-cols-1 gap-0.5">
                                                             <div 
                                                                 v-for="u in category.units" 
                                                                 :key="u" @click.stop="item.mid_unit = u; activeDropdown = null"
-                                                                class="px-3 py-1.5 text-xs hover:bg-blue-50 rounded-[8px] cursor-pointer font-bold text-slate-600 pl-4"
+                                                                class="px-2.5 py-1 text-xs hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer font-medium text-foreground pl-4"
                                                             >{{ u }}</div>
                                                         </div>
                                                     </div>
@@ -550,38 +579,38 @@ function submit() {
                                     </div>
 
                                     <!-- LEVEL 3 (Terkecil) -->
-                                    <div class="p-3 bg-white border border-slate-200 rounded-[16px] space-y-2 flex-1 min-w-0">
+                                    <div class="p-3 bg-card border border-border rounded-md space-y-2 flex-1 min-w-0">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-[9px] font-black text-slate-500 uppercase tracking-wider">{{ item.small_unit_skipped ? 'Sekunder' : 'Primer' }} (Terkecil)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{{ item.small_unit_skipped ? 'Sekunder' : 'Primer' }} (Terkecil)</label>
                                         </div>
                                         <div class="flex gap-1.5 relative">
-                                            <div class="flex items-center gap-1 shrink-0 bg-slate-100 border border-slate-200 rounded-[10px] px-1.5 py-1">
-                                                <span class="text-[10px] font-bold text-slate-500 truncate max-w-[60px]">1 {{ !item.small_unit_skipped ? (item.mid_unit || 'Strip') : (item.satuan_input || 'Box') }} =</span>
+                                            <div class="flex items-center gap-1 shrink-0 bg-muted border border-border rounded-md px-2 py-0.5">
+                                                <span class="text-xs font-semibold text-muted-foreground truncate max-w-[60px]">1 {{ !item.small_unit_skipped ? (item.mid_unit || 'Strip') : (item.satuan_input || 'Box') }} =</span>
                                                 
-                                                <input v-if="!item.small_unit_skipped" v-model="item.small_to_mid_ratio" type="number" min="1" class="w-14 bg-white border border-slate-300 rounded-[8px] px-1.5 py-1 text-sm font-black text-center text-blue-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" required />
-                                                <input v-else v-model="item.unit_conversion_factor" type="number" min="1" class="w-14 bg-white border border-slate-300 rounded-[8px] px-1.5 py-1 text-sm font-black text-center text-blue-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" required />
+                                                <input v-if="!item.small_unit_skipped" v-model="item.small_to_mid_ratio" type="number" min="1" class="w-14 h-8 bg-background border border-input rounded-md px-1 text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                                <input v-else v-model="item.unit_conversion_factor" type="number" min="1" class="w-14 h-8 bg-background border border-input rounded-md px-1 text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                             </div>
                                             
                                             <div class="flex-1 min-w-0">
                                                 <div 
                                                     @click.stop="toggleDropdown('unit3', index)"
-                                                    class="w-full h-full bg-slate-50 border border-slate-200 rounded-[12px] px-2.5 py-2 text-sm font-bold flex justify-between items-center cursor-pointer transition-all hover:bg-white"
-                                                    :class="{'border-blue-500 ring-2 ring-blue-500/20': activeDropdown === 'unit3_' + index}"
+                                                    class="w-full h-8 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
+                                                    :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit3_' + index}"
                                                 >
-                                                    <span class="truncate text-slate-700">{{ item.new_medicine_satuan_kecil || 'Pilih' }}</span>
-                                                    <svg class="w-4 h-4 text-slate-400 transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'unit3_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                    <span class="truncate text-foreground">{{ item.new_medicine_satuan_kecil || 'Pilih' }}</span>
+                                                    <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'unit3_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                 </div>
                                             </div>
                                             
-                                            <div v-if="activeDropdown === 'unit3_' + index" class="absolute z-30 w-full left-0 top-full mt-1 bg-white border border-slate-200 rounded-[12px] shadow-xl overflow-hidden animate-in fade-in">
+                                            <div v-if="activeDropdown === 'unit3_' + index" class="absolute z-30 w-full left-0 top-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
                                                 <div class="max-h-56 overflow-y-auto custom-scrollbar">
-                                                    <div v-for="category in unitCategories" :key="category.name" class="border-b border-slate-100 last:border-0">
-                                                        <div class="px-3 py-2 bg-slate-50 sticky top-0 z-10 text-[10px] font-black text-slate-500 uppercase tracking-wider">{{ category.name }}</div>
+                                                    <div v-for="category in unitCategories" :key="category.name" class="border-b border-border last:border-0">
+                                                        <div class="px-3 py-1.5 bg-muted sticky top-0 z-10 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{{ category.name }}</div>
                                                         <div class="p-1 grid grid-cols-1 gap-0.5">
                                                             <div 
                                                                 v-for="u in category.units" 
                                                                 :key="u" @click.stop="item.new_medicine_satuan_kecil = u; activeDropdown = null"
-                                                                class="px-3 py-1.5 text-xs hover:bg-blue-50 rounded-[8px] cursor-pointer font-bold text-slate-600 pl-4"
+                                                                class="px-2.5 py-1 text-xs hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer font-medium text-foreground pl-4"
                                                             >{{ u }}</div>
                                                         </div>
                                                     </div>
@@ -596,33 +625,33 @@ function submit() {
             </div>
 
     <!-- Bagian 3: Ringkasan Total -->
-                <div class="bg-slate-900 rounded-[24px] p-6 shadow-xl flex flex-col md:flex-row justify-between items-center gap-6 mt-8">
-                    <div class="text-slate-300 w-full md:w-auto">
-                        <div class="flex justify-between md:justify-start md:gap-12 mb-2">
+                <div class="bg-muted/40 rounded-lg border border-border p-4 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
+                    <div class="text-muted-foreground w-full md:w-auto">
+                        <div class="flex justify-between md:justify-start md:gap-8 mb-1.5">
                             <span class="text-sm">Subtotal:</span>
-                            <span class="font-mono font-bold text-white">Rp {{ formSubtotal.toLocaleString('id-ID') }}</span>
+                            <span class="font-semibold text-foreground">Rp {{ formSubtotal.toLocaleString('id-ID') }}</span>
                         </div>
-                        <div class="flex justify-between md:justify-start md:gap-12">
+                        <div class="flex justify-between md:justify-start md:gap-8">
                             <span class="text-sm flex items-center gap-2">PPN (Otomatis {{ ppnLocker }}% dari Sistem):</span>
-                            <span class="font-mono font-bold text-rose-400">+ Rp {{ (formSubtotal * (ppnLocker/100)).toLocaleString('id-ID') }}</span>
+                            <span class="font-semibold text-rose-600 dark:text-rose-400">+ Rp {{ (formSubtotal * (ppnLocker/100)).toLocaleString('id-ID') }}</span>
                         </div>
                     </div>
-                    <div class="text-right w-full md:w-auto border-t border-slate-700 pt-4 md:border-0 md:pt-0">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Tagihan (Grand Total)</p>
-                        <p class="text-3xl font-black text-emerald-400 font-mono">Rp {{ formGrandTotal.toLocaleString('id-ID') }}</p>
+                    <div class="text-right w-full md:w-auto border-t border-border pt-3 md:border-0 md:pt-0">
+                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Total Tagihan (Grand Total)</p>
+                        <p class="text-2xl font-bold tracking-tight text-foreground">Rp {{ formGrandTotal.toLocaleString('id-ID') }}</p>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 pt-4">
-                    <button type="button" @click="showModal=false" class="px-6 py-3 rounded-[16px] text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors">Batal</button>
-                    <button type="submit" :disabled="form.processing" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-[16px] text-sm font-bold shadow-lg shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
-                        <svg v-if="form.processing" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" @click="showModal=false" class="h-9 px-4 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">Batal</button>
+                    <button type="submit" :disabled="form.processing" class="h-9 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">
+                        <svg v-if="form.processing" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                         Simpan & Aktifkan Semua Stok
                     </button>
                 </div>
             </form>
         </div>
     </div>
-</ControlLayout>
+</div>
 </template>

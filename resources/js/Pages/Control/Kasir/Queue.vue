@@ -1,7 +1,11 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { ref, watch } from 'vue';
+
+defineOptions({ layout: ControlLayout });
+import { ref, computed } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import axios from 'axios';
 
 const formatDate = (d) => d ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d)) : '';
 const formatTime = (d) => d ? new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' }).format(new Date(d)) : '';
@@ -12,15 +16,37 @@ const props = defineProps({
     filters: Object,
 });
 
+const page = usePage();
+
 const form = ref({
     date: props.filters?.date || new Date().toISOString().split('T')[0],
 });
 
-const filterData = () => {
-    router.get(route('control.kasir.queue'), form.value, { preserveState: true });
-};
+const { data: queryQueue, isFetching } = useQuery({
+    queryKey: computed(() => ['kasir-queue', form.value.date]),
+    queryFn: async () => {
+        const res = await axios.get(route('control.kasir.queue'), {
+            params: form.value,
+            headers: {
+                'X-Inertia': 'true',
+                'X-Inertia-Version': page.version,
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+        return {
+            prescriptions: res.data.props.prescriptions,
+            sales: res.data.props.sales,
+        };
+    },
+    initialData: () => ({
+        prescriptions: props.prescriptions,
+        sales: props.sales,
+    }),
+    placeholderData: (prev) => prev,
+});
 
-watch(() => form.value.date, filterData);
+const activePrescriptions = computed(() => queryQueue.value?.prescriptions || props.prescriptions || []);
+const activeSales = computed(() => queryQueue.value?.sales || props.sales || []);
 
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
@@ -30,133 +56,129 @@ const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - n
 <template>
     <Head title="Antrian Kasir" />
 
-    <ControlLayout>
-        <template #header-title>Kasir - Antrian Pembayaran</template>
-
-        <div class="space-y-6">
-            <!-- Antrian Pembayaran -->
-            <section class="bg-white rounded-[24px] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden">
-                <div class="p-6 border-b border-[#E8EEF6] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Antrian Resep Siap Bayar</h2>
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Daftar resep yang sudah selesai diracik dan menunggu pembayaran.</p>
-                    </div>
-                    <div class="bg-blue-50 border border-blue-100 text-blue-700 font-bold h-[52px] px-6 rounded-[16px] text-xs uppercase tracking-widest flex items-center justify-center shrink-0">
-                        {{ prescriptions.length }} Menunggu
-                    </div>
+    <div class="space-y-6">
+        <!-- Antrian Pembayaran -->
+        <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight text-foreground">Antrian Resep Siap Bayar</h2>
+                    <p class="text-xs text-muted-foreground mt-0.5">Daftar resep yang sudah selesai diracik dan menunggu pembayaran.</p>
                 </div>
-
-                <div v-if="prescriptions.length === 0" class="p-12 text-center">
-                    <div class="w-16 h-16 mx-auto bg-slate-50 text-slate-300 rounded-[16px] flex items-center justify-center mb-4 border border-[#E8EEF6]">
-                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                    </div>
-                    <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest">Tidak ada antrian</h3>
-                    <p class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1.5">Belum ada resep yang berstatus Siap Diambil saat ini.</p>
+                <div class="bg-primary/10 border border-primary/20 text-primary font-medium h-9 px-3.5 rounded-md text-xs flex items-center justify-center shrink-0">
+                    {{ activePrescriptions.length }} Menunggu
                 </div>
+            </div>
 
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="bg-slate-50/50 border-b border-[#E8EEF6]">
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">No Resep</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pasien</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Dokter & Tgl</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Jml Item</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Usia Resep</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[#E8EEF6]">
-                            <tr v-for="rx in prescriptions" :key="rx.id" class="hover:bg-slate-50/50 transition-colors">
-                                <td class="px-6 py-4">
-                                    <span class="font-bold text-slate-900 text-sm">{{ rx.prescription_number }}</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="font-bold text-slate-700">{{ rx.patient?.name || 'Tidak Diketahui' }}</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <p class="font-bold text-slate-700 text-sm">{{ rx.doctor_name }}</p>
-                                    <p class="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-0.5">{{ formatDate(rx.prescription_date) }}</p>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="inline-flex items-center justify-center bg-slate-50 border border-[#E8EEF6] text-slate-600 font-bold w-8 h-8 rounded-[12px] text-xs">
-                                        {{ rx.prescription_items?.length || 0 }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex flex-col items-center">
-                                        <span class="font-bold text-slate-900 text-sm">{{ getUsiaResep(rx.prescription_date) }} Hari</span>
-                                        <span v-if="getUsiaResep(rx.prescription_date) > 30" class="mt-1 uppercase font-black text-[9px] bg-rose-50 border border-rose-100 text-rose-600 px-2.5 py-0.5 rounded-md tracking-widest">Kadaluarsa</span>
-                                        <span v-else-if="getUsiaResep(rx.prescription_date) > 25" class="mt-1 uppercase font-black text-[9px] bg-amber-50 border border-amber-100 text-amber-600 px-2.5 py-0.5 rounded-md tracking-widest">Segera</span>
-                                        <span v-else class="mt-1 uppercase font-black text-[9px] bg-emerald-50 border border-emerald-100 text-emerald-600 px-2.5 py-0.5 rounded-md tracking-widest">Aman</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <Link :href="route('control.kasir.checkout', rx.id)" class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold h-[44px] px-6 rounded-[14px] text-xs uppercase tracking-widest transition-all shadow-[0_8px_24px_rgba(15,23,42,0.04)] active:scale-95">
-                                        Proses Bayar
-                                    </Link>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            <div v-if="activePrescriptions.length === 0" class="p-12 text-center text-muted-foreground text-xs font-medium">
+                Belum ada resep yang berstatus Siap Diambil saat ini.
+            </div>
 
-            <!-- Riwayat Transaksi -->
-            <section class="bg-white rounded-[24px] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden">
-                <div class="p-6 border-b border-[#E8EEF6] flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Riwayat Transaksi</h2>
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Daftar transaksi yang sudah Anda selesaikan berdasarkan tanggal.</p>
-                    </div>
-                    <div class="shrink-0 flex items-center bg-slate-50 rounded-[14px] p-1 border border-[#E8EEF6]">
-                        <input type="date" v-model="form.date" class="border-none bg-transparent focus:ring-0 text-sm font-bold text-slate-700 h-[36px] px-4 cursor-pointer" />
-                    </div>
-                </div>
+            <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-muted/50 border-b border-border">
+                        <tr>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No Resep</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pasien</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dokter & Tgl</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jml Item</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Usia Resep</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="rx in activePrescriptions" :key="rx.id" class="hover:bg-muted/50 transition-colors">
+                            <td class="px-4 py-3">
+                                <span class="font-semibold text-foreground text-sm">{{ rx.prescription_number }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="font-medium text-foreground text-sm">{{ rx.patient?.name || 'Tidak Diketahui' }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <p class="font-medium text-foreground text-sm">{{ rx.doctor_name }}</p>
+                                <p class="text-xs text-muted-foreground mt-0.5">{{ formatDate(rx.prescription_date) }}</p>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center justify-center bg-muted border border-border text-foreground font-medium w-7 h-7 rounded-md text-xs">
+                                    {{ rx.prescription_items?.length || 0 }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="flex flex-col items-center">
+                                    <span class="font-semibold text-foreground text-sm">{{ getUsiaResep(rx.prescription_date) }} Hari</span>
+                                    <span v-if="getUsiaResep(rx.prescription_date) > 30" class="mt-1 font-semibold text-xs bg-rose-50 border border-rose-200 text-rose-700 px-2 py-0.5 rounded-md">Kadaluarsa</span>
+                                    <span v-else-if="getUsiaResep(rx.prescription_date) > 25" class="mt-1 font-semibold text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-md">Segera</span>
+                                    <span v-else class="mt-1 font-semibold text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-md">Aman</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <Link :href="route('control.kasir.checkout', rx.id)" class="inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-8 px-3.5 rounded-md text-xs transition-colors shadow-sm">
+                                    Proses Bayar
+                                </Link>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-                <div v-if="sales.length === 0" class="p-12 text-center">
-                    <p class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Belum ada transaksi pada tanggal tersebut.</p>
+        <!-- Riwayat Transaksi -->
+        <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-border flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight text-foreground">Riwayat Transaksi</h2>
+                    <p class="text-xs text-muted-foreground mt-0.5">Daftar transaksi yang sudah Anda selesaikan berdasarkan tanggal.</p>
                 </div>
+                <div class="shrink-0 flex items-center gap-2 bg-background rounded-md border border-input px-2 h-9">
+                    <svg v-if="isFetching" class="animate-spin h-4 w-4 text-primary ml-1" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <input type="date" v-model="form.date" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" />
+                </div>
+            </div>
 
-                <div v-else class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="bg-slate-50/50 border-b border-[#E8EEF6]">
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">No Invoice</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pasien</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Metode</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Waktu</th>
-                                <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[#E8EEF6]">
-                            <tr v-for="sale in sales" :key="sale.id" class="hover:bg-slate-50/50 transition-colors">
-                                <td class="px-6 py-4">
-                                    <span class="font-bold text-slate-900 text-sm">{{ sale.sale_number }}</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="font-bold text-slate-700">{{ sale.prescription?.patient?.name || 'OTC' }}</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="font-bold text-emerald-600">{{ formatRupiah(sale.total_amount) }}</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="uppercase font-bold text-[9px] bg-slate-50 border border-[#E8EEF6] text-slate-600 px-2.5 py-1 rounded-md tracking-wider">
-                                        {{ sale.payment_method }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="text-[11px] font-bold text-slate-500">{{ formatTime(sale.created_at) }}</span>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <Link :href="route('control.kasir.sales.receipt', sale.id)" class="text-blue-600 hover:text-blue-700 font-bold text-[11px] uppercase tracking-widest transition-colors">Lihat Struk</Link>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-    </ControlLayout>
+            <div v-if="activeSales.length === 0" class="p-12 text-center text-muted-foreground text-xs font-medium">
+                Belum ada transaksi pada tanggal tersebut.
+            </div>
+
+            <div v-else class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-muted/50 border-b border-border">
+                        <tr>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No Invoice</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pasien</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Metode</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="sale in activeSales" :key="sale.id" class="hover:bg-muted/50 transition-colors">
+                            <td class="px-4 py-3">
+                                <span class="font-semibold text-foreground text-sm">{{ sale.sale_number }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="font-medium text-foreground text-sm">{{ sale.prescription?.patient?.name || 'OTC' }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">{{ formatRupiah(sale.total_amount) }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="uppercase font-medium text-xs bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded-md">
+                                    {{ sale.payment_method }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-xs text-muted-foreground">{{ formatTime(sale.created_at) }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <Link :href="route('control.kasir.sales.receipt', sale.id)" class="text-primary hover:underline font-medium text-xs">Lihat Struk</Link>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
 </template>

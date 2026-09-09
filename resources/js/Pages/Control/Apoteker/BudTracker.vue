@@ -34,53 +34,53 @@ const formatDaysLeft = (expiryDate) => {
     <Head title="ED Tracker" />
     <div class="space-y-6">
         <div>
-            <h2 class="text-xl font-black text-slate-800 uppercase tracking-tighter">Monitoring Beyond Use Date</h2>
-            <p class="text-slate-500 text-xs font-bold uppercase tracking-tight mt-1">Pelacakan masa pakai aman untuk obat racikan aktif</p>
+            <h1 class="text-xl font-bold tracking-tight text-foreground">Monitoring Beyond Use Date</h1>
+            <p class="text-xs text-muted-foreground mt-0.5">Pelacakan masa pakai aman untuk obat racikan aktif</p>
         </div>
 
         <div class="grid grid-cols-1 gap-4">
-            <div v-if="!submissions?.data?.length" class="bg-white p-12 text-center rounded-[1.5rem] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)] text-slate-400 font-bold uppercase text-[11px] tracking-widest">
+            <div v-if="!submissions?.data?.length" class="bg-card p-12 text-center rounded-lg border border-border shadow-sm text-muted-foreground font-medium text-xs">
                 Tidak ada racikan aktif yang terpantau dalam grid BUD.
             </div>
             
-            <div v-for="s in (submissions?.data || [])" :key="s.id" class="bg-white border border-[#E8EEF6] rounded-[1.5rem] shadow-[0_8px_24px_rgba(15,23,42,0.04)] p-6 hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-all group">
+            <div v-for="s in (submissions?.data || [])" :key="s.id" class="bg-card border border-border rounded-lg shadow-sm p-5 transition-colors">
                 <div class="flex flex-col md:flex-row justify-between gap-6">
                     <div class="flex-1">
                         <div class="flex items-center gap-3 mb-4">
-                            <h3 class="text-base font-black text-slate-900 uppercase tracking-tighter">{{ s.nama_racikan || 'Tanpa Nama' }}</h3>
-                            <span v-if="s.label" :class="[getBudStatus(s.label.tanggal_kadaluarsa_bud).bg, getBudStatus(s.label.tanggal_kadaluarsa_bud).text, getBudStatus(s.label.tanggal_kadaluarsa_bud).border]" class="px-2.5 py-1 rounded-[16px] text-[9px] font-black uppercase border tracking-widest">
+                            <h3 class="text-base font-semibold text-foreground">{{ s.nama_racikan || 'Tanpa Nama' }}</h3>
+                            <span v-if="s.label" :class="[getBudStatus(s.label.tanggal_kadaluarsa_bud).bg, getBudStatus(s.label.tanggal_kadaluarsa_bud).text, getBudStatus(s.label.tanggal_kadaluarsa_bud).border]" class="px-2.5 py-0.5 rounded-md text-xs font-semibold border">
                                 {{ getBudStatus(s.label.tanggal_kadaluarsa_bud).label }}
                             </span>
                         </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div>
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Apoteker</p>
-                                <p class="text-xs font-bold text-slate-800 uppercase leading-none">{{ s.user?.name || '-' }}</p>
+                                <p class="text-xs font-medium text-muted-foreground mb-1">Apoteker</p>
+                                <p class="text-sm font-medium text-foreground">{{ s.user?.name || '-' }}</p>
                             </div>
                             <div>
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Tanggal Racik</p>
-                                <p class="text-xs font-bold text-slate-800 leading-none">{{ s.label?.tanggal_racik ? new Date(s.label.tanggal_racik).toLocaleDateString('id-ID') : '-' }}</p>
+                                <p class="text-xs font-medium text-muted-foreground mb-1">Tanggal Racik</p>
+                                <p class="text-sm font-medium text-foreground">{{ s.label?.tanggal_racik ? new Date(s.label.tanggal_racik).toLocaleDateString('id-ID') : '-' }}</p>
                             </div>
                             <div>
-                                <p class="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1">Batas BUD</p>
-                                <p class="text-xs font-black text-rose-600 leading-none">{{ s.label?.tanggal_kadaluarsa_bud ? new Date(s.label.tanggal_kadaluarsa_bud).toLocaleDateString('id-ID') : '-' }}</p>
+                                <p class="text-xs font-medium text-rose-500 mb-1">Batas BUD</p>
+                                <p class="text-sm font-semibold text-rose-600">{{ s.label?.tanggal_kadaluarsa_bud ? new Date(s.label.tanggal_kadaluarsa_bud).toLocaleDateString('id-ID') : '-' }}</p>
                             </div>
                             <div>
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Aturan Pakai</p>
-                                <p class="text-xs font-bold text-slate-700 italic leading-tight">"{{ s.label?.aturan_pakai || '-' }}"</p>
+                                <p class="text-xs font-medium text-muted-foreground mb-1">Aturan Pakai</p>
+                                <p class="text-sm text-muted-foreground italic">"{{ s.label?.aturan_pakai || '-' }}"</p>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="s.label" class="w-full md:w-64 space-y-3">
+                    <div v-if="s.label" class="w-full md:w-64 space-y-2">
                         <div class="flex justify-between items-end">
-                            <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Status Masa Pakai</span>
-                            <span :class="getBudStatus(s.label.tanggal_kadaluarsa_bud).text" class="text-[10px] font-black uppercase tracking-widest">{{ formatDaysLeft(s.label.tanggal_kadaluarsa_bud) }}</span>
+                            <span class="text-xs font-medium text-muted-foreground">Status Masa Pakai</span>
+                            <span :class="getBudStatus(s.label.tanggal_kadaluarsa_bud).text" class="text-xs font-semibold">{{ formatDaysLeft(s.label.tanggal_kadaluarsa_bud) }}</span>
                         </div>
-                        <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-[#E8EEF6] shadow-inner">
-                            <div :class="getBudStatus(s.label.tanggal_kadaluarsa_bud).color" class="h-full transition-all duration-1000 shadow-[0_0_8px_rgba(0,0,0,0.1)]" :style="{ width: `${Math.min(100, Math.max(5, getBudStatus(s.label.tanggal_kadaluarsa_bud).progress))}%` }"></div>
+                        <div class="h-2 w-full bg-muted rounded-full overflow-hidden border border-border">
+                            <div :class="getBudStatus(s.label.tanggal_kadaluarsa_bud).color" class="h-full transition-all duration-1000" :style="{ width: `${Math.min(100, Math.max(5, getBudStatus(s.label.tanggal_kadaluarsa_bud).progress))}%` }"></div>
                         </div>
-                        <p class="text-[8px] text-slate-400 text-right font-black uppercase tracking-tighter">Estimasi: {{ s.label.bud_hari || 0 }} Hari Operasional</p>
+                        <p class="text-xs text-muted-foreground text-right font-medium">Estimasi: {{ s.label.bud_hari || 0 }} Hari Operasional</p>
                     </div>
                 </div>
             </div>
@@ -91,8 +91,8 @@ const formatDaysLeft = (expiryDate) => {
                 <button 
                     v-if="l.url" 
                     @click="router.get(l.url)" 
-                    :class="l.active ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-white border-[#E8EEF6] text-slate-500 hover:border-emerald-500 hover:text-emerald-500'" 
-                    class="w-9 h-9 flex items-center justify-center rounded-[16px] text-xs font-black transition-all border uppercase" 
+                    :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-muted-foreground hover:bg-muted hover:text-foreground'" 
+                    class="h-9 w-9 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                     v-html="l.label"
                 ></button>
             </template>

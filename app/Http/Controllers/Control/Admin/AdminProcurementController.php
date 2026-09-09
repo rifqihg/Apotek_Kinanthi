@@ -101,11 +101,13 @@ class AdminProcurementController extends Controller
 
         $stocks = $query->latest()->paginate(15)->withQueryString();
 
-        $suppliers = Supplier::active()->get();
-        $medicines = Medicine::with(['incomingStocks' => fn($q) => $q->where('status_gate', 'active')->latest()])
+        $suppliers = Supplier::active()->select(['id', 'nama_pbf'])->orderBy('nama_pbf')->get();
+        $medicines = Medicine::with('latestActiveIncomingStock')
+            ->select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi'])
+            ->orderBy('nama_obat')
             ->get()
             ->map(function ($m) {
-                $lastApproved = $m->incomingStocks->first();
+                $lastApproved = $m->latestActiveIncomingStock;
                 $m->current_price = $lastApproved ? $lastApproved->harga_jual_akhir : 0;
                 return $m;
             });

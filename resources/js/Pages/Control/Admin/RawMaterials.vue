@@ -3,6 +3,8 @@ import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
+defineOptions({ layout: ControlLayout });
+
 const props = defineProps({ materials: Object });
 const search = ref('');
 const showModal = ref(false);
@@ -79,97 +81,98 @@ const deleteMaterial = (m) => {
 
 <template>
 <Head title="Data Bahan Baku" />
-<ControlLayout title="Master Data Bahan Baku">
-<div class="space-y-8">
+<div class="space-y-6">
     <!-- Header -->
-    <div class="relative p-10 bg-white rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] border border-[#E8EEF6] overflow-hidden group">
-        <div class="absolute top-0 right-0 w-80 h-80 bg-emerald-50 rounded-full -mr-40 -mt-40 transition-transform group-hover:scale-110 duration-1000"></div>
-        <div class="absolute bottom-0 left-0 w-40 h-40 bg-teal-50 rounded-full -ml-20 -mb-20 opacity-50"></div>
-        <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div class="space-y-2">
-                <span class="px-4 py-1.5 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-full">Master Data</span>
-                <h1 class="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">Data Bahan Baku</h1>
-                <p class="text-slate-500 font-medium">Katalog bahan baku untuk peracikan. Dikelola oleh Admin.</p>
+    <div class="p-6 bg-card rounded-lg border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Master Data</span>
+                <span class="px-2.5 py-0.5 bg-muted/50 text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Bahan Baku Racikan</span>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="bg-white/50 backdrop-blur-md border border-white p-6 rounded-[2.5rem] shadow-[0_8px_24px_rgba(15,23,42,0.04)] flex items-center gap-4">
-                    <div class="text-right">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Bahan</p>
-                        <p class="text-3xl font-black text-emerald-600 leading-none mt-1">{{ materials.total }}</p>
-                    </div>
-                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-[24px] flex items-center justify-center text-2xl shadow-xl shadow-emerald-500/20 text-white">🌿</div>
+            <h1 class="text-xl font-bold text-foreground tracking-tight">Data Bahan Baku</h1>
+            <p class="text-muted-foreground text-sm max-w-xl">Katalog bahan baku untuk peracikan obat. Dikelola oleh Admin.</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-4">
+            <div class="bg-background border border-border px-4 py-2.5 rounded-md shadow-sm flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Item Bahan</p>
+                    <p class="text-xl font-semibold tracking-tight text-foreground">{{ materials.total }}</p>
                 </div>
-                <button @click="openAdd" class="flex items-center gap-2 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white font-bold px-6 py-4 rounded-[20px] shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all hover:-translate-y-0.5">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                    Tambah Bahan Baku
-                </button>
+                <div class="w-8 h-8 bg-muted rounded-md flex items-center justify-center text-sm border border-border">🌿</div>
             </div>
+            <button @click="openAdd" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 h-9 px-4 rounded-md text-sm font-medium shadow-sm transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Tambah Bahan Baku
+            </button>
         </div>
     </div>
 
     <!-- Search -->
-    <div class="bg-white rounded-[2.5rem] shadow-[0_8px_24px_rgba(15,23,42,0.04)] border border-[#E8EEF6] p-6">
-        <div class="relative">
-            <svg class="w-5 h-5 absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input v-model="search" type="text" placeholder="Cari nama atau kode bahan baku..." class="w-full pl-14 pr-6 py-4 bg-slate-50 border-[#E8EEF6] rounded-[24px] text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all" />
+    <div class="bg-card rounded-lg shadow-sm border border-border p-3 flex flex-col md:flex-row gap-4">
+        <div class="flex-1 relative">
+            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input v-model="search" type="text" placeholder="Cari nama atau kode bahan baku..." class="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
         </div>
     </div>
 
     <!-- Table -->
-    <div class="w-full overflow-x-auto rounded-[24px] border border-[#E8EEF6] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+    <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         <table class="w-full text-sm text-left border-collapse">
-            <thead class="bg-slate-50 border-b border-[#E8EEF6]">
+            <thead class="bg-muted/50 border-b border-border">
                 <tr>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nama Bahan</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Kode</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Satuan</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Harga Beli</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Stok Total</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Threshold</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Status Stok</th>
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Aksi</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Bahan</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Kode</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Satuan</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Harga Beli</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Stok Total</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Threshold</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status Stok</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-border">
                 <tr v-if="filtered.length === 0">
-                    <td colspan="8" class="px-6 py-12 text-center text-slate-400">Belum ada bahan baku terdaftar.</td>
+                    <td colspan="8" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada bahan baku terdaftar.</td>
                 </tr>
-                <tr v-for="m in filtered" :key="m.id" class="hover:bg-slate-50/70 transition-colors duration-150">
-                    <td class="px-6 py-4 whitespace-nowrap">
+                <tr v-for="m in filtered" :key="m.id" class="hover:bg-muted/40 transition-colors">
+                    <td class="px-5 py-3.5 whitespace-nowrap">
                         <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-[16px] bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold border border-emerald-100/50">
+                            <div class="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center text-xs font-bold uppercase border border-border">
                                 {{ m.nama_bahan?.substring(0, 2).toUpperCase() }}
                             </div>
                             <div>
-                                <p class="font-bold text-slate-900">{{ m.nama_bahan }}</p>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{{ m.bentuk_sediaan || '-' }}</p>
+                                <p class="font-semibold text-foreground text-sm">{{ m.nama_bahan }}</p>
+                                <p class="text-xs text-muted-foreground mt-0.5">{{ m.bentuk_sediaan || '-' }}</p>
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-center font-mono text-xs font-bold text-slate-600">{{ m.kode_bahan || '-' }}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="px-2.5 py-1 bg-slate-100/60 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-full border border-[#E8EEF6]/50">{{ m.satuan_ukur }}</span>
+                    <td class="px-5 py-3.5 text-center text-xs font-medium text-muted-foreground tracking-wide">{{ m.kode_bahan || '-' }}</td>
+                    <td class="px-5 py-3.5 text-center">
+                        <span class="px-2.5 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border">
+                            {{ m.satuan_ukur }}
+                        </span>
                     </td>
-                    <td class="px-6 py-4 text-center font-bold text-slate-700 text-xs">
+                    <td class="px-5 py-3.5 text-center font-medium text-foreground text-xs">
                         Rp {{ Number(m.harga_beli_satuan || 0).toLocaleString('id-ID') }}
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <span :class="m.stok_total < m.threshold_min ? 'text-red-600' : 'text-slate-900'" class="font-mono font-black text-base">
+                    <td class="px-5 py-3.5 text-center">
+                        <span :class="m.stok_total < m.threshold_min ? 'text-destructive' : 'text-foreground'" class="font-semibold text-sm">
                             {{ Number(m.stok_total).toLocaleString('id-ID') }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-center text-xs font-bold text-slate-500 font-mono">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span :class="m.stok_total < m.threshold_min ? 'bg-red-50 text-red-700 border-red-200/50' : 'bg-emerald-50 text-emerald-700 border-emerald-200/50'" class="text-[10px] px-2.5 py-1 rounded-full font-bold border uppercase tracking-wider">
+                    <td class="px-5 py-3.5 text-center text-xs font-medium text-muted-foreground">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</td>
+                    <td class="px-5 py-3.5 text-center">
+                        <span :class="m.stok_total < m.threshold_min ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'" class="text-xs px-2.5 py-0.5 rounded-md font-semibold border uppercase tracking-wider inline-flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full" :class="m.stok_total < m.threshold_min ? 'bg-destructive' : 'bg-emerald-500'"></span>
                             {{ m.stok_total < m.threshold_min ? 'Kritis' : 'Aman' }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex items-center justify-center gap-2">
-                            <button @click="openEdit(m)" class="w-8 h-8 rounded-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors flex items-center justify-center">
+                    <td class="px-5 py-3.5 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button @click="openEdit(m)" class="w-8 h-8 rounded-md bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Edit">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                             </button>
-                            <button @click="deleteMaterial(m)" class="w-8 h-8 rounded-[10px] bg-red-50 text-red-500 hover:bg-red-100 transition-colors flex items-center justify-center">
+                            <button @click="deleteMaterial(m)" class="w-8 h-8 rounded-md bg-background border border-input hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center" title="Hapus">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </div>
@@ -182,72 +185,77 @@ const deleteMaterial = (m) => {
 
 <!-- Modal Add / Edit -->
 <Teleport to="body">
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-white rounded-[28px] shadow-2xl w-full max-w-lg overflow-hidden">
-            <div class="p-8 border-b border-[#E8EEF6]">
-                <h3 class="text-xl font-black text-slate-900">{{ editingMaterial ? 'Edit Bahan Baku' : 'Tambah Bahan Baku Baru' }}</h3>
-                <p class="text-sm text-slate-500 mt-1">{{ editingMaterial ? 'Perbarui data master bahan baku.' : 'Daftarkan bahan baku baru. Stok awal langsung aktif.' }}</p>
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" @click.self="closeModal">
+        <div class="bg-card rounded-lg shadow-lg w-full max-w-lg overflow-hidden border border-border">
+            <div class="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-semibold text-foreground tracking-tight leading-none mb-1">{{ editingMaterial ? 'Edit Bahan Baku' : 'Tambah Bahan Baku Baru' }}</h3>
+                    <p class="text-xs text-muted-foreground">{{ editingMaterial ? 'Perbarui data master bahan baku.' : 'Daftarkan bahan baku baru. Stok awal langsung aktif.' }}</p>
+                </div>
+                <button @click="closeModal" class="h-8 w-8 flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
-            <form @submit.prevent="submitForm" class="p-8 space-y-4 overflow-y-auto max-h-[70vh]">
+            <form @submit.prevent="submitForm" class="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Nama Bahan Baku *</label>
-                        <input v-model="form.nama_bahan" type="text" required class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="Contoh: Paracetamol">
-                        <p v-if="form.errors.nama_bahan" class="text-red-500 text-xs mt-1">{{ form.errors.nama_bahan }}</p>
+                    <div class="col-span-2 space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Nama Bahan Baku <span class="text-destructive">*</span></label>
+                        <input v-model="form.nama_bahan" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Contoh: Paracetamol">
+                        <p v-if="form.errors.nama_bahan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.nama_bahan }}</p>
                     </div>
-                    <div>
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Bentuk Sediaan *</label>
-                        <input v-model="form.bentuk_sediaan" type="text" required class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="Serbuk, Cairan, dll">
-                        <p v-if="form.errors.bentuk_sediaan" class="text-red-500 text-xs mt-1">{{ form.errors.bentuk_sediaan }}</p>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Bentuk Sediaan <span class="text-destructive">*</span></label>
+                        <input v-model="form.bentuk_sediaan" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Serbuk, Cairan, dll">
+                        <p v-if="form.errors.bentuk_sediaan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.bentuk_sediaan }}</p>
                     </div>
-                    <div>
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Kode Bahan</label>
-                        <input v-model="form.kode_bahan" type="text" class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="Opsional">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Kode Bahan</label>
+                        <input v-model="form.kode_bahan" type="text" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Opsional">
                     </div>
-                    <div>
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Satuan Ukur *</label>
-                        <input v-model="form.satuan_ukur" type="text" required class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="Gram, mL, dll">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Satuan Ukur <span class="text-destructive">*</span></label>
+                        <input v-model="form.satuan_ukur" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Gram, mL, dll">
                     </div>
-                    <div>
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Harga Beli / Satuan *</label>
-                        <input v-model="form.harga_beli_satuan" type="number" required min="0" class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="0">
-                        <p v-if="form.errors.harga_beli_satuan" class="text-red-500 text-xs mt-1">{{ form.errors.harga_beli_satuan }}</p>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Harga Beli / Satuan <span class="text-destructive">*</span></label>
+                        <input v-model="form.harga_beli_satuan" type="number" required min="0" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
+                        <p v-if="form.errors.harga_beli_satuan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.harga_beli_satuan }}</p>
                     </div>
-                    <div>
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Minimum Stok (Threshold) *</label>
-                        <input v-model="form.threshold_min" type="number" required min="0" class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="0">
+                    <div class="col-span-2 space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Minimum Stok (Threshold) <span class="text-destructive">*</span></label>
+                        <input v-model="form.threshold_min" type="number" required min="0" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
                     </div>
 
                     <!-- Only shown when creating a new item -->
                     <template v-if="!editingMaterial">
-                        <div class="col-span-2 pt-2 border-t border-[#E8EEF6]">
-                            <p class="text-xs font-black text-emerald-700 uppercase tracking-wider">Data Stok Awal</p>
+                        <div class="col-span-2 pt-3 border-t border-border">
+                            <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Data Stok Awal</p>
                         </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Qty Stok Awal *</label>
-                            <input v-model="form.expected_quantity" type="number" required min="0" class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="0">
-                            <p v-if="form.errors.expected_quantity" class="text-red-500 text-xs mt-1">{{ form.errors.expected_quantity }}</p>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Qty Stok Awal <span class="text-destructive">*</span></label>
+                            <input v-model="form.expected_quantity" type="number" required min="0" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
+                            <p v-if="form.errors.expected_quantity" class="text-destructive text-xs font-medium mt-1">{{ form.errors.expected_quantity }}</p>
                         </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-600 uppercase tracking-wider">No. Batch</label>
-                            <input v-model="form.batch_no" type="text" class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500" placeholder="Opsional (auto-generate)">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">No. Batch</label>
+                            <input v-model="form.batch_no" type="text" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Opsional (auto-generate)">
                         </div>
-                        <div class="col-span-2">
-                            <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Tanggal Kadaluarsa *</label>
-                            <input v-model="form.expired_date" type="date" required class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500">
-                            <p v-if="form.errors.expired_date" class="text-red-500 text-xs mt-1">{{ form.errors.expired_date }}</p>
+                        <div class="col-span-2 space-y-1.5">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Tanggal Kadaluarsa <span class="text-destructive">*</span></label>
+                            <input v-model="form.expired_date" type="date" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors">
+                            <p v-if="form.errors.expired_date" class="text-destructive text-xs font-medium mt-1">{{ form.errors.expired_date }}</p>
                         </div>
                     </template>
 
-                    <div class="col-span-2">
-                        <label class="text-xs font-black text-slate-600 uppercase tracking-wider">Deskripsi / Catatan</label>
-                        <textarea v-model="form.deskripsi" rows="3" class="mt-1 w-full border-[#E8EEF6] rounded-[16px] text-sm font-medium focus:ring-emerald-500 focus:border-emerald-500 resize-none" placeholder="Opsional"></textarea>
+                    <div class="col-span-2 space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Deskripsi / Catatan</label>
+                        <textarea v-model="form.deskripsi" rows="2" class="w-full p-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors resize-none" placeholder="Opsional"></textarea>
                     </div>
                 </div>
 
-                <div class="flex gap-3 pt-4">
-                    <button type="button" @click="closeModal" class="flex-1 py-3 rounded-[16px] border border-[#E8EEF6] text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors">Batal</button>
-                    <button type="submit" :disabled="form.processing" class="flex-1 py-3 rounded-[16px] bg-gradient-to-br from-emerald-500 to-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-50">
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-border">
+                    <button type="button" @click="closeModal" class="h-9 px-4 rounded-md border border-input bg-background text-foreground text-sm font-medium hover:bg-accent transition-colors">Batal</button>
+                    <button type="submit" :disabled="form.processing" class="h-9 px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm transition-colors disabled:opacity-50 shadow-sm">
                         {{ form.processing ? 'Menyimpan...' : (editingMaterial ? 'Simpan Perubahan' : 'Tambah Bahan Baku') }}
                     </button>
                 </div>
@@ -255,5 +263,4 @@ const deleteMaterial = (m) => {
         </div>
     </div>
 </Teleport>
-</ControlLayout>
 </template>

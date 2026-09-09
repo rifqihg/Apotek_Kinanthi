@@ -112,9 +112,7 @@ class AdminInventoryController extends Controller
         if ($selectedKasirId) {
             $query = Medicine::with([
                 'category',
-                'incomingStocks' => function($q) {
-                    $q->orderBy('created_at', 'desc');
-                },
+                'latestIncomingStock',
                 'warehouseInventories' => function($q) use ($selectedKasirId) {
                     $q->where('stock_on_hand', '>', 0)
                       ->where(function($sq) use ($selectedKasirId) {
@@ -155,7 +153,7 @@ class AdminInventoryController extends Controller
                 $medicine->satuan_terkecil = $satuanTerkecil;
                 
                 // Ambil data kemasan dari incoming_stock terakhir atau master obat
-                $latestIncoming = $medicine->incomingStocks->first();
+                $latestIncoming = $medicine->latestIncomingStock;
                 $kemasan = $satuanTerkecil;
                 if ($latestIncoming) {
                     if ($latestIncoming->satuan_input && $latestIncoming->mid_unit && $latestIncoming->small_to_mid_ratio > 0) {

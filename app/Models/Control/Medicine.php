@@ -6,6 +6,7 @@ use App\Models\SaleItem;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Medicine extends Model
 {
@@ -60,6 +61,27 @@ class Medicine extends Model
     public function incomingStocks(): HasMany
     {
         return $this->hasMany(IncomingStock::class);
+    }
+
+    public function latestIncomingStock(): HasOne
+    {
+        return $this->hasOne(IncomingStock::class)->latestOfMany();
+    }
+
+    public function latestActiveIncomingStock(): HasOne
+    {
+        return $this->hasOne(IncomingStock::class)->ofMany(
+            ['id' => 'max'],
+            fn ($q) => $q->where('status_gate', 'active')
+        );
+    }
+
+    public function earliestExpiringStock(): HasOne
+    {
+        return $this->hasOne(IncomingStock::class)->ofMany(
+            ['expired_date' => 'min', 'id' => 'min'],
+            fn ($q) => $q->whereNotNull('expired_date')
+        );
     }
 
     public function compoundingDetails(): HasMany

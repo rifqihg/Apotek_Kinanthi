@@ -1,8 +1,11 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import debounce from 'lodash/debounce';
+import { useQuery } from '@tanstack/vue-query';
+
+defineOptions({ layout: ControlLayout });
+import axios from 'axios';
 
 const props = defineProps({ 
     logs: Object,
@@ -10,11 +13,44 @@ const props = defineProps({
     filters: Object
 });
 
+const page = usePage();
 const search = ref(props.filters?.search || '');
 const startDate = ref(props.filters?.start_date || '');
 const endDate = ref(props.filters?.end_date || '');
 const filterType = ref(props.filters?.type || 'all');
 const filterDropdownOpen = ref(false);
+
+// TanStack Vue Query: Smooth reactive log & KPI data
+const { data: queryData, isFetching } = useQuery({
+    queryKey: computed(() => ['admin-stock-logs', search.value, startDate.value, endDate.value, filterType.value]),
+    queryFn: async () => {
+        if (!search.value && !startDate.value && !endDate.value && filterType.value === 'all') {
+            return { logs: props.logs, kpi: props.kpi };
+        }
+        const res = await axios.get(route('control.admin.stock-logs'), {
+            params: {
+                search: search.value || undefined,
+                start_date: startDate.value || undefined,
+                end_date: endDate.value || undefined,
+                type: filterType.value !== 'all' ? filterType.value : undefined,
+            },
+            headers: {
+                'X-Inertia': 'true',
+                'X-Inertia-Version': page.version,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        return {
+            logs: res.data?.props?.logs || props.logs,
+            kpi: res.data?.props?.kpi || props.kpi
+        };
+    },
+    initialData: () => ({ logs: props.logs, kpi: props.kpi }),
+    placeholderData: (previousData) => previousData,
+});
+
+const activeLogs = computed(() => queryData.value?.logs || props.logs);
+const activeKpi = computed(() => queryData.value?.kpi || props.kpi);
 
 const displayType = (l) => {
     if (l.type === 'Masuk' || l.type === 'Penyesuaian Masuk') return 'Masuk';
@@ -60,276 +96,256 @@ const getUnitsBreakdown = (qty, incomingStock) => {
         totalSmallInBig = incomingStock.mid_to_big_ratio * incomingStock.small_to_mid_ratio;
     }
 
-    // Level 1: Satuan Terbesar (e.g. Dus)
-    if (incomingStock?.satuan_input && totalSmallInBig > 1) {
+    if (incomingStock?.satuan_input && totalSmallInBig > 1 && rem >= totalSmallInBig) {
         l1 = Math.floor(rem / totalSmallInBig);
-        rem = rem % totalSmallInBig;
+        rem %= totalSmallInBig;
     }
-
-    // Level 2: Satuan Menengah (e.g. Strip jika ada)
-    if (incomingStock?.mid_unit && incomingStock?.small_to_mid_ratio > 1) {
+    if (incomingStock?.mid_unit && incomingStock?.small_to_mid_ratio > 1 && rem >= incomingStock?.small_to_mid_ratio) {
         l2 = Math.floor(rem / incomingStock.small_to_mid_ratio);
-        rem = rem % incomingStock.small_to_mid_ratio;
+        rem %= incomingStock.small_to_mid_ratio;
     }
-
-    // Level 3: Satuan Terkecil (e.g. Tablet / Strip)
-    l3 = Number(Number(rem).toFixed(2));
-
+    if (rem > 0) {
+        l3 = Number(rem.toFixed(2));
+    }
     return { l1, l2, l3 };
 };
 
 const getLevel1Qty = (qty, incomingStock) => getUnitsBreakdown(qty, incomingStock).l1;
 const getLevel2Qty = (qty, incomingStock) => getUnitsBreakdown(qty, incomingStock).l2;
 const getLevel3Qty = (qty, incomingStock) => getUnitsBreakdown(qty, incomingStock).l3;
-const applyFilters = () => {
-    router.get(route('control.admin.stock-logs'), {
-        search: search.value,
-        start_date: startDate.value,
-        end_date: endDate.value,
-        type: filterType.value !== 'all' ? filterType.value : undefined
-    }, { preserveState: true, preserveScroll: true });
-};
-
-const debouncedSearch = debounce(() => {
-    applyFilters();
-}, 500);
-
-watch(search, () => debouncedSearch());
-watch([startDate, endDate, filterType], () => applyFilters());
 
 const clearFilters = () => {
     search.value = '';
     startDate.value = '';
     endDate.value = '';
     filterType.value = 'all';
-    applyFilters();
 };
 </script>
 
 <template>
 <Head title="Log Pergerakan Stok" />
-<ControlLayout title="Log Pergerakan Stok">
-<div class="p-4 lg:p-6 space-y-6 max-w-[1400px] mx-auto">
+<div class="space-y-6">
     
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Log Pergerakan Stok</h1>
-            <p class="text-slate-500 text-sm mt-1">Lacak seluruh aktivitas stok secara transparan berdasarkan riwayat mutasi.</p>
+            <h1 class="text-2xl font-bold text-foreground tracking-tight">Log Pergerakan Stok</h1>
+            <p class="text-muted-foreground text-sm mt-1">Lacak seluruh aktivitas stok secara transparan berdasarkan riwayat mutasi.</p>
         </div>
     </div>
 
     <!-- KPI Cards -->
-    <div v-if="kpi" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white border border-[#E8EEF6] p-5 rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] flex items-center gap-4 relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 rounded-full opacity-50 pointer-events-none"></div>
-            <div class="w-12 h-12 bg-emerald-50 rounded-[16px] flex items-center justify-center text-xl text-emerald-600 shrink-0 border border-emerald-100 z-10">📥</div>
-            <div class="z-10">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Trx Stok Masuk</p>
-                <p class="text-2xl font-black text-slate-800 leading-none mt-1">{{ kpi.in || 0 }}</p>
+    <div v-if="activeKpi" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-card border border-border p-5 rounded-lg shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 bg-emerald-500/10 rounded-md flex items-center justify-center text-lg text-emerald-600 shrink-0 border border-emerald-500/20">📥</div>
+            <div>
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Trx Stok Masuk</p>
+                <p class="text-2xl font-bold text-foreground leading-none mt-1">{{ activeKpi.in || 0 }}</p>
             </div>
         </div>
-        <div class="bg-white border border-[#E8EEF6] p-5 rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] flex items-center gap-4 relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-amber-50 rounded-full opacity-50 pointer-events-none"></div>
-            <div class="w-12 h-12 bg-amber-50 rounded-[16px] flex items-center justify-center text-xl text-amber-600 shrink-0 border border-amber-100 z-10">📤</div>
-            <div class="z-10">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Trx Stok Keluar</p>
-                <p class="text-2xl font-black text-slate-800 leading-none mt-1">{{ kpi.out || 0 }}</p>
+        <div class="bg-card border border-border p-5 rounded-lg shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 bg-amber-500/10 rounded-md flex items-center justify-center text-lg text-amber-600 shrink-0 border border-amber-500/20">📤</div>
+            <div>
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Trx Stok Keluar</p>
+                <p class="text-2xl font-bold text-foreground leading-none mt-1">{{ activeKpi.out || 0 }}</p>
             </div>
         </div>
-        <div class="bg-white border border-[#E8EEF6] p-5 rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] flex items-center gap-4 relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-50 rounded-full opacity-50 pointer-events-none"></div>
-            <div class="w-12 h-12 bg-blue-50 rounded-[16px] flex items-center justify-center text-xl text-blue-600 shrink-0 border border-blue-100 z-10">📊</div>
-            <div class="z-10">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Mutasi</p>
-                <p class="text-2xl font-black text-slate-800 leading-none mt-1">{{ kpi.total || 0 }}</p>
+        <div class="bg-card border border-border p-5 rounded-lg shadow-sm flex items-center gap-4">
+            <div class="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center text-lg text-primary shrink-0 border border-primary/20">📊</div>
+            <div>
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Mutasi</p>
+                <p class="text-2xl font-bold text-foreground leading-none mt-1">{{ activeKpi.total || 0 }}</p>
             </div>
         </div>
     </div>
 
     <!-- Filters -->
-    <div class="bg-white border border-[#E8EEF6] p-4 rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] flex flex-wrap gap-4 items-center">
+    <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
         <div class="flex-1 min-w-[200px] relative">
             <input v-model="search" type="text" placeholder="Cari nama obat atau bahan baku..." 
-                   class="w-full h-[52px] bg-[#F5F9FF] border-none rounded-[16px] pl-12 pr-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400" />
-            <svg class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
+            <svg v-if="!isFetching" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
         </div>
         <div class="relative">
-            <button @click="filterDropdownOpen = !filterDropdownOpen" @blur="setTimeout(() => filterDropdownOpen = false, 200)" class="h-[52px] min-w-[140px] bg-[#F5F9FF] border-none rounded-[16px] px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500/20 cursor-pointer outline-none transition-all flex items-center justify-between gap-3 hover:bg-slate-50 shadow-sm">
-                <div class="flex items-center gap-2">
-                    <span v-if="filterType === 'all'" class="text-slate-700">Semua Log</span>
-                    <span v-else-if="filterType === 'Masuk'" class="text-emerald-600">Masuk</span>
-                    <span v-else-if="filterType === 'Retur'" class="text-amber-600">Retur</span>
-                    <span v-else-if="filterType === 'Jual'" class="text-blue-600">Terjual</span>
+            <button @click="filterDropdownOpen = !filterDropdownOpen" @blur="setTimeout(() => filterDropdownOpen = false, 200)" class="h-9 min-w-[130px] bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground hover:bg-accent cursor-pointer outline-none transition-colors flex items-center justify-between gap-2 shadow-sm">
+                <div class="flex items-center gap-1.5">
+                    <span v-if="filterType === 'all'" class="text-foreground">Semua Log</span>
+                    <span v-else-if="filterType === 'Masuk'" class="text-emerald-600 font-semibold">Masuk</span>
+                    <span v-else-if="filterType === 'Retur'" class="text-amber-600 font-semibold">Retur</span>
+                    <span v-else-if="filterType === 'Jual'" class="text-primary font-semibold">Terjual</span>
                 </div>
-                <svg class="w-4 h-4 text-slate-400 transition-transform duration-300" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                <svg class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
             </button>
-            <div v-show="filterDropdownOpen" class="absolute left-0 top-full mt-2 w-full min-w-[140px] bg-white border border-slate-200 rounded-[16px] shadow-xl overflow-hidden z-20 origin-top-left transition-all">
-                <div class="p-1.5 space-y-0.5">
-                    <button @click="filterType = 'all'" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="filterType === 'all' ? 'bg-slate-50 text-slate-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'">
+            <div v-show="filterDropdownOpen" class="absolute left-0 top-full mt-1.5 w-full min-w-[140px] bg-card border border-border rounded-md shadow-lg overflow-hidden z-20 origin-top-left transition-all">
+                <div class="p-1 space-y-0.5">
+                    <button @click="filterType = 'all'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'all' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">
                         Semua Log
-                        <div v-if="filterType === 'all'" class="w-2 h-2 rounded-full bg-slate-500"></div>
+                        <div v-if="filterType === 'all'" class="w-1.5 h-1.5 rounded-full bg-foreground"></div>
                     </button>
-                    <div class="h-px bg-slate-100 my-1"></div>
-                    <button @click="filterType = 'Masuk'" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="filterType === 'Masuk' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-50 hover:text-emerald-600'">
+                    <div class="h-px bg-border my-1"></div>
+                    <button @click="filterType = 'Masuk'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Masuk' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:bg-muted hover:text-emerald-600'">
                         Masuk
-                        <div v-if="filterType === 'Masuk'" class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                        <div v-if="filterType === 'Masuk'" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                     </button>
-                    <button @click="filterType = 'Retur'" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="filterType === 'Retur' ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:bg-slate-50 hover:text-amber-600'">
+                    <button @click="filterType = 'Retur'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Retur' ? 'bg-amber-500/10 text-amber-600' : 'text-muted-foreground hover:bg-muted hover:text-amber-600'">
                         Retur
-                        <div v-if="filterType === 'Retur'" class="w-2 h-2 rounded-full bg-amber-500"></div>
+                        <div v-if="filterType === 'Retur'" class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
                     </button>
-                    <button @click="filterType = 'Jual'" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="filterType === 'Jual' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'">
+                    <button @click="filterType = 'Jual'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Jual' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-primary'">
                         Terjual
-                        <div v-if="filterType === 'Jual'" class="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <div v-if="filterType === 'Jual'" class="w-1.5 h-1.5 rounded-full bg-primary"></div>
                     </button>
                 </div>
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <input v-model="startDate" type="date" class="h-[52px] bg-[#F5F9FF] border-none rounded-[16px] px-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20" />
-            <span class="text-slate-400">-</span>
-            <input v-model="endDate" type="date" class="h-[52px] bg-[#F5F9FF] border-none rounded-[16px] px-4 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20" />
+            <input v-model="startDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+            <span class="text-muted-foreground text-xs">-</span>
+            <input v-model="endDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
         </div>
-        <button v-if="search || startDate || endDate || filterType !== 'all'" @click="clearFilters" class="h-[52px] px-4 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-[16px] transition-colors">
+        <button v-if="search || startDate || endDate || filterType !== 'all'" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors">
             Reset
         </button>
     </div>
 
     <!-- Table -->
-    <div class="bg-white border border-[#E8EEF6] rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden">
+    <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
-                <thead class="bg-slate-50/50 text-slate-500 text-xs uppercase font-bold border-b border-[#E8EEF6]">
+                <thead class="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold border-b border-border">
                     <tr>
-                        <th class="px-6 py-4">Waktu</th>
-                        <th class="px-6 py-4">Jenis</th>
-                        <th class="px-6 py-4">Item (Obat / Bahan)</th>
-                        <th class="px-6 py-4">Batch</th>
-                        <th class="px-6 py-4">Referensi</th>
-                        <th class="px-6 py-4 text-center">Qty Mutasi</th>
-                        <th class="px-6 py-4 text-center">Sisa Stok</th>
+                        <th class="px-5 py-3">Waktu</th>
+                        <th class="px-5 py-3">Jenis</th>
+                        <th class="px-5 py-3">Item (Obat / Bahan)</th>
+                        <th class="px-5 py-3">Batch</th>
+                        <th class="px-5 py-3">Referensi</th>
+                        <th class="px-5 py-3 text-center">Qty Mutasi</th>
+                        <th class="px-5 py-3 text-center">Sisa Stok</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
-                    <tr v-if="!logs.data.length">
-                        <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                <tbody class="divide-y divide-border">
+                    <tr v-if="!activeLogs.data || !activeLogs.data.length">
+                        <td colspan="7" class="px-6 py-12 text-center text-muted-foreground">
                             <div class="flex flex-col items-center gap-2">
-                                <svg class="w-10 h-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                                <span>Belum terdapat aktivitas mutasi stok pada periode yang dipilih.</span>
+                                <svg class="w-8 h-8 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                <span class="text-xs font-medium">Belum terdapat aktivitas mutasi stok pada periode yang dipilih.</span>
                             </div>
                         </td>
                     </tr>
-                    <tr v-for="l in logs.data" :key="l.id" class="hover:bg-slate-50/50 transition">
+                    <tr v-for="l in (activeLogs.data || [])" :key="l.id" class="hover:bg-muted/40 transition-colors">
                         <!-- Waktu -->
-                        <td class="px-6 py-4 text-slate-500 text-xs">
-                            <div class="font-bold text-slate-700">{{ new Date(l.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) }}</div>
-                            <div class="text-[10px] mt-0.5">{{ new Date(l.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) }}</div>
+                        <td class="px-5 py-3 text-muted-foreground text-xs">
+                            <div class="font-semibold text-foreground">{{ new Date(l.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) }}</div>
+                            <div class="text-xs text-muted-foreground mt-0.5">{{ new Date(l.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) }}</div>
                         </td>
                         
                         <!-- Jenis -->
-                        <td class="px-6 py-4">
-                            <span :class="getLogTypeClass(displayType(l))" class="px-2.5 py-1 rounded-[6px] text-[10px] font-bold border uppercase tracking-wider inline-flex items-center whitespace-nowrap">
+                        <td class="px-5 py-3">
+                            <span :class="getLogTypeClass(displayType(l))" class="px-2 py-0.5 rounded-md text-xs font-semibold border uppercase tracking-wider inline-flex items-center whitespace-nowrap">
                                 {{ displayType(l) }}
                             </span>
                         </td>
                         
                         <!-- Item -->
-                        <td class="px-6 py-4">
+                        <td class="px-5 py-3">
                             <div class="flex flex-col">
-                                <span class="text-slate-900 font-bold whitespace-nowrap">
+                                <span class="text-foreground font-semibold text-sm whitespace-nowrap">
                                     {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || 'Unknown Item' }}
                                 </span>
-                                <span v-if="l.inventory?.medicine" class="text-[10px] text-slate-400 font-medium mt-0.5">Kategori: {{ l.inventory.medicine.kategori }}</span>
+                                <span v-if="l.inventory?.medicine" class="text-xs text-muted-foreground mt-0.5">Kategori: {{ l.inventory.medicine.kategori }}</span>
                             </div>
                         </td>
                         
                         <!-- Batch -->
-                        <td class="px-6 py-4">
-                            <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-mono font-bold uppercase whitespace-nowrap">
+                        <td class="px-5 py-3">
+                            <span class="px-2 py-0.5 bg-muted text-muted-foreground rounded-md text-xs font-medium uppercase whitespace-nowrap border border-border">
                                 {{ l.inventory?.batch_no || l.rawMaterialStock?.batch_no || '-' }}
                             </span>
                         </td>
                         
                         <!-- Referensi -->
-                        <td class="px-6 py-4">
+                        <td class="px-5 py-3">
                             <div class="text-xs">
-                                <div class="font-bold text-slate-700">{{ formatReference(l).title }}</div>
-                                <div class="text-slate-400 text-[10px] font-mono">{{ formatReference(l).id }}</div>
+                                <div class="font-medium text-foreground">{{ formatReference(l).title }}</div>
+                                <div class="text-muted-foreground text-xs">{{ formatReference(l).id }}</div>
                             </div>
                         </td>
                         
                         <!-- QTY Mutasi -->
-                        <td class="px-6 py-4 text-center">
+                        <td class="px-5 py-3 text-center">
                             <!-- Multi-Unit Display (Medicines only) -->
                             <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1">
                                 <!-- Level 1 -->
                                 <template v-if="getLevel1Qty(l.quantity, l.inventory.incoming_stock) > 0 && l.inventory.incoming_stock?.satuan_input">
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded-[6px]">
-                                        <span class="text-xs font-black text-slate-800 font-mono">{{ getLevel1Qty(l.quantity, l.inventory.incoming_stock) }}</span>
-                                        <span class="text-[9px] font-bold text-slate-500 uppercase">{{ l.inventory.incoming_stock.satuan_input }}</span>
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-muted border border-border rounded-md">
+                                        <span class="text-xs font-bold text-foreground">{{ getLevel1Qty(l.quantity, l.inventory.incoming_stock) }}</span>
+                                        <span class="text-xs text-muted-foreground uppercase">{{ l.inventory.incoming_stock.satuan_input }}</span>
                                     </div>
                                 </template>
                                 <!-- Level 2 -->
                                 <template v-if="getLevel2Qty(l.quantity, l.inventory.incoming_stock) > 0 && l.inventory.incoming_stock?.mid_unit">
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded-[6px]">
-                                        <span class="text-xs font-black text-indigo-800 font-mono">{{ getLevel2Qty(l.quantity, l.inventory.incoming_stock) }}</span>
-                                        <span class="text-[9px] font-bold text-indigo-500 uppercase">{{ l.inventory.incoming_stock.mid_unit }}</span>
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md">
+                                        <span class="text-xs font-bold text-indigo-600">{{ getLevel2Qty(l.quantity, l.inventory.incoming_stock) }}</span>
+                                        <span class="text-xs text-indigo-500 uppercase">{{ l.inventory.incoming_stock.mid_unit }}</span>
                                     </div>
                                 </template>
                                 <!-- Level 3 -->
                                 <template v-if="getLevel3Qty(l.quantity, l.inventory.incoming_stock) > 0">
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-sky-50 border border-sky-100 rounded-[6px]">
-                                        <span class="text-xs font-black text-sky-800 font-mono">{{ getLevel3Qty(l.quantity, l.inventory.incoming_stock) }}</span>
-                                        <span class="text-[9px] font-bold text-sky-600 uppercase">{{ l.inventory.medicine.satuan_stok }}</span>
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 rounded-md">
+                                        <span class="text-xs font-bold text-sky-600">{{ getLevel3Qty(l.quantity, l.inventory.incoming_stock) }}</span>
+                                        <span class="text-xs text-sky-500 uppercase">{{ l.inventory.medicine.satuan_stok }}</span>
                                     </div>
                                 </template>
                                 <template v-if="!getLevel1Qty(l.quantity, l.inventory.incoming_stock) && !getLevel2Qty(l.quantity, l.inventory.incoming_stock) && !getLevel3Qty(l.quantity, l.inventory.incoming_stock)">
-                                    <span class="text-xs font-black text-slate-400">0</span>
+                                    <span class="text-xs font-bold text-muted-foreground">0</span>
                                 </template>
                             </div>
                             <!-- Base Unit Display (Raw Materials / Others) -->
                             <div v-else class="inline-flex items-center justify-center gap-1">
-                                <span class="text-sm font-black text-slate-800">{{ Number(l.quantity) }}</span>
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">{{ l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                <span class="text-sm font-bold text-foreground">{{ Number(l.quantity) }}</span>
+                                <span class="text-xs text-muted-foreground uppercase">{{ l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
                             </div>
                         </td>
                         
                         <!-- Sisa Stok -->
-                        <td class="px-6 py-4 text-center bg-slate-50/30">
+                        <td class="px-5 py-3 text-center bg-muted/20">
                             <!-- Multi-Unit Display (Medicines only) -->
                             <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1">
                                 <!-- Level 1 -->
                                 <template v-if="getLevel1Qty(l.balance_after, l.inventory.incoming_stock) > 0 && l.inventory.incoming_stock?.satuan_input">
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded-[6px]">
-                                        <span class="text-xs font-black text-slate-800 font-mono">{{ getLevel1Qty(l.balance_after, l.inventory.incoming_stock) }}</span>
-                                        <span class="text-[9px] font-bold text-slate-500 uppercase">{{ l.inventory.incoming_stock.satuan_input }}</span>
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-muted border border-border rounded-md">
+                                        <span class="text-xs font-bold text-foreground">{{ getLevel1Qty(l.balance_after, l.inventory.incoming_stock) }}</span>
+                                        <span class="text-xs text-muted-foreground uppercase">{{ l.inventory.incoming_stock.satuan_input }}</span>
                                     </div>
                                 </template>
                                 <!-- Level 2 -->
                                 <template v-if="getLevel2Qty(l.balance_after, l.inventory.incoming_stock) > 0 && l.inventory.incoming_stock?.mid_unit">
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded-[6px]">
-                                        <span class="text-xs font-black text-indigo-800 font-mono">{{ getLevel2Qty(l.balance_after, l.inventory.incoming_stock) }}</span>
-                                        <span class="text-[9px] font-bold text-indigo-500 uppercase">{{ l.inventory.incoming_stock.mid_unit }}</span>
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md">
+                                        <span class="text-xs font-bold text-indigo-600">{{ getLevel2Qty(l.balance_after, l.inventory.incoming_stock) }}</span>
+                                        <span class="text-xs text-indigo-500 uppercase">{{ l.inventory.incoming_stock.mid_unit }}</span>
                                     </div>
                                 </template>
                                 <!-- Level 3 -->
                                 <template v-if="getLevel3Qty(l.balance_after, l.inventory.incoming_stock) > 0">
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-sky-50 border border-sky-100 rounded-[6px]">
-                                        <span class="text-xs font-black text-sky-800 font-mono">{{ getLevel3Qty(l.balance_after, l.inventory.incoming_stock) }}</span>
-                                        <span class="text-[9px] font-bold text-sky-600 uppercase">{{ l.inventory.medicine.satuan_stok }}</span>
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 rounded-md">
+                                        <span class="text-xs font-bold text-sky-600">{{ getLevel3Qty(l.balance_after, l.inventory.incoming_stock) }}</span>
+                                        <span class="text-xs text-sky-500 uppercase">{{ l.inventory.medicine.satuan_stok }}</span>
                                     </div>
                                 </template>
                                 <template v-if="!getLevel1Qty(l.balance_after, l.inventory.incoming_stock) && !getLevel2Qty(l.balance_after, l.inventory.incoming_stock) && !getLevel3Qty(l.balance_after, l.inventory.incoming_stock)">
-                                    <span class="text-xs font-black text-slate-400">0</span>
+                                    <span class="text-xs font-bold text-muted-foreground">0</span>
                                 </template>
                             </div>
                             <!-- Base Unit Display -->
                             <div v-else class="inline-flex items-center justify-center gap-1">
-                                <span class="text-sm font-black text-slate-800">{{ Number(l.balance_after) }}</span>
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">{{ l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                <span class="text-sm font-bold text-foreground">{{ Number(l.balance_after) }}</span>
+                                <span class="text-xs text-muted-foreground uppercase">{{ l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
                             </div>
                         </td>
                     </tr>
@@ -338,13 +354,12 @@ const clearFilters = () => {
         </div>
 
         <!-- Pagination -->
-        <div v-if="logs.links && logs.links.length > 3" class="px-6 py-4 border-t border-[#E8EEF6] flex items-center justify-center gap-1 bg-slate-50/30">
-            <template v-for="(l, index) in logs.links" :key="index">
-                <Link v-if="l.url" :href="l.url" :class="l.active ? 'bg-blue-600 text-white font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)]' : 'bg-white border border-[#E8EEF6] text-slate-600 hover:bg-slate-50 font-medium'" class="px-3 py-1.5 min-w-[32px] text-center rounded-[8px] text-xs transition-all" v-html="l.label" />
-                <span v-else class="px-3 py-1.5 min-w-[32px] text-center text-slate-400 text-xs font-medium" v-html="l.label"></span>
+        <div v-if="activeLogs.links && activeLogs.links.length > 3" class="px-5 py-3 border-t border-border flex items-center justify-center gap-1 bg-muted/30">
+            <template v-for="(l, index) in activeLogs.links" :key="index">
+                <Link v-if="l.url" :href="l.url" :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border border-input text-foreground hover:bg-accent font-medium'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs transition-colors" v-html="l.label" />
+                <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium" v-html="l.label"></span>
             </template>
         </div>
     </div>
 </div>
-</ControlLayout>
 </template>

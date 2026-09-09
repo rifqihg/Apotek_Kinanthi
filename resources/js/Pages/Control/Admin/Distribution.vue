@@ -1,7 +1,11 @@
 <script setup>
-import { ref, reactive, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { ref, reactive, computed, watch } from 'vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
+import { useQuery } from '@tanstack/vue-query';
+
+defineOptions({ layout: ControlLayout });
+import axios from 'axios';
 import debounce from 'lodash/debounce';
 import Swal from 'sweetalert2';
 
@@ -12,35 +16,69 @@ const props = defineProps({
     filters: Object,
 });
 
+const page = usePage();
 const dropdownOpen = ref(false);
 
 const form = reactive({
     kasir_id: props.selectedKasirId || '',
-    search: props.filters.search || '',
+    search: props.filters?.search || '',
 });
 
-// Watch kasir select & search
-watch(() => form.kasir_id, (newVal) => {
-    // Clear cart when changing kasir
-    cart.value = [];
-    router.get(route('control.admin.inventory.distribution'), {
-        kasir_id: newVal,
-        search: form.search
-    }, { preserveState: true, replace: true });
-});
+const activeSearch = ref(props.filters?.search || '');
+const activePage = ref(1);
 
-const debouncedSearch = debounce((newVal) => {
-    if (form.kasir_id) {
-        router.get(route('control.admin.inventory.distribution'), {
-            kasir_id: form.kasir_id,
-            search: newVal
-        }, { preserveState: true, replace: true });
-    }
+const debouncedSearchUpdate = debounce((val) => {
+    activeSearch.value = val;
+    activePage.value = 1;
 }, 300);
 
 watch(() => form.search, (newVal) => {
-    debouncedSearch(newVal);
+    debouncedSearchUpdate(newVal);
 });
+
+// Watch kasir select
+watch(() => form.kasir_id, () => {
+    cart.value = [];
+    activePage.value = 1;
+});
+
+const { data: queryMedicines, isFetching, refetch } = useQuery({
+    queryKey: computed(() => ['admin-distribution', form.kasir_id, activeSearch.value, activePage.value]),
+    queryFn: async () => {
+        if (!form.kasir_id) {
+            return { data: [], links: [] };
+        }
+        const res = await axios.get(route('control.admin.inventory.distribution'), {
+            params: {
+                kasir_id: form.kasir_id,
+                search: activeSearch.value,
+                page: activePage.value,
+            },
+            headers: {
+                'X-Inertia': 'true',
+                'X-Inertia-Version': page.version,
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+        return res.data.props.medicines;
+    },
+    initialData: () => props.medicines || { data: [], links: [] },
+    placeholderData: (prev) => prev,
+    enabled: computed(() => Boolean(form.kasir_id)),
+});
+
+const activeMedicines = computed(() => queryMedicines.value || props.medicines || { data: [], links: [] });
+
+const goToPage = (url) => {
+    if (!url) return;
+    try {
+        const urlObj = new URL(url, window.location.origin);
+        const p = urlObj.searchParams.get('page');
+        if (p) activePage.value = Number(p);
+    } catch (e) {
+        // fallback
+    }
+};
 
 // --- CART LOGIC ---
 const cart = ref([]);
@@ -142,6 +180,7 @@ const submitCart = () => {
                 preserveScroll: true,
                 onSuccess: () => {
                     cart.value = []; // empty cart on success
+                    refetch();
                     Swal.fire('Berhasil!', 'Semua distribusi stok berhasil diproses secara otomatis (FEFO).', 'success');
                 }
             });
@@ -177,6 +216,7 @@ const uploadPhoto = async (medicine) => {
                 }, {
                     preserveScroll: true,
                     onSuccess: () => {
+                        refetch();
                         resolve(true);
                         Swal.fire('Berhasil!', 'Foto obat berhasil diperbarui.', 'success');
                     },
@@ -196,27 +236,26 @@ const uploadPhoto = async (medicine) => {
 <template>
     <Head title="Distribusi Stok (Cart)" />
 
-    <ControlLayout>
-        <div class="h-[calc(100vh-65px)] flex flex-col bg-gray-100 overflow-hidden">
+    <div class="h-[calc(100vh-65px)] flex flex-col bg-muted/20 overflow-hidden">
             <!-- Header Filter -->
-            <div class="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
+            <div class="bg-card border-b border-border px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
                 <div class="flex items-center gap-4 w-full">
                     <div class="w-1/2">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Pilih Kasir Tujuan/Sumber</label>
+                        <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Pilih Kasir Tujuan/Sumber</label>
                         <div class="relative">
-                            <button type="button" @click="dropdownOpen = !dropdownOpen" @blur="setTimeout(() => dropdownOpen = false, 200)" class="h-[48px] w-full bg-[#F5F9FF] border-none rounded-[16px] px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500/20 cursor-pointer outline-none transition-all flex items-center justify-between gap-3 hover:bg-slate-50 shadow-sm">
+                            <button type="button" @click="dropdownOpen = !dropdownOpen" @blur="setTimeout(() => dropdownOpen = false, 200)" class="h-10 w-full bg-background border border-input rounded-md px-3.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-ring cursor-pointer outline-none transition-all flex items-center justify-between gap-3 hover:bg-muted/50 shadow-2xs">
                                 <span>{{ form.kasir_id ? kasirs.find(k => k.id === form.kasir_id)?.name : '-- Pilih User Kasir --' }}</span>
-                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-300" :class="{'rotate-180': dropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                <svg class="w-4 h-4 text-muted-foreground transition-transform duration-200" :class="{'rotate-180': dropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                             </button>
-                            <div v-show="dropdownOpen" class="absolute left-0 top-full mt-2 w-full bg-white border border-slate-200 rounded-[16px] shadow-xl overflow-hidden z-20 origin-top-left transition-all">
-                                <div class="p-1.5 space-y-0.5 max-h-60 overflow-y-auto">
-                                    <button type="button" @click="form.kasir_id = ''; dropdownOpen = false" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="form.kasir_id === '' ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'">
+                            <div v-show="dropdownOpen" class="absolute left-0 top-full mt-1.5 w-full bg-popover border border-border rounded-md shadow-md overflow-hidden z-20 origin-top-left transition-all">
+                                <div class="p-1 space-y-0.5 max-h-60 overflow-y-auto">
+                                    <button type="button" @click="form.kasir_id = ''; dropdownOpen = false" class="w-full text-left px-3 py-2 text-xs font-medium rounded-sm uppercase tracking-wider flex items-center justify-between group transition-colors" :class="form.kasir_id === '' ? 'bg-accent text-accent-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">
                                         -- Pilih User Kasir --
                                     </button>
-                                    <div class="h-px bg-slate-100 my-1"></div>
-                                    <button type="button" v-for="kasir in kasirs" :key="kasir.id" @click="form.kasir_id = kasir.id; dropdownOpen = false" class="w-full text-left px-3 py-2.5 text-xs font-bold rounded-[10px] uppercase tracking-widest flex items-center justify-between group transition-colors" :class="form.kasir_id === kasir.id ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'">
+                                    <div class="h-px bg-border my-1"></div>
+                                    <button type="button" v-for="kasir in kasirs" :key="kasir.id" @click="form.kasir_id = kasir.id; dropdownOpen = false" class="w-full text-left px-3 py-2 text-xs font-medium rounded-sm uppercase tracking-wider flex items-center justify-between group transition-colors" :class="form.kasir_id === kasir.id ? 'bg-accent text-accent-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">
                                         {{ kasir.name }}
-                                        <div v-if="form.kasir_id === kasir.id" class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                        <div v-if="form.kasir_id === kasir.id" class="w-2 h-2 rounded-full bg-primary"></div>
                                     </button>
                                 </div>
                             </div>
@@ -224,27 +263,31 @@ const uploadPhoto = async (medicine) => {
                     </div>
                     
                     <div class="w-1/2" v-if="form.kasir_id">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cari Obat</label>
-                        <div class="relative rounded-md shadow-sm">
+                        <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Cari Obat</label>
+                        <div class="relative rounded-md shadow-2xs">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg v-if="!isFetching" class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
+                                <svg v-else class="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
                             </div>
-                            <input type="text" v-model="form.search" placeholder="Ketik nama atau kode..." class="pl-10 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <input type="text" v-model="form.search" placeholder="Ketik nama atau kode..." class="h-10 pl-9 block w-full rounded-md border border-input bg-background focus:ring-1 focus:ring-ring sm:text-sm font-medium">
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Empty State Kasir Not Selected -->
-            <div v-if="!form.kasir_id" class="flex-1 flex items-center justify-center">
-                <div class="text-center bg-white p-10 rounded-2xl shadow-sm border max-w-md">
-                    <div class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            <div v-if="!form.kasir_id" class="flex-1 flex items-center justify-center p-6">
+                <div class="text-center bg-card p-8 rounded-lg shadow-sm border border-border max-w-md">
+                    <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                     </div>
-                    <h3 class="text-lg font-bold text-gray-900 mb-2">Pilih User Kasir</h3>
-                    <p class="text-sm text-gray-500">Silakan pilih user Kasir terlebih dahulu di bagian atas untuk mulai mengelola dan memindahkan stok.</p>
+                    <h3 class="text-base font-semibold text-foreground mb-1.5">Pilih User Kasir</h3>
+                    <p class="text-sm text-muted-foreground">Silakan pilih user Kasir terlebih dahulu di bagian atas untuk mulai mengelola dan memindahkan stok.</p>
                 </div>
             </div>
 
@@ -252,55 +295,55 @@ const uploadPhoto = async (medicine) => {
             <div v-else class="flex-1 flex overflow-hidden">
                 
                 <!-- Left Panel: Product Catalog Grid -->
-                <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
-                    <div v-if="medicines.data.length === 0" class="text-center py-20 text-gray-400">
+                <div class="flex-1 overflow-y-auto p-6 bg-muted/10">
+                    <div v-if="activeMedicines.data.length === 0" class="text-center py-20 text-muted-foreground text-sm">
                         Tidak ada obat yang ditemukan.
                     </div>
                     
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        <div v-for="medicine in medicines.data" :key="medicine.id" class="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+                        <div v-for="medicine in activeMedicines.data" :key="medicine.id" class="bg-card rounded-lg shadow-sm border border-border hover:shadow-md transition-shadow overflow-hidden flex flex-col">
                             <!-- Image -->
-                            <div class="h-32 bg-gray-100 flex items-center justify-center relative group">
+                            <div class="h-32 bg-muted/40 flex items-center justify-center relative group">
                                 <img v-if="medicine.foto_obat" :src="`/storage/medicines/${medicine.foto_obat}`" class="w-full h-full object-cover cursor-pointer" @click="uploadPhoto(medicine)" title="Klik untuk mengganti foto" />
-                                <div v-else @click="uploadPhoto(medicine)" class="w-full h-full flex flex-col items-center justify-center text-gray-400 hover:bg-gray-200 transition cursor-pointer" title="Klik untuk upload foto obat">
-                                    <svg class="h-10 w-10 text-gray-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    <span class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Tambah Foto</span>
+                                <div v-else @click="uploadPhoto(medicine)" class="w-full h-full flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/60 transition cursor-pointer" title="Klik untuk upload foto obat">
+                                    <svg class="h-8 w-8 text-muted-foreground mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tambah Foto</span>
                                 </div>
                                 
-                                <span class="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2.5 py-0.5 rounded-[8px] text-[10px] font-black uppercase tracking-wider text-indigo-700 border border-indigo-100 shadow-sm pointer-events-none">
+                                <span class="absolute top-2 right-2 bg-card/95 backdrop-blur-sm px-2 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wider text-primary border border-border shadow-2xs pointer-events-none">
                                     {{ medicine.satuan_terkecil || medicine.satuan_stok || 'Item' }}
                                 </span>
                             </div>
                             
                             <!-- Info -->
                             <div class="p-3 flex-1 flex flex-col">
-                                <h4 class="text-sm font-bold text-gray-900 leading-tight mb-1 line-clamp-2" :title="medicine.nama_obat">{{ medicine.nama_obat }}</h4>
-                                <p class="text-[11px] text-gray-500 font-mono mb-2">{{ medicine.kode_obat || '-' }}</p>
+                                <h4 class="text-sm font-semibold text-foreground leading-tight mb-1 line-clamp-2" :title="medicine.nama_obat">{{ medicine.nama_obat }}</h4>
+                                <p class="text-xs text-muted-foreground tracking-wide mb-2">{{ medicine.kode_obat || '-' }}</p>
                                 
                                 <div class="mt-auto space-y-1">
-                                    <div class="flex justify-between items-center text-xs">
-                                        <span class="text-gray-500">Stok Gudang:</span>
-                                        <span class="font-bold text-blue-600">{{ formatNumber(medicine.stok_gudang) }}</span>
+                                    <div class="flex justify-between items-center text-xs font-medium">
+                                        <span class="text-muted-foreground">Stok Gudang:</span>
+                                        <span class="font-bold text-primary">{{ formatNumber(medicine.stok_gudang) }}</span>
                                     </div>
-                                    <div class="flex justify-between items-center text-xs">
-                                        <span class="text-gray-500">Stok Kasir:</span>
-                                        <span class="font-bold text-green-600">{{ formatNumber(medicine.stok_kasir) }}</span>
+                                    <div class="flex justify-between items-center text-xs font-medium">
+                                        <span class="text-muted-foreground">Stok Kasir:</span>
+                                        <span class="font-bold text-emerald-600">{{ formatNumber(medicine.stok_kasir) }}</span>
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- Actions -->
-                            <div class="grid grid-cols-2 border-t divide-x">
+                            <div class="grid grid-cols-2 border-t border-border divide-x divide-border">
                                 <button @click="openQtyPrompt(medicine, 'transfer')" 
                                         :disabled="medicine.stok_gudang <= 0"
-                                        class="py-2.5 text-center text-blue-600 font-bold bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors flex items-center justify-center gap-1">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                        class="py-2 text-center text-primary font-semibold bg-primary/5 hover:bg-primary/10 disabled:opacity-40 disabled:bg-muted disabled:text-muted-foreground transition-colors flex items-center justify-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                                     <span class="text-xs">Ke Kasir</span>
                                 </button>
                                 <button @click="openQtyPrompt(medicine, 'return')" 
                                         :disabled="medicine.stok_kasir <= 0"
-                                        class="py-2.5 text-center text-red-600 font-bold bg-red-50 hover:bg-red-100 disabled:opacity-50 disabled:bg-gray-50 disabled:text-gray-400 transition-colors flex items-center justify-center gap-1">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
+                                        class="py-2 text-center text-destructive font-semibold bg-destructive/10 hover:bg-destructive/20 disabled:opacity-40 disabled:bg-muted disabled:text-muted-foreground transition-colors flex items-center justify-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
                                     <span class="text-xs">Ke Gudang</span>
                                 </button>
                             </div>
@@ -308,16 +351,16 @@ const uploadPhoto = async (medicine) => {
                     </div>
 
                     <!-- Pagination -->
-                    <div v-if="medicines.links && medicines.data.length > 0" class="mt-8 pb-8 flex justify-center">
-                        <div class="flex gap-1 bg-white p-1 rounded-lg shadow-sm border">
-                            <template v-for="(link, idx) in medicines.links" :key="idx">
+                    <div v-if="activeMedicines.links && activeMedicines.data.length > 0" class="mt-8 pb-8 flex justify-center">
+                        <div class="flex gap-1 bg-card p-1 rounded-md shadow-2xs border border-border">
+                            <template v-for="(link, idx) in activeMedicines.links" :key="idx">
                                 <Component 
-                                    :is="link.url ? 'a' : 'span'"
-                                    :href="link.url"
+                                    :is="link.url ? 'button' : 'span'"
+                                    type="button"
                                     v-html="link.label"
                                     class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                                    :class="link.active ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100' + (!link.url ? ' opacity-50 cursor-not-allowed' : '')"
-                                    @click.prevent="link.url ? router.get(link.url, { kasir_id: form.kasir_id, search: form.search }, { preserveScroll: true, replace: true }) : null"
+                                    :class="link.active ? 'bg-primary text-primary-foreground font-semibold' : 'text-foreground hover:bg-muted' + (!link.url ? ' opacity-50 cursor-not-allowed' : '')"
+                                    @click="goToPage(link.url)"
                                 />
                             </template>
                         </div>
@@ -325,45 +368,45 @@ const uploadPhoto = async (medicine) => {
                 </div>
 
                 <!-- Right Panel: Cart Sidebar -->
-                <div class="w-[380px] bg-white border-l shadow-2xl flex flex-col z-20 shrink-0">
-                    <div class="p-4 border-b bg-gray-900 text-white flex justify-between items-center">
+                <div class="w-[380px] bg-card border-l border-border shadow-md flex flex-col z-20 shrink-0">
+                    <div class="p-4 border-b border-border bg-slate-900 text-white flex justify-between items-center">
                         <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                            <h3 class="font-bold text-lg">Keranjang Distribusi</h3>
+                            <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                            <h3 class="font-semibold text-base">Keranjang Distribusi</h3>
                         </div>
-                        <span class="bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">{{ cart.length }}</span>
+                        <span class="bg-emerald-600 text-white text-xs font-semibold px-2 py-0.5 rounded-md">{{ cart.length }}</span>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto p-3 bg-gray-50">
-                        <div v-if="cart.length === 0" class="h-full flex flex-col items-center justify-center text-gray-400">
-                            <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            <p class="text-sm font-medium">Keranjang masih kosong.</p>
-                            <p class="text-xs mt-1">Pilih obat dari katalog di sebelah kiri.</p>
+                    <div class="flex-1 overflow-y-auto p-3 bg-muted/20">
+                        <div v-if="cart.length === 0" class="h-full flex flex-col items-center justify-center text-muted-foreground p-4">
+                            <svg class="w-12 h-12 mb-3 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            <p class="text-sm font-medium text-foreground">Keranjang masih kosong.</p>
+                            <p class="text-xs text-muted-foreground mt-1 text-center">Pilih obat dari katalog di sebelah kiri.</p>
                         </div>
                         
-                        <div class="space-y-3" v-else>
+                        <div class="space-y-2.5" v-else>
                             <div v-for="(item, index) in cart" :key="index" 
-                                 class="bg-white rounded-lg border p-3 shadow-sm relative group"
-                                 :class="item.action === 'transfer' ? 'border-blue-200' : 'border-red-200'">
+                                 class="bg-card rounded-md border p-3 shadow-2xs relative group"
+                                 :class="item.action === 'transfer' ? 'border-blue-200/80' : 'border-destructive/30'">
                                  
-                                <button @click="removeFromCart(index)" class="absolute -top-2 -right-2 bg-white rounded-full border shadow-sm p-1 text-gray-400 hover:text-red-600 hover:border-red-600 transition-colors opacity-0 group-hover:opacity-100">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                <button @click="removeFromCart(index)" class="absolute -top-1.5 -right-1.5 bg-card rounded-full border border-border shadow-xs p-1 text-muted-foreground hover:text-destructive hover:border-destructive transition-colors opacity-0 group-hover:opacity-100">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
-                                
-                                <div class="flex gap-2">
-                                    <div class="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" :class="item.action === 'transfer' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'">
-                                        <svg v-if="item.action === 'transfer'" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                                        <svg v-else class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                                 
+                                <div class="flex gap-2.5">
+                                    <div class="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0" :class="item.action === 'transfer' ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'">
+                                        <svg v-if="item.action === 'transfer'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                                        <svg v-else class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <h5 class="text-sm font-bold text-gray-900 truncate">{{ item.nama_obat }}</h5>
-                                        <p class="text-[10px] font-semibold tracking-wider uppercase mb-1" :class="item.action === 'transfer' ? 'text-blue-600' : 'text-red-600'">
+                                        <h5 class="text-sm font-semibold text-foreground truncate">{{ item.nama_obat }}</h5>
+                                        <p class="text-xs font-semibold tracking-wider uppercase mb-1" :class="item.action === 'transfer' ? 'text-primary' : 'text-destructive'">
                                             {{ item.action === 'transfer' ? 'Gudang ➝ Kasir' : 'Kasir ➝ Gudang' }}
                                         </p>
                                         
                                         <div class="flex items-center gap-2 mt-2">
-                                            <input type="number" v-model.number="item.quantity" class="block w-20 text-center rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-1 px-2 font-bold" min="1" :max="item.maxQty">
-                                            <span class="text-xs text-gray-500 font-medium">{{ item.satuan_terkecil }}</span>
+                                            <input type="number" v-model.number="item.quantity" class="h-8 w-20 text-center rounded-md border border-input bg-background shadow-2xs focus:ring-1 focus:ring-ring text-sm font-bold" min="1" :max="item.maxQty">
+                                            <span class="text-xs text-muted-foreground font-medium">{{ item.satuan_terkecil }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -371,15 +414,15 @@ const uploadPhoto = async (medicine) => {
                         </div>
                     </div>
                     
-                    <div class="p-4 border-t bg-white">
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-sm font-bold text-gray-500">Total Item:</span>
-                            <span class="text-xl font-black text-gray-900">{{ cart.length }}</span>
+                    <div class="p-4 border-t border-border bg-card">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-sm font-semibold text-muted-foreground">Total Item:</span>
+                            <span class="text-xl font-semibold tracking-tight text-foreground">{{ cart.length }}</span>
                         </div>
                         <button @click="submitCart" 
                                 :disabled="cart.length === 0"
-                                class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex justify-center items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.99] flex justify-center items-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                             Proses Semua Distribusi
                         </button>
                     </div>
@@ -387,5 +430,4 @@ const uploadPhoto = async (medicine) => {
 
             </div>
         </div>
-    </ControlLayout>
 </template>

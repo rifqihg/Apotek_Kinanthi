@@ -26,7 +26,7 @@ class AdminReportController extends Controller
     private function getSalesQuery(string $startDate, string $endDate)
     {
         return Medicine::query()
-            ->with(['incomingStocks' => fn($q) => $q->where('status_gate', 'active')->latest()])
+            ->with('latestActiveIncomingStock')
             ->withSum(['saleItems as terjual' => fn($q) => $q->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))], 'quantity')
             ->withSum(['saleItems as total_penjualan' => fn($q) => $q->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))], 'subtotal')
             ->orderBy('nama_obat');
@@ -37,7 +37,7 @@ class AdminReportController extends Controller
      */
     private function calculateMedicineMetric($med): array
     {
-        $latestStock = $med->incomingStocks->first();
+        $latestStock = $med->latestActiveIncomingStock;
         $modal = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
         $terjual = (float) ($med->terjual ?? 0);
         $totalPenjualan = (float) ($med->total_penjualan ?? 0);
@@ -61,6 +61,49 @@ class AdminReportController extends Controller
     }
 
     /**
+     * Hitung ringkasan agregasi KPI penjualan secara tertunda (Inertia defer)
+     */
+    private function calculateSalesSummary(string $startDate, string $endDate): array
+    {
+        $soldMedicines = Medicine::whereHas('saleItems.sale', fn($sq) => 
+                $sq->where('status', 'paid')
+                   ->whereDate('created_at', '>=', $startDate)
+                   ->whereDate('created_at', '<=', $endDate)
+            )
+            ->with('latestActiveIncomingStock')
+            ->withSum(['saleItems as terjual' => fn($q) => 
+                $q->whereHas('sale', fn($sq) => 
+                    $sq->where('status', 'paid')
+                       ->whereDate('created_at', '>=', $startDate)
+                       ->whereDate('created_at', '<=', $endDate)
+                )
+            ], 'quantity')
+            ->withSum(['saleItems as total_penjualan' => fn($q) => 
+                $q->whereHas('sale', fn($sq) => 
+                    $sq->where('status', 'paid')
+                       ->whereDate('created_at', '>=', $startDate)
+                       ->whereDate('created_at', '<=', $endDate)
+                )
+            ], 'subtotal')
+            ->get();
+
+        $totalItems = (float) $soldMedicines->sum('terjual');
+        $totalAmount = (float) $soldMedicines->sum('total_penjualan');
+        $totalModal = (float) $soldMedicines->sum(function($med) {
+            $latestStock = $med->latestActiveIncomingStock;
+            $modal = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
+            return $modal * (float) ($med->terjual ?? 0);
+        });
+
+        return [
+            'total_items' => $totalItems,
+            'total_amount' => $totalAmount,
+            'total_modal' => $totalModal,
+            'total_laba' => $totalAmount - $totalModal,
+        ];
+    }
+
+    /**
      * Tampilkan halaman Laporan Penjualan (Preview & Filter)
      */
     public function salesReport(Request $request)
@@ -69,8 +112,6 @@ class AdminReportController extends Controller
         $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
 
         $query = $this->getSalesQuery($startDate, $endDate);
-        $allMetrics = (clone $query)->get()->map(fn($m) => $this->calculateMedicineMetric($m));
-
         $medicines = $query->paginate(20)->withQueryString();
         $medicines->getCollection()->transform(fn($m) => $this->calculateMedicineMetric($m));
 
@@ -80,12 +121,7 @@ class AdminReportController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ],
-            'summary' => [
-                'total_items' => $allMetrics->sum('terjual'),
-                'total_amount' => $allMetrics->sum('total_penjualan'),
-                'total_modal' => $allMetrics->sum('total_modal'),
-                'total_laba' => $allMetrics->sum('laba'),
-            ]
+            'summary' => $this->calculateSalesSummary($startDate, $endDate),
         ]);
     }
 
@@ -220,22 +256,67 @@ class AdminReportController extends Controller
         exit;
     }
 
+    /**
+     * Hitung KPI ringkasan monitoring kasir secara tertunda (Inertia defer)
+     */
+    private function calculateCashierKpis(string $startDate, string $endDate): array
+    {
+        $baseQuery = Sale::where('status', 'paid')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate);
+
+        $totalTransactions = (clone $baseQuery)->count();
+        $totalSales = (float) ((clone $baseQuery)->sum('total_amount') ?? 0);
+        $totalDiscount = (float) ((clone $baseQuery)->sum('discount_amount') ?? 0);
+
+        // Hitung total modal hanya dari obat yang terjual di periode ini
+        $soldMedicines = Medicine::whereHas('saleItems.sale', fn($sq) => 
+                $sq->where('status', 'paid')
+                   ->whereDate('created_at', '>=', $startDate)
+                   ->whereDate('created_at', '<=', $endDate)
+            )
+            ->with('latestActiveIncomingStock')
+            ->withSum(['saleItems as terjual' => fn($q) => 
+                $q->where('item_type', 'obat_jadi')
+                  ->whereHas('sale', fn($sq) => 
+                    $sq->where('status', 'paid')
+                       ->whereDate('created_at', '>=', $startDate)
+                       ->whereDate('created_at', '<=', $endDate)
+                )
+            ], 'quantity')
+            ->get();
+
+        $totalModal = (float) $soldMedicines->sum(function($med) {
+            $latestStock = $med->latestActiveIncomingStock;
+            $modal = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
+            return $modal * (float) ($med->terjual ?? 0);
+        });
+
+        return [
+            'total_transactions' => $totalTransactions,
+            'total_sales' => $totalSales,
+            'total_discount' => $totalDiscount,
+            'total_laba' => $totalSales - $totalModal,
+        ];
+    }
+
     public function cashierMonitoring(Request $request)
     {
         $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
 
-        $sales = Sale::with([
-                'kasir',
-                'saleItems.medicine.incomingStocks' => fn($q) => $q->where('status_gate', 'active')->latest()
-            ])
-            ->where('status', 'paid')
+        $sales = Sale::where('status', 'paid')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
+            ->with([
+                'kasir',
+                'saleItems.medicine.latestActiveIncomingStock'
+            ])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(25)
+            ->withQueryString();
 
-        $transactions = $sales->map(function ($sale) {
+        $sales->getCollection()->transform(function ($sale) {
             $modal = 0;
             $items = [];
 
@@ -244,7 +325,7 @@ class AdminReportController extends Controller
                 $sisaStok = 0;
                 
                 if ($item->item_type === 'obat_jadi' && $item->medicine) {
-                    $latestStock = $item->medicine->incomingStocks->first();
+                    $latestStock = $item->medicine->latestActiveIncomingStock;
                     $hppSatuan = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
                     $itemModal = ($hppSatuan * $item->quantity);
                     $modal += $itemModal;
@@ -283,13 +364,8 @@ class AdminReportController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ],
-            'kpis' => [
-                'total_transactions' => $transactions->count(),
-                'total_sales' => $transactions->sum('total_amount'),
-                'total_discount' => $transactions->sum('discount_amount'),
-                'total_laba' => $transactions->sum('laba'),
-            ],
-            'transactions' => $transactions,
+            'kpis' => $this->calculateCashierKpis($startDate, $endDate),
+            'transactions' => $sales,
         ]);
     }
 }

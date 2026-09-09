@@ -210,66 +210,66 @@ if (prefillItemId) {
     <Head title="Log Racikan" />
     <div class="space-y-6">
         <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
             <div>
-                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tighter">Manajemen Log Racikan Obat</h2>
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-tight mt-1">Daftar riwayat dan pengajuan compounding apotek</p>
+                <h1 class="text-2xl font-bold text-foreground tracking-tight">Manajemen Log Racikan Obat</h1>
+                <p class="text-sm text-muted-foreground mt-1">Daftar riwayat dan pengajuan compounding apotek</p>
             </div>
-            <button @click="showModal=true;form.reset();form.bahan_baku=[{id_batch:'',qty_taken_pcs:'',wastage_percentage:2,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10 active:scale-95 transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            <button @click="showModal=true;form.reset();form.bahan_baku=[{id_batch:'',qty_taken_pcs:'',wastage_percentage:2,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 rounded-md text-sm font-medium shadow-sm transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Buat Racikan Baru
             </button>
         </div>
 
         <!-- Table View -->
-        <div class="w-full overflow-x-auto rounded-[1.5rem] border border-[#E8EEF6] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+        <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
             <table class="w-full text-sm text-left border-collapse">
-                <thead class="bg-slate-50/50 border-b border-[#E8EEF6] uppercase">
+                <thead class="bg-muted/50 border-b border-border">
                     <tr>
-                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 tracking-[0.15em] text-left uppercase">Nama Racikan</th>
-                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 tracking-[0.15em] text-left uppercase">Formula</th>
-                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 tracking-[0.15em] text-center uppercase">Items</th>
-                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 tracking-[0.15em] text-center uppercase">BUD</th>
-                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 tracking-[0.15em] text-center uppercase">Status</th>
-                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 tracking-[0.15em] text-center uppercase">Aksi</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">Nama Racikan</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">Formula</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Items</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">BUD</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-border">
                     <tr v-if="!submissions?.data?.length">
-                        <td colspan="6" class="px-8 py-20 text-center">
-                            <div class="flex flex-col items-center gap-4">
-                                <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 border border-[#E8EEF6]">
-                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-muted-foreground border border-border">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                                 </div>
-                                <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Belum Ada Riwayat Pengajuan Racikan</span>
+                                <span class="text-sm font-medium text-muted-foreground">Belum Ada Riwayat Pengajuan Racikan</span>
                             </div>
                         </td>
                     </tr>
-                    <tr v-for="s in (submissions?.data || [])" :key="s.id" class="hover:bg-emerald-50/20 transition-all group">
-                        <td class="px-8 py-5">
-                            <span class="font-bold text-slate-800 text-sm block group-hover:text-emerald-700 transition-colors uppercase tracking-tighter leading-tight">{{ s.nama_racikan || 'Tanpa Nama' }}</span>
-                            <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest mt-1 block">ID-{{ s.id }}</span>
+                    <tr v-for="s in (submissions?.data || [])" :key="s.id" class="hover:bg-muted/30 transition-colors">
+                        <td class="px-4 py-3">
+                            <span class="font-medium text-foreground text-sm block">{{ s.nama_racikan || 'Tanpa Nama' }}</span>
+                            <span class="text-xs text-muted-foreground tracking-wide mt-0.5 block">ID-{{ s.id }}</span>
                         </td>
-                        <td class="px-8 py-5">
-                            <span class="text-xs font-bold text-slate-500 uppercase tracking-tight">{{ s.formula?.nama_resep || '-' }}</span>
+                        <td class="px-4 py-3">
+                            <span class="text-xs font-medium text-muted-foreground">{{ s.formula?.nama_resep || '-' }}</span>
                         </td>
-                        <td class="px-8 py-5 text-center font-mono font-black text-slate-700 text-xs">
+                        <td class="px-4 py-3 text-center font-semibold text-foreground text-sm">
                             {{ (s.details?.length || 0) }} 
                         </td>
-                        <td class="px-8 py-5 text-center text-slate-500 text-[11px] font-bold">
+                        <td class="px-4 py-3 text-center text-muted-foreground text-xs font-medium">
                             {{ s.label?.tanggal_kadaluarsa_bud ? new Date(s.label.tanggal_kadaluarsa_bud).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-' }}
                         </td>
-                        <td class="px-8 py-5 text-center">
-                            <span :class="statusClass(s.status)" class="text-[9px] px-3 py-1.5 rounded-[16px] font-black uppercase tracking-widest border shadow-[0_8px_24px_rgba(15,23,42,0.04)] block w-fit mx-auto whitespace-nowrap">
+                        <td class="px-4 py-3 text-center">
+                            <span :class="statusClass(s.status)" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-block whitespace-nowrap">
                                 {{ s.status === 'pending_final_verification' ? 'Menunggu Harga' : (s.status ? s.status.replace(/_/g, ' ') : 'unknown') }}
                             </span>
                         </td>
-                        <td class="px-8 py-5 text-center">
-                            <div class="flex items-center justify-center gap-3">
-                                <button @click="router.get(route('control.apoteker.submissions.show', s.id))" class="text-slate-900 border border-[#E8EEF6] bg-white hover:bg-slate-50 px-3 py-1.5 rounded-[16px] text-[9px] font-black uppercase tracking-widest shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-all active:scale-95">
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button @click="router.get(route('control.apoteker.submissions.show', s.id))" class="text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 h-8 rounded-md text-xs font-medium transition-colors">
                                     Detail
                                 </button>
-                                <button v-if="s.status === 'pending_final_verification'" @click="confirmCancel(s.id)" class="text-rose-600 border border-rose-100 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-[16px] text-[9px] font-black uppercase tracking-widest shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition-all active:scale-95">
+                                <button v-if="s.status === 'pending_final_verification'" @click="confirmCancel(s.id)" class="text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20 px-3 h-8 rounded-md text-xs font-medium transition-colors">
                                     Batalkan
                                 </button>
                             </div>
@@ -279,13 +279,13 @@ if (prefillItemId) {
             </table>
         </div>
 
-        <div v-if="submissions?.links?.length > 3" class="flex justify-center gap-1.5 pt-6">
+        <div v-if="submissions?.links?.length > 3" class="flex justify-center gap-1 pt-4">
             <template v-for="l in (submissions?.links || [])" :key="l.label">
                 <button 
                     v-if="l.url" 
                     @click="router.get(l.url)" 
-                    :class="l.active ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-white border-[#E8EEF6] text-slate-500 hover:border-emerald-500 hover:text-emerald-500'" 
-                    class="w-9 h-9 flex items-center justify-center rounded-[16px] text-xs font-black transition-all border uppercase" 
+                    :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
+                    class="w-8 h-8 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                     v-html="l.label"
                 ></button>
             </template>
@@ -294,23 +294,23 @@ if (prefillItemId) {
 
     <!-- Create Modal (Complex Form) -->
     <Teleport to="body">
-        <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
-            <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="showModal=false"></div>
-            <div class="relative bg-white rounded-[16px] shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto scrollbar-v-minimal transform transition-all border border-[#E8EEF6]">
-                <div class="sticky top-0 z-10 px-6 py-4 border-b border-[#E8EEF6] bg-white flex items-center justify-between">
-                    <h3 class="text-slate-900 font-bold text-lg">Submit Racikan Baru</h3>
-                    <button @click="showModal=false" class="text-slate-400 hover:text-slate-600 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity" @click="showModal=false"></div>
+            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-border">
+                <div class="sticky top-0 z-10 px-6 py-4 border-b border-border bg-card flex items-center justify-between">
+                    <h3 class="text-foreground font-semibold text-base">Submit Racikan Baru</h3>
+                    <button @click="showModal=false" class="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                 </div>
                 
                 <form @submit.prevent="submit" class="p-6 space-y-6">
                     <!-- Pre-fill Banner -->
-                    <div v-if="form.prescription_item_id" class="bg-indigo-50 border border-indigo-100 rounded-[24px] p-4 flex items-center gap-3">
-                        <div class="bg-indigo-100 p-2 rounded-[16px] text-indigo-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div v-if="form.prescription_item_id" class="bg-primary/10 border border-primary/20 rounded-md p-3 flex items-center gap-3">
+                        <div class="p-1.5 rounded-md bg-primary/20 text-primary">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
                         <div>
-                            <p class="text-indigo-900 text-sm font-bold">Racikan ini dikerjakan untuk Resep ID #{{ form.prescription_id }}</p>
-                            <p class="text-indigo-600 text-xs mt-0.5">Parameter otomatis diisi dari instruksi dokter.</p>
+                            <p class="text-foreground text-sm font-medium">Racikan ini dikerjakan untuk Resep ID #{{ form.prescription_id }}</p>
+                            <p class="text-muted-foreground text-xs">Parameter otomatis diisi dari instruksi dokter.</p>
                         </div>
                     </div>
 
@@ -321,40 +321,41 @@ if (prefillItemId) {
                     <!-- Basic Info -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-slate-700 text-sm font-semibold mb-1.5">Nama Racikan <span class="text-red-500">*</span></label>
-                            <input v-model="form.nama_racikan" type="text" class="w-full bg-white border border-[#E8EEF6] rounded-[24px] h-[52px] px-6.5 text-slate-900 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-shadow" required />
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Racikan <span class="text-red-500">*</span></label>
+                            <input v-model="form.nama_racikan" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" required />
                         </div>
                         <div>
-                            <label class="block text-slate-700 text-sm font-semibold mb-1.5">Template Formula</label>
-                            <select v-model="form.formula_id" class="w-full bg-white border border-[#E8EEF6] rounded-[24px] h-[52px] px-6.5 text-slate-900 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-shadow">
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Template Formula</label>
+                            <select v-model="form.formula_id" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors">
                                 <option value="">Tanpa formula (Kustom)</option>
                                 <option v-for="f in (formulas || [])" :key="f.id" :value="f.id">{{ f.nama_resep }}</option>
                             </select>
                         </div>
                     </div>
+                    
                     <!-- Target Output Section -->
-                    <div class="bg-blue-50 border border-blue-100 rounded-[24px] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-blue-900 font-bold text-base flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 11v10"></path></svg>
+                    <div class="bg-muted/30 border border-border rounded-md p-4 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-foreground font-semibold text-sm flex items-center gap-2">
+                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 11v10"></path></svg>
                                 Target Produksi & Hasil Jadi
-                            </h3>
+                            </h4>
                             <!-- Status Mass Balance -->
-                            <div class="flex items-center gap-2">
-                                <div :class="massBalanceStatus.ok ? 'bg-teal-500' : 'bg-red-500'" class="w-2.5 h-2.5 rounded-full animate-pulse"></div>
-                                <span :class="massBalanceStatus.ok ? 'text-teal-700' : 'text-red-700'" class="text-[10px] font-black uppercase tracking-wider">
+                            <div class="flex items-center gap-1.5">
+                                <div :class="massBalanceStatus.ok ? 'bg-emerald-500' : 'bg-red-500'" class="w-2 h-2 rounded-full animate-pulse"></div>
+                                <span :class="massBalanceStatus.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'" class="text-xs font-semibold uppercase tracking-wider">
                                     {{ massBalanceStatus.ok ? 'Mass Balance OK' : 'Insufficient Mass' }}
                                 </span>
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                             <div class="sm:col-span-1">
-                                <label class="block text-blue-700 text-[10px] font-black uppercase mb-1.5 ml-1">Jumlah Unit <span class="text-red-500">*</span></label>
-                                <input v-model.number="form.jumlah_unit" type="number" min="1" class="w-full bg-white border border-blue-200 rounded-[16px] h-[52px] px-6.5 text-base font-black text-blue-900 outline-none" required />
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Jumlah Unit <span class="text-red-500">*</span></label>
+                                <input v-model.number="form.jumlah_unit" type="number" min="1" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring" required />
                             </div>
                             <div class="sm:col-span-1">
-                                <label class="block text-blue-700 text-[10px] font-black uppercase mb-1.5 ml-1">Satuan</label>
-                                <select v-model="form.target_unit" class="w-full bg-white border border-blue-200 rounded-[16px] h-[52px] px-6.5 text-sm font-bold text-slate-700 outline-none" required>
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Satuan</label>
+                                <select v-model="form.target_unit" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring" required>
                                     <option value="Kapsul">Kapsul</option>
                                     <option value="Puyer">Puyer</option>
                                     <option value="Botol">Botol</option>
@@ -362,98 +363,98 @@ if (prefillItemId) {
                                 </select>
                             </div>
                             <div class="sm:col-span-1">
-                                <label class="block text-blue-700 text-[10px] font-black uppercase mb-1.5 ml-1">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
                                     Berat/Unit (g)
-                                    <span v-if="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2" class="text-red-500 animate-pulse ml-1" title="Peringatan: Berat melebihi kapasitas rata-rata cangkang kapsul (Max 1.2g)">⚠️</span>
+                                    <span v-if="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2" class="text-red-500 ml-1" title="Peringatan: Berat melebihi kapasitas rata-rata cangkang kapsul (Max 1.2g)">⚠️</span>
                                 </label>
-                                <input v-model.number="form.berat_per_unit" type="number" step="0.01" class="w-full bg-white border border-blue-200 rounded-[16px] h-[52px] px-6.5 text-sm font-bold text-slate-700 outline-none transition-colors" :class="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2 ? 'border-red-300 bg-red-50 text-red-700' : ''" placeholder="Target berat" />
+                                <input v-model.number="form.berat_per_unit" type="number" step="0.01" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors" :class="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2 ? 'border-red-500 text-red-500' : ''" placeholder="Target berat" />
                             </div>
-                            <div class="sm:col-span-1 bg-white/50 border border-blue-100 rounded-[16px] p-2 flex flex-col justify-center text-center relative">
-                                <p class="text-[8px] font-black text-blue-400 uppercase">Estimasi Hasil</p>
-                                <p class="text-sm font-black text-blue-700">{{ yieldStats.yield }} {{ form.target_unit }}</p>
-                                <p v-if="yieldStats.remainder > 0" class="text-[8px] font-bold text-slate-400 mt-0.5">Sisa: {{ yieldStats.remainder }}g</p>
+                            <div class="sm:col-span-1 bg-background border border-border rounded-md p-2 flex flex-col justify-center text-center">
+                                <p class="text-xs text-muted-foreground uppercase">Estimasi Hasil</p>
+                                <p class="text-sm font-semibold text-foreground">{{ yieldStats.yield }} {{ form.target_unit }}</p>
+                                <p v-if="yieldStats.remainder > 0" class="text-xs text-muted-foreground mt-0.5">Sisa: {{ yieldStats.remainder }}g</p>
                             </div>
                         </div>
 
                         <!-- Filler & Safety Information -->
-                        <div v-if="filler_dibutuhkan > 0" class="mt-4 p-3 bg-white/40 border border-blue-100 rounded-[24px] flex items-center justify-between">
+                        <div v-if="filler_dibutuhkan > 0" class="p-3 bg-background border border-border rounded-md flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">B</div>
-                                <p class="text-blue-900 text-xs font-bold">Butuh Bahan Tambahan (Filler):</p>
+                                <div class="w-5 h-5 bg-primary/20 text-primary rounded-full flex items-center justify-center text-xs font-bold">B</div>
+                                <p class="text-foreground text-xs font-medium">Butuh Bahan Tambahan (Filler):</p>
                             </div>
-                            <p class="text-blue-700 font-black text-sm">{{ filler_dibutuhkan.toFixed(2) }}g</p>
+                            <p class="text-foreground font-semibold text-sm">{{ filler_dibutuhkan.toFixed(2) }}g</p>
                         </div>
 
-                        <div v-if="hasLiquidInCapsule" class="mt-2 p-3 bg-red-50 border border-red-100 rounded-[24px] flex items-center gap-2">
-                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            <p class="text-red-700 text-[10px] font-bold uppercase tracking-tight">Peringatan: Campuran mengandung cairan. Gunakan pengering (Aerosil/Magnesium Carbonat).</p>
+                        <div v-if="hasLiquidInCapsule" class="p-3 bg-red-500/10 border border-red-500/20 rounded-md flex items-center gap-2">
+                            <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            <p class="text-red-600 dark:text-red-400 text-xs font-medium">Peringatan: Campuran mengandung cairan. Gunakan pengering (Aerosil/Magnesium Carbonat).</p>
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-slate-700 text-sm font-semibold mb-1.5">Catatan Apoteker</label>
-                        <textarea v-model="form.apoteker_note" rows="2" class="w-full bg-white border border-[#E8EEF6] rounded-[24px] h-[52px] px-6.5 text-slate-900 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none transition-shadow" placeholder="Instruksi khusus untuk compounding..."></textarea>
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Catatan Apoteker</label>
+                        <textarea v-model="form.apoteker_note" rows="2" class="w-full bg-background border border-input rounded-md p-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none resize-none transition-colors" placeholder="Instruksi khusus untuk compounding..."></textarea>
                     </div>
 
                     <!-- Details -->
-                    <div class="bg-slate-50 border border-[#E8EEF6] rounded-[24px] p-4">
-                        <div class="flex items-center justify-between mb-4">
-                            <p class="text-slate-800 font-bold">Daftar Bahan Racikan <span class="text-red-500">*</span></p>
-                            <button type="button" @click="addDetail" class="inline-flex items-center gap-1 text-teal-600 hover:text-teal-700 text-sm font-semibold bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-[16px] transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Tambah Bahan
+                    <div class="bg-muted/30 border border-border rounded-md p-4 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <p class="text-foreground font-semibold text-sm">Daftar Bahan Racikan <span class="text-red-500">*</span></p>
+                            <button type="button" @click="addDetail" class="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-xs font-medium bg-background border border-border hover:bg-muted px-3 h-8 rounded-md transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Tambah Bahan
                             </button>
                         </div>
                         
-                        <div class="space-y-4">
-                            <div v-for="(d,i) in form.bahan_baku" :key="'detail-'+i" class="bg-white border border-[#E8EEF6] rounded-[24px] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] relative overflow-hidden group">
+                        <div class="space-y-3">
+                            <div v-for="(d,i) in form.bahan_baku" :key="'detail-'+i" class="bg-card border border-border rounded-md p-4 shadow-sm relative overflow-hidden group">
                                 <!-- Overstock Alert Overlay -->
-                                <div v-if="isOverstock(d)" class="absolute inset-0 bg-red-50/10 backdrop-blur-[0.5px] pointer-events-none border-2 border-red-500 rounded-[24px] z-20"></div>
+                                <div v-if="isOverstock(d)" class="absolute inset-0 bg-red-500/10 pointer-events-none border border-red-500 rounded-md z-20"></div>
                                 
-                                <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end relative z-10">
+                                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end relative z-10">
                                     <div class="md:col-span-5">
-                                        <label class="block text-slate-500 text-[10px] font-black uppercase mb-1.5 ml-1">Pilih Bahan Baku</label>
-                                        <select v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-slate-50 border border-[#E8EEF6] rounded-[16px] h-[52px] px-6.5 text-slate-900 text-sm font-bold focus:border-teal-500 outline-none transition-all" required>
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Pilih Bahan Baku</label>
+                                        <select v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" required>
                                             <option value="">Cari Bahan...</option>
                                             <option v-for="rm in (rawMaterials || [])" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }} ({{ rm.satuan_ukur }})</option>
                                         </select>
                                     </div>
                                     <div class="md:col-span-2">
-                                        <label class="block text-slate-500 text-[10px] font-black uppercase mb-1.5 ml-1">Qty Butuh</label>
-                                        <input v-model.number="d.qty_taken_pcs" type="number" step="0.01" min="0" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] h-[52px] px-6.5 text-slate-900 text-sm font-black focus:border-teal-500 outline-none" required />
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Qty Butuh</label>
+                                        <input v-model.number="d.qty_taken_pcs" type="number" step="0.01" min="0" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm font-semibold focus:ring-1 focus:ring-ring outline-none" required />
                                     </div>
                                     <div class="md:col-span-2">
-                                        <label class="block text-slate-500 text-[10px] font-black uppercase mb-1.5 ml-1">Penyusutan (%)</label>
-                                        <input v-model.number="d.wastage_percentage" type="number" step="0.1" min="0" max="100" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] h-[52px] px-6.5 text-slate-900 text-sm font-black focus:border-teal-500 outline-none" required />
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Penyusutan (%)</label>
+                                        <input v-model.number="d.wastage_percentage" type="number" step="0.1" min="0" max="100" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm font-semibold focus:ring-1 focus:ring-ring outline-none" required />
                                     </div>
                                     <div class="md:col-span-2">
-                                        <label class="block text-slate-500 text-[10px] font-black uppercase mb-1.5 ml-1">Qty Neto (Mass)</label>
-                                        <div class="w-full bg-teal-50 border border-teal-100 rounded-[16px] h-[52px] px-6.5 text-teal-700 font-black text-center text-sm shadow-inner min-h-[42px] flex items-center justify-center">
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Qty Neto (Mass)</label>
+                                        <div class="w-full bg-muted border border-border rounded-md h-9 px-3 text-foreground font-semibold text-center text-sm flex items-center justify-center">
                                             {{ calculateItemNeto(d).toFixed(2) }} g
                                         </div>
                                     </div>
-                                    <div class="md:col-span-1 flex justify-center pb-1">
-                                        <button type="button" @click="removeDetail(i)" class="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-[16px] hover:bg-red-50">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    <div class="md:col-span-1 flex justify-center">
+                                        <button type="button" @click="removeDetail(i)" class="text-muted-foreground hover:text-red-500 transition-colors p-2 rounded-md hover:bg-red-500/10">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                         </button>
                                     </div>
                                 </div>
 
                                 <!-- FEFO Suggestion & Real-time Stock Monitor -->
-                                <div v-if="d.id_batch" class="mt-4 bg-teal-50/50 border border-teal-100 rounded-[16px] px-4 py-3 flex items-center gap-3">
-                                    <div class="bg-teal-100 p-1.5 rounded-[16px]">
-                                        <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <div v-if="d.id_batch" class="mt-3 bg-muted/50 border border-border rounded-md px-3 py-2 flex items-center gap-2">
+                                    <div class="p-1 rounded-md bg-primary/10 text-primary">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </div>
-                                    <div class="flex-1">
-                                        <p class="text-teal-900 text-[11px] font-medium leading-relaxed">
+                                    <div class="flex-1 text-xs">
+                                        <p class="text-foreground leading-relaxed">
                                             <template v-if="d.fefo_info">
-                                                Rekomendasi FEFO: <span class="bg-white border border-teal-200 px-1.5 py-0.5 rounded font-mono font-bold text-teal-700">{{ d.fefo_info.batch_no }}</span> 
-                                                <span class="mx-2 text-teal-300">|</span> 
-                                                Exp: <strong class="text-teal-800">{{ new Date(d.fefo_info.expired_date).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) }}</strong>
-                                                <span class="mx-2 text-teal-300">|</span> 
-                                                Sisa stok fisik: <strong :class="isOverstock(d) ? 'text-red-600 font-black' : 'text-teal-900'">{{ getRemaining(d) }}</strong>
+                                                Rekomendasi FEFO: <span class="bg-background border border-border px-1.5 py-0.5 rounded font-medium text-foreground tracking-wide">{{ d.fefo_info.batch_no }}</span> 
+                                                <span class="mx-1.5 text-muted-foreground">|</span> 
+                                                Exp: <strong class="text-foreground">{{ new Date(d.fefo_info.expired_date).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) }}</strong>
+                                                <span class="mx-1.5 text-muted-foreground">|</span> 
+                                                Sisa stok fisik: <strong :class="isOverstock(d) ? 'text-red-600 font-bold' : 'text-foreground'">{{ getRemaining(d) }}</strong>
                                             </template>
                                             <template v-else>
-                                                <span class="animate-pulse">Mengambil data batch FEFO terdekat...</span>
+                                                <span class="text-muted-foreground animate-pulse">Mengambil data batch FEFO terdekat...</span>
                                             </template>
                                         </p>
                                     </div>
@@ -463,46 +464,46 @@ if (prefillItemId) {
                     </div>
 
                     <!-- Label / Etiket -->
-                    <div class="border-t border-[#E8EEF6] pt-5">
-                        <h4 class="text-slate-800 font-bold mb-4 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 11h.01M7 15h.01M13 7h.01M13 11h.01M13 15h.01M17 7h.01M17 11h.01M17 15h.01"></path></svg>
+                    <div class="border-t border-border pt-4 space-y-4">
+                        <h4 class="text-foreground font-semibold text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 11h.01M7 15h.01M13 7h.01M13 11h.01M13 15h.01M17 7h.01M17 11h.01M17 15h.01"></path></svg>
                             Informasi Etiket / Label Obat
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-slate-700 text-xs font-semibold mb-1.5">Tanggal Racik</label>
-                                <input v-model="form.label.tanggal_racik" type="date" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] px-3 py-2 text-slate-900 focus:border-teal-500 outline-none transition-shadow" required />
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tanggal Racik</label>
+                                <input v-model="form.label.tanggal_racik" type="date" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" required />
                             </div>
                             <div>
-                                <label class="block text-slate-700 text-xs font-semibold mb-1.5">Beyond Use Date (BUD) hari</label>
-                                <input v-model="form.label.bud_hari" type="number" min="1" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] px-3 py-2 text-slate-900 focus:border-teal-500 outline-none transition-shadow" required />
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Beyond Use Date (BUD) hari</label>
+                                <input v-model="form.label.bud_hari" type="number" min="1" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" required />
                             </div>
                             <div>
-                                <label class="block text-slate-500 text-xs font-semibold mb-1.5">Estimasi Kadaluarsa (BUD)</label>
-                                <div class="w-full bg-teal-50 border border-teal-100 rounded-[16px] px-3 py-2 text-teal-700 font-bold flex items-center h-[38px] shadow-inner">
-                                    <svg class="w-4 h-4 mr-1.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Estimasi Kadaluarsa (BUD)</label>
+                                <div class="w-full bg-muted border border-border rounded-md px-3 h-9 text-foreground font-medium text-xs flex items-center">
+                                    <svg class="w-3.5 h-3.5 mr-1.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     {{ budDate }}
                                 </div>
                             </div>
                         </div>
-                        <div class="mb-4">
-                            <label class="block text-slate-700 text-xs font-semibold mb-1.5">Aturan Pakai <span class="text-red-500">*</span></label>
-                            <input v-model="form.label.aturan_pakai" type="text" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] px-3 py-2.5 text-slate-900 focus:border-teal-500 outline-none transition-shadow" placeholder="Contoh: 3 x sehari 1 bungkus sesudah makan" required />
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Aturan Pakai <span class="text-red-500">*</span></label>
+                            <input v-model="form.label.aturan_pakai" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Contoh: 3 x sehari 1 bungkus sesudah makan" required />
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-slate-700 text-xs font-semibold mb-1.5">Nama Pasien</label>
-                                <input v-model="form.label.nama_pasien" type="text" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] px-3 py-2.5 text-slate-900 focus:border-teal-500 outline-none transition-shadow" placeholder="Nama pasien..." />
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Pasien</label>
+                                <input v-model="form.label.nama_pasien" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Nama pasien..." />
                             </div>
                             <div>
-                                <label class="block text-slate-700 text-xs font-semibold mb-1.5">Keterangan Tambahan</label>
-                                <input v-model="form.label.keterangan" type="text" class="w-full bg-white border border-[#E8EEF6] rounded-[16px] px-3 py-2.5 text-slate-900 focus:border-teal-500 outline-none transition-shadow" placeholder="Kocok dahulu, habiskan, dll..." />
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Keterangan Tambahan</label>
+                                <input v-model="form.label.keterangan" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Kocok dahulu, habiskan, dll..." />
                             </div>
                         </div>
                     </div>
 
-                    <div class="pt-6">
-                        <button type="submit" :disabled="form.processing || stockSafety.overStock" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-[1.5rem] text-base font-black shadow-lg shadow-teal-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale">
+                    <div class="pt-4">
+                        <button type="submit" :disabled="form.processing || stockSafety.overStock" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-md text-sm font-medium shadow-sm transition-colors uppercase tracking-wider disabled:opacity-50">
                             {{ stockSafety.overStock ? 'Bahan Tidak Mencukupi (Batch Over)' : 'Finalisasi & Cetak Etiket' }}
                         </button>
                     </div>
@@ -513,23 +514,23 @@ if (prefillItemId) {
 
     <!-- Cancel Confirmation -->
     <Teleport to="body">
-        <div v-if="cancelModal.show" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-md transition-opacity" @click="cancelModal.show = false"></div>
-            <div class="relative bg-white rounded-[24px] shadow-2xl w-full max-w-md p-10 text-center transform transition-all border border-[#E8EEF6]">
-                <div class="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner border border-rose-100">
-                    <span class="text-4xl animate-bounce">⚠️</span>
+        <div v-if="cancelModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity" @click="cancelModal.show = false"></div>
+            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-md p-6 text-center border border-border">
+                <div class="w-12 h-12 bg-red-500/10 text-red-600 dark:text-red-400 rounded-md flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                 </div>
-                <h3 class="text-xl font-black text-slate-900 uppercase tracking-tighter mb-3">Batalkan Racikan?</h3>
-                <p class="text-slate-500 text-[11px] font-bold uppercase tracking-tight leading-relaxed mb-10">
+                <h3 class="text-base font-semibold text-foreground mb-2">Batalkan Racikan?</h3>
+                <p class="text-muted-foreground text-xs leading-relaxed mb-6">
                     Proses ini akan mengembalikan alokasi stok ke batch FEFO secara otomatis. Tindakan ini tidak dapat dibatalkan.
                 </p>
                 
-                <div class="flex flex-col gap-4">
-                    <button @click="proceedCancel" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-rose-200 transition-all active:scale-95">
-                        Ya, Batalkan Protokol
-                    </button>
-                    <button @click="cancelModal.show = false" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-[0.2em] transition-all">
+                <div class="flex justify-end gap-2">
+                    <button @click="cancelModal.show = false" class="px-4 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-md text-sm font-medium transition-colors">
                         Kembali Ke Log
+                    </button>
+                    <button @click="proceedCancel" class="px-4 h-9 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors">
+                        Ya, Batalkan Protokol
                     </button>
                 </div>
             </div>

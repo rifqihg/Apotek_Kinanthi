@@ -20,64 +20,59 @@ const actionClass = (a) => ({
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tighter">Log Audit & Mutasi Inventaris</h2>
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-tight mt-1">Transparansi penuh pergerakan stok non-transaksional</p>
+                <h1 class="text-xl font-bold tracking-tight text-foreground">Log Audit & Mutasi Inventaris</h1>
+                <p class="text-xs text-muted-foreground mt-0.5">Transparansi penuh pergerakan stok non-transaksional</p>
             </div>
         </div>
 
         <!-- Table View -->
-        <div class="bg-white border border-[#E8EEF6] rounded-[1.5rem] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden">
+        <div class="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] border-b border-[#E8EEF6]">
+                    <thead class="bg-muted/50 text-muted-foreground text-xs font-semibold uppercase tracking-wider border-b border-border">
                         <tr>
-                            <th class="px-8 py-5">Timestamp</th>
-                            <th class="px-8 py-5">Entitas / Substrat</th>
-                            <th class="px-8 py-5">Aksi Audit</th>
-                            <th class="px-8 py-5 text-right">Delta (Perubahan)</th>
-                            <th class="px-8 py-5 text-right">Saldo Akhir</th>
-                            <th class="px-8 py-5 text-center">PIC / Verifikator</th>
-                            <th class="px-8 py-5">Keterangan</th>
+                            <th class="px-4 py-3">Timestamp</th>
+                            <th class="px-4 py-3">Entitas / Substrat</th>
+                            <th class="px-4 py-3">Aksi Audit</th>
+                            <th class="px-4 py-3 text-right">Delta (Perubahan)</th>
+                            <th class="px-4 py-3 text-right">Saldo Akhir</th>
+                            <th class="px-4 py-3 text-center">PIC / Verifikator</th>
+                            <th class="px-4 py-3">Keterangan</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 text-slate-600">
+                    <tbody class="divide-y divide-border text-foreground">
                         <tr v-if="logs.data.length === 0">
-                            <td colspan="7" class="px-8 py-20 text-center">
-                                <div class="flex flex-col items-center gap-4">
-                                    <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 border border-[#E8EEF6]">
-                                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2"></path></svg>
-                                    </div>
-                                    <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Belum Ada Log Audit</span>
-                                </div>
+                            <td colspan="7" class="px-4 py-12 text-center text-muted-foreground text-xs font-medium">
+                                Belum Ada Log Audit
                             </td>
                         </tr>
-                        <tr v-for="log in logs.data" :key="log.id" class="hover:bg-slate-50/70 transition-all group">
-                            <td class="px-8 py-5 whitespace-nowrap text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                        <tr v-for="log in logs.data" :key="log.id" class="hover:bg-muted/50 transition-colors">
+                            <td class="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
                                 {{ new Date(log.created_at).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) }}
                             </td>
-                            <td class="px-8 py-5">
-                                <span class="font-black text-slate-900 text-sm uppercase tracking-tighter block leading-tight">{{ log.raw_material?.nama_bahan || log.medicine?.nama_obat }}</span>
-                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">{{ log.raw_material_id ? 'Materia / Bahan Baku' : 'Sediaan Jadi / Obat' }}</p>
+                            <td class="px-4 py-3">
+                                <span class="font-semibold text-foreground text-sm block leading-tight">{{ log.raw_material?.nama_bahan || log.medicine?.nama_obat }}</span>
+                                <p class="text-xs text-muted-foreground mt-0.5">{{ log.raw_material_id ? 'Materia / Bahan Baku' : 'Sediaan Jadi / Obat' }}</p>
                             </td>
-                            <td class="px-8 py-5">
-                                <span :class="actionClass(log.action)" class="px-2.5 py-1 rounded-[16px] text-[9px] font-black border uppercase tracking-widest shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+                            <td class="px-4 py-3">
+                                <span :class="actionClass(log.action)" class="px-2 py-0.5 rounded-md text-xs font-semibold border">
                                     {{ log.action }}
                                 </span>
                             </td>
-                            <td class="px-8 py-5 text-right font-black text-sm tabular-nums" :class="log.change_amount > 0 ? 'text-emerald-600' : 'text-rose-600'">
+                            <td class="px-4 py-3 text-right font-semibold text-sm tabular-nums" :class="log.change_amount > 0 ? 'text-emerald-600' : 'text-rose-600'">
                                 {{ log.change_amount > 0 ? '+' : '' }}{{ Number(log.change_amount).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }}
                             </td>
-                            <td class="px-8 py-5 text-right font-black text-slate-900 text-sm tabular-nums">
+                            <td class="px-4 py-3 text-right font-semibold text-foreground text-sm tabular-nums">
                                 {{ Number(log.qty_after).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }}
                             </td>
-                            <td class="px-8 py-5">
+                            <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
-                                    <div class="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-black text-slate-500 border border-[#E8EEF6] uppercase">{{ log.user?.name?.charAt(0) }}</div>
-                                    <span class="text-[10px] font-black text-slate-700 uppercase tracking-tighter">{{ log.user?.name }}</span>
+                                    <div class="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium text-muted-foreground border border-border uppercase">{{ log.user?.name?.charAt(0) }}</div>
+                                    <span class="text-xs font-medium text-foreground">{{ log.user?.name }}</span>
                                 </div>
                             </td>
-                            <td class="px-8 py-5">
-                                <div class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-[16px] text-[9px] font-black uppercase tracking-tight block w-fit truncate max-w-[150px]" :title="log.reason">
+                            <td class="px-4 py-3">
+                                <div class="bg-muted text-muted-foreground px-2.5 py-1 rounded-md text-xs block w-fit truncate max-w-[200px]" :title="log.reason">
                                     {{ log.reason || '-' }}
                                 </div>
                             </td>
@@ -85,13 +80,13 @@ const actionClass = (a) => ({
                     </tbody>
                 </table>
             </div>
-            <div v-if="logs.links?.length > 3" class="flex justify-center gap-1.5 p-6 border-t border-[#E8EEF6]">
+            <div v-if="logs.links?.length > 3" class="flex justify-center gap-1.5 p-4 border-t border-border">
                 <template v-for="l in logs.links" :key="l.label">
                     <button 
                         v-if="l.url" 
                         @click="router.get(l.url)" 
-                        :class="l.active ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' : 'bg-white border-[#E8EEF6] text-slate-500 hover:border-emerald-500 hover:text-emerald-500'" 
-                        class="w-8 h-8 flex items-center justify-center rounded-[16px] text-[10px] font-black transition-all border uppercase" 
+                        :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-muted-foreground hover:bg-muted hover:text-foreground'" 
+                        class="h-8 w-8 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                         v-html="l.label"
                     ></button>
                 </template>

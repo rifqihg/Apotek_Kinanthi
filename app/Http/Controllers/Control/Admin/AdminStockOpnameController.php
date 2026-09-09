@@ -28,8 +28,14 @@ class AdminStockOpnameController extends Controller
             ->latest()
             ->paginate(15);
 
-        $medicines = Medicine::where('status', 'active')->get();
-        $rawMaterials = RawMaterial::where('status', 'active')->get();
+        $medicines = Medicine::where('status', 'active')
+            ->select(['id', 'nama_obat'])
+            ->orderBy('nama_obat')
+            ->get();
+        $rawMaterials = RawMaterial::where('status', 'active')
+            ->select(['id', 'nama_bahan'])
+            ->orderBy('nama_bahan')
+            ->get();
 
         return Inertia::render('Control/Admin/StockOpname', [
             'opnames' => $opnames,

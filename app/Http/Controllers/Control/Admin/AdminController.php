@@ -23,7 +23,17 @@ class AdminController extends Controller
      */
     public function dashboard(Request $request)
     {
-        $settings = Setting::current();
+        $filter = $request->query('filter', 'abjad');
+
+        return Inertia::render('Control/Admin/Dashboard', [
+            'stats' => fn() => $this->getDashboardStats(),
+            'tableStocks' => fn() => $this->getTableStocks($filter),
+            'currentFilter' => $filter,
+        ]);
+    }
+
+    private function getDashboardStats(): array
+    {
         $totalMedicines = Medicine::count();
         $lowStockCount = Medicine::belowThreshold()->count();
         $fefoAlertCount = WarehouseInventory::active()->where('stock_on_hand', '>', 0)->whereNotNull('expired_date')->expiringSoon(90)->count();
@@ -32,16 +42,29 @@ class AdminController extends Controller
         $pendingCompounding = CompoundingSubmission::pending()->count();
 
         $todaySalesCount = Sale::where('status', 'paid')->whereDate('created_at', today())->count();
-        $todaySalesTotal = Sale::where('status', 'paid')->whereDate('created_at', today())->sum('total_amount');
+        $todaySalesTotal = (float) (Sale::where('status', 'paid')->whereDate('created_at', today())->sum('total_amount') ?? 0);
         $activePrescriptionsCount = Prescription::whereIn('status', ['diproses', 'siap_ambil'])->count();
         $pendingPricingCount = CompoundedProduct::where('pricing_status', 'pending_price')->count();
 
         $lowStockPercentage = ($totalMedicines > 0) ? round(($lowStockCount / $totalMedicines) * 100) : 0;
 
-        $filter = $request->query('filter', 'abjad');
-        $query = Medicine::with(['incomingStocks' => function($q) {
-            $q->orderBy('expired_date', 'asc');
-        }]);
+        return [
+            'total_obat' => $totalMedicines,
+            'low_stock_count' => $lowStockCount,
+            'low_stock_percentage' => $lowStockPercentage,
+            'fefo_alert_count' => $fefoAlertCount,
+            'fefo_nearest_date' => $fefoNearestBatch && $fefoNearestBatch->expired_date ? Carbon::parse($fefoNearestBatch->expired_date)->format('d M Y') : null,
+            'pending_compounding' => $pendingCompounding,
+            'today_sales_count' => $todaySalesCount,
+            'today_sales_total' => $todaySalesTotal,
+            'active_prescriptions_count' => $activePrescriptionsCount,
+            'pending_pricing_count' => $pendingPricingCount,
+        ];
+    }
+
+    private function getTableStocks(string $filter)
+    {
+        $query = Medicine::with('earliestExpiringStock');
         
         if ($filter === 'exp') {
             $query->orderBy(
@@ -61,7 +84,7 @@ class AdminController extends Controller
         $paginator = $query->paginate(10)->withQueryString();
         
         $tableStocks = $paginator->getCollection()->map(function ($medicine) {
-            $incoming = $medicine->incomingStocks->first(); // Gets the one with earliest expiry
+            $incoming = $medicine->earliestExpiringStock; // Gets the one with earliest expiry
             return [
                 'id' => $medicine->id,
                 'nama_obat' => $medicine->nama_obat,
@@ -87,22 +110,7 @@ class AdminController extends Controller
         
         $paginator->setCollection($tableStocks);
 
-        return Inertia::render('Control/Admin/Dashboard', [
-            'stats' => [
-                'total_obat' => $totalMedicines,
-                'low_stock_count' => $lowStockCount,
-                'low_stock_percentage' => $lowStockPercentage,
-                'fefo_alert_count' => $fefoAlertCount,
-                'fefo_nearest_date' => $fefoNearestBatch && $fefoNearestBatch->expired_date ? Carbon::parse($fefoNearestBatch->expired_date)->format('d M Y') : null,
-                'pending_compounding' => $pendingCompounding,
-                'today_sales_count' => $todaySalesCount,
-                'today_sales_total' => $todaySalesTotal,
-                'active_prescriptions_count' => $activePrescriptionsCount,
-                'pending_pricing_count' => $pendingPricingCount,
-            ],
-            'tableStocks' => $paginator,
-            'currentFilter' => $filter,
-        ]);
+        return $paginator;
     }
 
     // ─── SETTINGS ───────────────────────────────────────────

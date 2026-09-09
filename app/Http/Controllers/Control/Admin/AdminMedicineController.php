@@ -23,7 +23,8 @@ class AdminMedicineController extends Controller
         $search = $request->input('search');
 
         // 1. Katalog Faktur (Data Faktur Masuk yang valid)
-        $query = IncomingStock::with(['medicine', 'supplier', 'warehouseInventories'])
+        $query = IncomingStock::with(['medicine', 'supplier'])
+            ->withSum('warehouseInventories', 'stock_on_hand')
             ->latest();
 
         if ($search) {
@@ -38,7 +39,7 @@ class AdminMedicineController extends Controller
             ->withQueryString()
             ->through(function ($stock) {
                 // Sisa stok riil mencerminkan stok fisik di Gudang + Kasir (berelasi dengan retur dan penjualan)
-                $liveStock = (float) $stock->warehouseInventories->sum('stock_on_hand');
+                $liveStock = (float) ($stock->warehouse_inventories_sum_stock_on_hand ?? 0);
                 $stock->qty_converted = $liveStock;
 
                 $hppKecil = $stock->calculateHppSatuan();

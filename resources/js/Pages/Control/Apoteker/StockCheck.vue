@@ -47,10 +47,10 @@ const isNearExpiry = (dateStr) => {
     <Head title="Cek Ketersediaan Batch (FEFO)" />
     <div class="space-y-6">
         <!-- Header & Controls -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[24px] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
             <div>
-                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tighter">Cek Ketersediaan Batch (FEFO)</h2>
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-tight mt-1">Pantau urutan batch kedaluwarsa untuk presisi peracikan dan penyerahan obat</p>
+                <h1 class="text-xl font-bold tracking-tight text-foreground">Cek Ketersediaan Batch (FEFO)</h1>
+                <p class="text-xs text-muted-foreground mt-0.5">Pantau urutan batch kedaluwarsa untuk presisi peracikan dan penyerahan obat</p>
             </div>
             
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -60,24 +60,24 @@ const isNearExpiry = (dateStr) => {
                         v-model="search"
                         type="text" 
                         placeholder="Cari nama atau kode..." 
-                        class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-[#E8EEF6] rounded-[16px] text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        class="h-9 w-full pl-9 pr-4 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
                     />
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </div>
 
                 <!-- Tab Toggle -->
-                <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-[16px] border border-[#E8EEF6]">
+                <div class="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border">
                     <button 
                         @click="activeTab = 'raw_materials'" 
-                        :class="activeTab === 'raw_materials' ? 'bg-white text-blue-600 shadow-sm border border-slate-200/60 font-black' : 'text-slate-500 hover:text-slate-800 font-bold'"
-                        class="px-4 py-1.5 rounded-[12px] text-xs uppercase tracking-wider transition-all"
+                        :class="activeTab === 'raw_materials' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
+                        class="h-7 px-3 rounded-md text-xs transition-colors"
                     >
                         Bahan Baku ({{ filteredRawMaterials.length }})
                     </button>
                     <button 
                         @click="activeTab = 'medicines'" 
-                        :class="activeTab === 'medicines' ? 'bg-white text-blue-600 shadow-sm border border-slate-200/60 font-black' : 'text-slate-500 hover:text-slate-800 font-bold'"
-                        class="px-4 py-1.5 rounded-[12px] text-xs uppercase tracking-wider transition-all"
+                        :class="activeTab === 'medicines' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
+                        class="h-7 px-3 rounded-md text-xs transition-colors"
                     >
                         Obat Jadi ({{ filteredMedicines.length }})
                     </button>
@@ -87,130 +87,130 @@ const isNearExpiry = (dateStr) => {
 
         <!-- TAB 1: RAW MATERIALS -->
         <div v-if="activeTab === 'raw_materials'" class="space-y-6">
-            <div v-if="filteredRawMaterials.length === 0" class="bg-white border border-[#E8EEF6] rounded-[24px] p-12 text-center shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                <div class="flex flex-col items-center gap-3 text-slate-400">
+            <div v-if="filteredRawMaterials.length === 0" class="bg-card border border-border rounded-lg p-12 text-center shadow-sm">
+                <div class="flex flex-col items-center gap-3 text-muted-foreground">
                     <svg class="w-12 h-12 stroke-[1.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                    <p class="font-bold text-slate-600 text-sm">Belum ada bahan baku yang terdaftar atau sesuai kriteria pencarian</p>
-                    <p class="text-xs text-slate-400">Semua bahan racikan akan muncul di sini beserta urutan batch FEFO.</p>
+                    <p class="font-semibold text-foreground text-sm">Belum ada bahan baku yang terdaftar atau sesuai kriteria pencarian</p>
+                    <p class="text-xs text-muted-foreground">Semua bahan racikan akan muncul di sini beserta urutan batch FEFO.</p>
                 </div>
             </div>
 
-            <div v-for="rm in filteredRawMaterials" :key="rm.id" class="bg-white border border-[#E8EEF6] rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden transition-all hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+            <div v-for="rm in filteredRawMaterials" :key="rm.id" class="bg-card border border-border rounded-lg shadow-sm overflow-hidden transition-colors">
                 <!-- Header Card -->
-                <div class="px-8 py-6 border-b border-[#E8EEF6] bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div class="flex items-center gap-5">
-                        <div class="w-14 h-14 rounded-[20px] bg-slate-900 text-white flex items-center justify-center font-black text-xl uppercase shadow-lg shadow-slate-900/10">
+                <div class="px-6 py-4 border-b border-border bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-11 h-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center font-bold text-sm uppercase">
                             {{ rm.nama_bahan?.substring(0, 2) || 'RM' }}
                         </div>
                         <div>
-                            <h3 class="text-slate-900 font-black text-base uppercase tracking-tight leading-tight">{{ rm.nama_bahan || 'Bahan Baku' }}</h3>
-                            <div class="flex flex-wrap items-center gap-3 mt-2">
-                                <div class="flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-[12px] border border-[#E8EEF6] shadow-sm">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">KOD:</span>
-                                    <span class="text-[10px] font-black text-slate-700 uppercase tracking-tight">{{ rm.kode_bahan || '-' }}</span>
+                            <h3 class="text-foreground font-semibold text-base leading-tight">{{ rm.nama_bahan || 'Bahan Baku' }}</h3>
+                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                <div class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
+                                    <span class="text-xs text-muted-foreground">Kode:</span>
+                                    <span class="text-xs font-medium text-foreground">{{ rm.kode_bahan || '-' }}</span>
                                 </div>
-                                <div class="flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-[12px] border border-[#E8EEF6] shadow-sm">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Bentuk:</span>
-                                    <span class="text-[10px] font-black text-slate-700 uppercase tracking-tight">{{ rm.bentuk_sediaan || '-' }}</span>
+                                <div class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
+                                    <span class="text-xs text-muted-foreground">Bentuk:</span>
+                                    <span class="text-xs font-medium text-foreground">{{ rm.bentuk_sediaan || '-' }}</span>
                                 </div>
-                                <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-[12px] border border-emerald-100 uppercase tracking-widest">{{ rm.satuan_ukur || '-' }}</span>
+                                <span class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">{{ rm.satuan_ukur || '-' }}</span>
                             </div>
                         </div>
                     </div>
                     <div class="flex flex-col sm:items-end">
-                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Total Ketersediaan</span>
-                        <div :class="Number(rm.stok_total || 0) < (rm.threshold_min || 0) ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'" class="px-5 py-2 rounded-[16px] font-black border text-sm">
+                        <span class="text-xs text-muted-foreground mb-1">Total Ketersediaan</span>
+                        <div :class="Number(rm.stok_total || 0) < (rm.threshold_min || 0) ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="px-3 py-1 rounded-md font-semibold border text-xs">
                             {{ Number(rm.stok_total || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ rm.satuan_ukur || '' }}
                         </div>
                     </div>
                 </div>
 
                 <!-- Batch Details Grid -->
-                <div v-if="rm.stocks?.length" class="bg-white">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y md:divide-y-0 divide-[#E8EEF6]">
-                        <div v-for="(inv, index) in rm.stocks" :key="inv.id" class="px-6 py-4 flex flex-col gap-2.5 hover:bg-slate-50/60 transition-colors">
+                <div v-if="rm.stocks?.length" class="bg-card">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y md:divide-y-0 divide-border">
+                        <div v-for="(inv, index) in rm.stocks" :key="inv.id" class="px-4 py-3 flex flex-col gap-2 hover:bg-muted/40 transition-colors">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">BATCH ID</span>
-                                    <span class="text-xs font-black text-slate-900 uppercase font-mono">{{ inv.batch_no || 'NO-BATCH' }}</span>
+                                    <span class="text-xs text-muted-foreground">BATCH</span>
+                                    <span class="text-xs font-semibold text-foreground tracking-wide">{{ inv.batch_no || 'NO-BATCH' }}</span>
                                 </div>
-                                <span v-if="index === 0" class="text-[8px] font-black text-white bg-emerald-600 px-2 py-0.5 rounded-full shadow-sm uppercase tracking-widest">PRIORITAS FEFO</span>
+                                <span v-if="index === 0" class="text-xs font-semibold text-white bg-emerald-600 px-2 py-0.5 rounded-md">FEFO</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-1.5 text-xs">
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
-                                    <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-black' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-bold' : 'text-slate-600 font-bold'" class="tracking-tight text-[11px]">
+                                    <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
+                                    <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-semibold' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-semibold' : 'text-muted-foreground'" class="text-xs">
                                         Exp: {{ new Date(inv.expired_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                                     </span>
-                                    <span v-else class="text-slate-300 italic font-medium uppercase text-[9px]">Tanpa Kadaluarsa</span>
+                                    <span v-else class="text-muted-foreground italic text-xs">Tanpa Kadaluarsa</span>
                                 </div>
                                 <div class="flex flex-col items-end">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter leading-none mb-0.5">Batch Qty</span>
-                                    <span class="text-slate-900 font-black text-xs tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ rm.satuan_ukur || '' }}</span>
+                                    <span class="text-xs text-muted-foreground leading-none mb-0.5">Batch Qty</span>
+                                    <span class="text-foreground font-semibold text-xs tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ rm.satuan_ukur || '' }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div v-else class="px-8 py-8 text-center bg-slate-50/20">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tidak ada inventaris batch aktif untuk bahan ini</span>
+                <div v-else class="px-6 py-6 text-center bg-muted/20">
+                    <span class="text-xs font-medium text-muted-foreground">Tidak ada inventaris batch aktif untuk bahan ini</span>
                 </div>
             </div>
         </div>
 
         <!-- TAB 2: MEDICINES (OBAT JADI) -->
         <div v-else-if="activeTab === 'medicines'" class="space-y-6">
-            <div v-if="filteredMedicines.length === 0" class="bg-white border border-[#E8EEF6] rounded-[24px] p-12 text-center shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                <div class="flex flex-col items-center gap-3 text-slate-400">
+            <div v-if="filteredMedicines.length === 0" class="bg-card border border-border rounded-lg p-12 text-center shadow-sm">
+                <div class="flex flex-col items-center gap-3 text-muted-foreground">
                     <svg class="w-12 h-12 stroke-[1.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                    <p class="font-bold text-slate-600 text-sm">Belum ada obat jadi yang terdaftar atau sesuai kriteria pencarian</p>
-                    <p class="text-xs text-slate-400">Semua katalog obat jadi apotek akan tampil di sini dengan ketersediaan batch FEFO.</p>
+                    <p class="font-semibold text-foreground text-sm">Belum ada obat jadi yang terdaftar atau sesuai kriteria pencarian</p>
+                    <p class="text-xs text-muted-foreground">Semua katalog obat jadi apotek akan tampil di sini dengan ketersediaan batch FEFO.</p>
                 </div>
             </div>
 
-            <div v-for="med in filteredMedicines" :key="med.id" class="bg-white border border-[#E8EEF6] rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] overflow-hidden transition-all hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+            <div v-for="med in filteredMedicines" :key="med.id" class="bg-card border border-border rounded-lg shadow-sm overflow-hidden transition-colors">
                 <!-- Header Card -->
-                <div class="px-8 py-6 border-b border-[#E8EEF6] bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div class="flex items-center gap-5">
-                        <div class="w-14 h-14 rounded-[20px] bg-blue-600 text-white flex items-center justify-center font-black text-xl uppercase shadow-lg shadow-blue-600/10">
+                <div class="px-6 py-4 border-b border-border bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-11 h-11 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm uppercase">
                             {{ med.nama_obat?.substring(0, 2) || 'OB' }}
                         </div>
                         <div>
-                            <h3 class="text-slate-900 font-black text-base uppercase tracking-tight leading-tight">{{ med.nama_obat || 'Obat' }}</h3>
-                            <div class="flex flex-wrap items-center gap-3 mt-2">
-                                <div class="flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-[12px] border border-[#E8EEF6] shadow-sm">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">KOD:</span>
-                                    <span class="text-[10px] font-black text-slate-700 uppercase tracking-tight">{{ med.kode_obat || '-' }}</span>
+                            <h3 class="text-foreground font-semibold text-base leading-tight">{{ med.nama_obat || 'Obat' }}</h3>
+                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                <div class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
+                                    <span class="text-xs text-muted-foreground">Kode:</span>
+                                    <span class="text-xs font-medium text-foreground">{{ med.kode_obat || '-' }}</span>
                                 </div>
-                                <div v-if="med.kategori" class="flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-[12px] border border-[#E8EEF6] shadow-sm">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Kategori:</span>
-                                    <span class="text-[10px] font-black text-slate-700 uppercase tracking-tight">{{ med.kategori }}</span>
+                                <div v-if="med.kategori" class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
+                                    <span class="text-xs text-muted-foreground">Kategori:</span>
+                                    <span class="text-xs font-medium text-foreground">{{ med.kategori }}</span>
                                 </div>
-                                <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-[12px] border border-blue-100 uppercase tracking-widest">{{ med.satuan_stok || med.satuan_terkecil || '-' }}</span>
+                                <span class="text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20">{{ med.satuan_stok || med.satuan_terkecil || '-' }}</span>
                             </div>
                         </div>
                     </div>
                     <div class="flex flex-col sm:items-end">
-                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Total Stok Global</span>
-                        <div :class="Number(med.stok_total || 0) <= 0 ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-blue-50 text-blue-600 border-blue-200'" class="px-5 py-2 rounded-[16px] font-black border text-sm">
+                        <span class="text-xs text-muted-foreground mb-1">Total Stok Global</span>
+                        <div :class="Number(med.stok_total || 0) <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-muted text-foreground border-border'" class="px-3 py-1 rounded-md font-semibold border text-xs">
                             {{ Number(med.stok_total || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}
                         </div>
                     </div>
                 </div>
 
                 <!-- Batch Details Grid -->
-                <div v-if="med.warehouse_inventories?.length" class="bg-white">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y md:divide-y-0 divide-[#E8EEF6]">
-                        <div v-for="(inv, index) in med.warehouse_inventories" :key="inv.id" class="px-6 py-4 flex flex-col gap-2.5 hover:bg-slate-50/60 transition-colors">
+                <div v-if="med.warehouse_inventories?.length" class="bg-card">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y md:divide-y-0 divide-border">
+                        <div v-for="(inv, index) in med.warehouse_inventories" :key="inv.id" class="px-4 py-3 flex flex-col gap-2 hover:bg-muted/40 transition-colors">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">BATCH</span>
-                                    <span class="text-xs font-black text-slate-900 uppercase font-mono">{{ inv.batch_no || 'NO-BATCH' }}</span>
+                                    <span class="text-xs text-muted-foreground">BATCH</span>
+                                    <span class="text-xs font-semibold text-foreground tracking-wide">{{ inv.batch_no || 'NO-BATCH' }}</span>
                                 </div>
                                 <div class="flex items-center gap-1.5">
-                                    <span v-if="index === 0" class="text-[8px] font-black text-white bg-emerald-600 px-2 py-0.5 rounded-full shadow-sm uppercase tracking-widest">PRIORITAS FEFO</span>
-                                    <span :class="inv.location_type === 'kasir' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'" class="text-[9px] font-black px-2 py-0.5 rounded-[8px] uppercase tracking-wider">
+                                    <span v-if="index === 0" class="text-xs font-semibold text-white bg-emerald-600 px-2 py-0.5 rounded-md">FEFO</span>
+                                    <span :class="inv.location_type === 'kasir' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-muted text-muted-foreground border-border'" class="text-xs font-medium px-2 py-0.5 rounded-md border">
                                         {{ inv.location_type === 'kasir' ? 'Kasir' : 'Gudang' }}
                                     </span>
                                 </div>
@@ -218,22 +218,22 @@ const isNearExpiry = (dateStr) => {
                             
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-1.5 text-xs">
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
-                                    <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-black' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-bold' : 'text-slate-600 font-bold'" class="tracking-tight text-[11px]">
+                                    <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
+                                    <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-semibold' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-semibold' : 'text-muted-foreground'" class="text-xs">
                                         Exp: {{ new Date(inv.expired_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                                     </span>
-                                    <span v-else class="text-slate-300 italic font-medium uppercase text-[9px]">Tanpa Kadaluarsa</span>
+                                    <span v-else class="text-muted-foreground italic text-xs">Tanpa Kadaluarsa</span>
                                 </div>
                                 <div class="flex flex-col items-end">
-                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter leading-none mb-0.5">Batch Qty</span>
-                                    <span class="text-slate-900 font-black text-xs tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}</span>
+                                    <span class="text-xs text-muted-foreground leading-none mb-0.5">Batch Qty</span>
+                                    <span class="text-foreground font-semibold text-xs tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div v-else class="px-8 py-8 text-center bg-slate-50/20">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tidak ada inventaris batch aktif untuk obat ini</span>
+                <div v-else class="px-6 py-6 text-center bg-muted/20">
+                    <span class="text-xs font-medium text-muted-foreground">Tidak ada inventaris batch aktif untuk obat ini</span>
                 </div>
             </div>
         </div>

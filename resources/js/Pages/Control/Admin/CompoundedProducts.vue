@@ -3,6 +3,8 @@ import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
+defineOptions({ layout: ControlLayout });
+
 const props = defineProps({ products: Object });
 const expandedId = ref(null);
 const toggle = (id) => { expandedId.value = expandedId.value === id ? null : id; };
@@ -19,94 +21,88 @@ const budLabel = (bud) => {
 </script>
 
 <template>
-<Head title="Master Obat Racikan" />
-<ControlLayout title="Master Data Racikan">
-<div class="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
-    <div class="relative p-10 bg-white rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] border border-[#E8EEF6] overflow-hidden group">
-        <div class="absolute top-0 right-0 w-80 h-80 bg-teal-50 rounded-full -mr-40 -mt-40 transition-transform group-hover:scale-110 duration-1000"></div>
-        <div class="absolute bottom-0 left-0 w-40 h-40 bg-emerald-50 rounded-full -ml-20 -mb-20 opacity-50"></div>
-        <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div class="space-y-2">
-                <span class="px-4 py-1.5 bg-teal-100 text-teal-700 text-[10px] font-black uppercase tracking-widest rounded-full shadow-[0_8px_24px_rgba(15,23,42,0.04)]">Master Data</span>
-                <h1 class="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-none">Data Obat Racikan</h1>
-                <p class="text-slate-500 font-medium">Produk hasil racikan Apoteker — di-tracking berdasarkan <span class="font-semibold text-slate-700 underline decoration-teal-300 decoration-2 underline-offset-4">Beyond Use Date (BUD)</span></p>
+<Head title="Data Obat Racikan" />
+
+<div class="space-y-6">
+    <div class="p-6 bg-card rounded-lg border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Master Data</span>
+                <span class="px-2.5 py-0.5 bg-muted/50 text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Compounding</span>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="bg-white/50 backdrop-blur-md border border-white p-6 rounded-[2.5rem] shadow-[0_8px_24px_rgba(15,23,42,0.04)] flex items-center gap-6">
-                    <div class="text-right">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Racikan</p>
-                        <p class="text-3xl font-black text-teal-600 leading-none mt-1">{{ products.total }}</p>
-                    </div>
-                    <div class="w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-[24px] flex items-center justify-center text-2xl shadow-xl shadow-teal-500/20 text-white">🧪</div>
+            <h1 class="text-xl font-bold text-foreground tracking-tight leading-none">Data Obat Racikan</h1>
+            <p class="text-muted-foreground text-sm">Produk hasil racikan Apoteker — dipantau berdasarkan Beyond Use Date (BUD)</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="bg-background border border-border px-4 py-2.5 rounded-md shadow-sm flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Produk Aktif</p>
+                    <p class="text-xl font-semibold tracking-tight text-foreground">{{ products.total }}</p>
                 </div>
+                <div class="w-8 h-8 bg-muted rounded-md flex items-center justify-center text-sm border border-border">🧪</div>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-[24px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] border border-[#E8EEF6] overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="bg-slate-50/80 border-b border-[#E8EEF6]">
-                        <th class="text-left px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Produk</th>
-                        <th class="text-center px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Batch</th>
-                        <th class="text-center px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tgl Racik</th>
-                        <th class="text-center px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">BUD Date</th>
-                        <th class="text-right px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Qty</th>
-                        <th class="text-center px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status BUD</th>
+    <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+        <table class="w-full text-sm text-left border-collapse">
+            <thead>
+                <tr class="bg-muted/50 border-b border-border">
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tgl Racik</th>
+                    <th class="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">BUD Date</th>
+                    <th class="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty</th>
+                    <th class="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status BUD</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+                <template v-for="p in products.data" :key="p.id">
+                    <tr class="hover:bg-muted/40 transition-colors group cursor-pointer" @click="toggle(p.id)">
+                        <td class="px-5 py-3.5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-7 h-7 rounded-md bg-muted border border-border flex items-center justify-center text-muted-foreground group-hover:text-foreground">
+                                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="expandedId===p.id?'rotate-90 text-primary':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </div>
+                                <p class="font-semibold text-foreground text-sm">{{ p.nama_produk }}</p>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3.5 text-center">
+                            <span class="px-2 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">
+                                {{ p.batch_no }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3.5 text-center text-xs font-medium text-muted-foreground">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</td>
+                        <td class="px-4 py-3.5 text-center font-semibold text-foreground text-xs">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</td>
+                        <td class="px-4 py-3.5 text-right font-semibold text-foreground text-sm">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} {{ p.satuan }}</td>
+                        <td class="px-5 py-3.5 text-center">
+                            <span :class="budClass(p.bud_date)" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-block">
+                                {{ budLabel(p.bud_date) }}
+                            </span>
+                        </td>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50">
-                    <template v-for="p in products.data" :key="p.id">
-                        <tr class="hover:bg-slate-50/50 transition-all group cursor-pointer" @click="toggle(p.id)">
-                            <td class="px-8 py-5">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-[16px] bg-slate-50 border border-[#E8EEF6] flex items-center justify-center transition-all group-hover:bg-teal-50 group-hover:border-teal-100">
-                                        <svg class="w-4 h-4 text-slate-400 transition-transform group-hover:text-teal-600" :class="expandedId===p.id?'rotate-90 text-teal-600':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-                                    </div>
-                                    <p class="font-black text-slate-900">{{ p.nama_produk }}</p>
-                                </div>
-                            </td>
-                            <td class="px-6 py-5 text-center">
-                                <span class="px-3 py-1.5 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-[16px] border border-[#E8EEF6] font-mono">{{ p.batch_no }}</span>
-                            </td>
-                            <td class="px-6 py-5 text-center text-xs font-bold text-slate-500">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</td>
-                            <td class="px-6 py-5 text-center font-black text-slate-900">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</td>
-                            <td class="px-6 py-5 text-right font-black text-lg text-slate-900">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} {{ p.satuan }}</td>
-                            <td class="px-8 py-5 text-center">
-                                <span :class="budClass(p.bud_date)" class="text-[9px] px-3 py-1.5 rounded-[16px] font-black uppercase tracking-widest border shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                                    {{ budLabel(p.bud_date) }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr v-if="expandedId===p.id" class="bg-slate-50/30">
-                            <td colspan="6" class="px-10 py-8">
-                                <div class="bg-white p-8 rounded-[2.5rem] border border-[#E8EEF6] shadow-[0_8px_24px_rgba(15,23,42,0.04)] relative overflow-hidden grid grid-cols-2 md:grid-cols-4 gap-8">
-                                    <div class="absolute -right-4 -top-4 w-20 h-20 bg-teal-50 rounded-full transition-transform"></div>
-                                    <div class="relative"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Apoteker</p><p class="font-black text-slate-900">{{ p.submission?.user?.name || '-' }}</p></div>
-                                    <div class="relative"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Racikan Asal</p><p class="font-black text-slate-900">{{ p.submission?.nama_racikan || '-' }}</p></div>
-                                    <div class="relative"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Harga Jual</p><p class="font-black text-teal-600 text-lg">Rp {{ Number(p.harga_jual).toLocaleString('id-ID') }}</p></div>
-                                    <div class="relative"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Dibuat Oleh</p><p class="font-black text-slate-900">{{ p.creator?.name || '-' }}</p></div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
+                    <tr v-if="expandedId===p.id" class="bg-muted/20">
+                        <td colspan="6" class="p-4 sm:p-6 border-b border-border">
+                            <div class="bg-card p-4 rounded-lg border border-border shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Apoteker</p><p class="font-semibold text-foreground text-sm">{{ p.submission?.user?.name || '-' }}</p></div>
+                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Racikan Asal</p><p class="font-semibold text-foreground text-sm">{{ p.submission?.nama_racikan || '-' }}</p></div>
+                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Harga Jual</p><p class="font-semibold text-emerald-600 text-sm">Rp {{ Number(p.harga_jual).toLocaleString('id-ID') }}</p></div>
+                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Dibuat Oleh</p><p class="font-semibold text-foreground text-sm">{{ p.creator?.name || '-' }}</p></div>
+                            </div>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
 
         <!-- Empty State -->
-        <div v-if="!products.data?.length" class="p-20 flex flex-col items-center justify-center text-center space-y-8">
-            <div class="relative">
-                <div class="absolute inset-0 bg-teal-500 blur-3xl opacity-10 scale-150 rounded-full"></div>
-                <div class="relative w-32 h-32 bg-gradient-to-br from-teal-50 to-white rounded-[24px] shadow-2xl border border-teal-100 flex items-center justify-center text-6xl transform transition-transform hover:scale-110 duration-500">🧪</div>
-            </div>
-            <div class="space-y-3">
-                <h4 class="text-2xl font-black text-slate-900 tracking-tight">Belum Ada Produk Racikan</h4>
-                <p class="text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">Produk racikan akan muncul di sini setelah proses peracikan diselesaikan oleh Apoteker dan dikonfirmasi oleh sistem.</p>
+        <div v-if="!products.data?.length" class="p-12 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-xl border border-border text-muted-foreground">🧪</div>
+            <div class="space-y-1">
+                <h4 class="text-base font-semibold text-foreground">Belum Ada Produk Racikan</h4>
+                <p class="text-muted-foreground text-xs max-w-sm mx-auto">Produk racikan akan muncul di sini setelah proses peracikan diselesaikan oleh Apoteker dan dikonfirmasi oleh sistem.</p>
             </div>
         </div>
     </div>
 </div>
-</ControlLayout>
 </template>

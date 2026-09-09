@@ -32,12 +32,8 @@ class AdminPricingController extends Controller
                 return $product;
             });
 
-        $medicines = Medicine::with([
-            'incomingStocks' => function ($query) {
-                $query->latest();
-            }
-        ])->latest()->get()->map(function ($med) {
-            $latestStock = $med->incomingStocks->first();
+        $medicines = Medicine::with('latestIncomingStock')->latest()->get()->map(function ($med) {
+            $latestStock = $med->latestIncomingStock;
             $hppKecil = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
             $hppMenengah = 0;
             $hppBesar = 0;

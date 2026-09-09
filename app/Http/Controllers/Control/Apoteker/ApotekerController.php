@@ -14,21 +14,15 @@ class ApotekerController extends Controller
      */
     public function dashboard()
     {
-        $activeSubmissions = CompoundingSubmission::with(['details.medicine', 'details.rawMaterial', 'label', 'formula'])
-            ->where('user_id', auth()->id())
-            ->whereIn('status', ['pending_physical_check', 'pending_final_verification'])
-            ->latest()
-            ->take(10)
-            ->get();
-
-        $queueCount = CompoundingSubmission::where('status', 'pending_physical_check')->count();
-
-        $lowStockMaterials = RawMaterial::belowThreshold()->get();
-
         return Inertia::render('Control/Apoteker/Dashboard', [
-            'queueCount' => $queueCount,
-            'activeSubmissions' => $activeSubmissions,
-            'rawMaterialAlerts' => $lowStockMaterials,
+            'queueCount' => CompoundingSubmission::where('status', 'pending_physical_check')->count(),
+            'activeSubmissions' => CompoundingSubmission::with(['details.medicine', 'details.rawMaterial', 'label', 'formula'])
+                ->where('user_id', auth()->id())
+                ->whereIn('status', ['pending_physical_check', 'pending_final_verification'])
+                ->latest()
+                ->take(10)
+                ->get(),
+            'rawMaterialAlerts' => RawMaterial::belowThreshold()->get(),
         ]);
     }
 }

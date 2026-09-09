@@ -131,7 +131,7 @@ class KasirSaleController extends Controller
 
         $medicines = Medicine::with([
             'category',
-            'incomingStocks' => fn($q) => $q->latest(),
+            'latestIncomingStock',
             'warehouseInventories' => fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false)->orderBy('expired_date', 'asc')
         ])->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false))
         ->orderBy('nama_obat')
@@ -139,8 +139,8 @@ class KasirSaleController extends Controller
         ->map(function ($med) {
             $med->stok_kasir = (float) $med->warehouseInventories->sum('stock_on_hand');
             $hargaJual = (float) $med->selling_price;
-            if ($hargaJual <= 0 && $med->incomingStocks->isNotEmpty()) {
-                $hargaJual = (float) $med->incomingStocks->first()->harga_jual_akhir;
+            if ($hargaJual <= 0 && $med->latestIncomingStock) {
+                $hargaJual = (float) $med->latestIncomingStock->harga_jual_akhir;
             }
             $med->selling_price = $hargaJual;
             $med->satuan = $med->satuan_stok ?: ($med->base_unit ?: 'Pcs');

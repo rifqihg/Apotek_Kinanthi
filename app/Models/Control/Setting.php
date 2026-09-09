@@ -19,14 +19,22 @@ class Setting extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => cache()->forget('app_settings'));
+        static::deleted(fn () => cache()->forget('app_settings'));
+    }
+
     /**
-     * Get the current settings (singleton pattern).
+     * Get the current settings (singleton pattern with in-memory caching).
      */
     public static function current(): self
     {
-        return self::firstOrCreate([], [
-            'default_ppn' => 11.00,
-            'default_margin' => 25.00,
-        ]);
+        return cache()->rememberForever('app_settings', function () {
+            return self::firstOrCreate([], [
+                'default_ppn' => 11.00,
+                'default_margin' => 25.00,
+            ]);
+        });
     }
 }
