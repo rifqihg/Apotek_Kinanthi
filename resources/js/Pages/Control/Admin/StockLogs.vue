@@ -46,6 +46,9 @@ const { data: queryData, isFetching } = useQuery({
         };
     },
     initialData: () => ({ logs: props.logs, kpi: props.kpi }),
+    staleTime: 60000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
 });
 

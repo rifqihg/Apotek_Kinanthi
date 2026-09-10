@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Control\Medicine;
 use App\Models\Control\RawMaterial;
 use App\Models\Control\StockLog;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ApotekerInventoryController extends Controller
@@ -13,14 +14,44 @@ class ApotekerInventoryController extends Controller
     /**
      * Check current physical stocks of raw materials and catalog medicines.
      */
-    public function stockCheck()
+    public function stockCheck(Request $request)
     {
+        $search = $request->query('search');
+
+        $rawMaterials = RawMaterial::select(['id', 'kode_bahan', 'nama_bahan', 'satuan'])
+            ->with(['stocks' => fn($q) => $q->select(['id', 'raw_material_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'shelf_location', 'rack_location'])
+                ->where('stock_on_hand', '>', 0)
+                ->orderBy('expired_date')
+            ])
+            ->when($search, fn($q) => $q->where(fn($sub) => 
+                $sub->where('nama_bahan', 'like', "%{$search}%")
+                    ->orWhere('kode_bahan', 'like', "%{$search}%")
+            ))
+            ->orderBy('nama_bahan')
+            ->limit(50)
+            ->get();
+
+        $medicines = Medicine::select(['id', 'kode_obat', 'nama_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total', 'category_id'])
+            ->with(['warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'shelf_location', 'rack_location'])
+                ->active()
+                ->where('stock_on_hand', '>', 0)
+                ->orderBy('expired_date')
+            ])
+            ->where('stok_total', '>', 0)
+            ->when($search, fn($q) => $q->where(fn($sub) => 
+                $sub->where('nama_obat', 'like', "%{$search}%")
+                    ->orWhere('kode_obat', 'like', "%{$search}%")
+            ))
+            ->orderBy('nama_obat')
+            ->limit(50)
+            ->get();
+
         return Inertia::render('Control/Apoteker/StockCheck', [
-            'rawMaterials' => RawMaterial::with(['stocks' => fn($q) => $q->where('stock_on_hand', '>', 0)->orderBy('expired_date')])->get(),
-            'medicines' => Medicine::with(['warehouseInventories' => fn($q) => $q->active()->where('stock_on_hand', '>', 0)->orderBy('expired_date')])
-                ->where('stok_total', '>', 0)
-                ->orderBy('nama_obat')
-                ->get(),
+            'rawMaterials' => $rawMaterials,
+            'medicines'    => $medicines,
+            'filters'      => [
+                'search' => $search ?? '',
+            ],
         ]);
     }
 

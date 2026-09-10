@@ -43,6 +43,9 @@ const { data: queryData, isFetching, refetch } = useQuery({
             : (fetchedProps?.racikanProducts || props.racikanProducts);
     },
     initialData: () => props.activeTab === 'faktur' ? props.fakturStocks : props.racikanProducts,
+    staleTime: 60000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
 });
 

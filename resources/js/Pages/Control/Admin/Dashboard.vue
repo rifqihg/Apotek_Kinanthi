@@ -2,7 +2,8 @@
 import { ref, computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import DashboardCharts from '@/Components/DashboardCharts.vue';
+import SalesTrendChart from '@/Components/SalesTrendChart.vue';
+import TopMedicinesChart from '@/Components/TopMedicinesChart.vue';
 import { useQuery } from '@tanstack/vue-query';
 import axios from 'axios';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/ui/card';
@@ -37,6 +38,18 @@ const props = defineProps({
         type: String,
         default: 'abjad'
     },
+    salesTrend: {
+        type: Array,
+        default: () => []
+    },
+    topMedicines: {
+        type: Array,
+        default: () => []
+    },
+    currentDays: {
+        type: [Number, String],
+        default: 7
+    },
     title: { type: String, default: 'Dashboard Strategis' }
 });
 
@@ -58,6 +71,9 @@ const { data: queryStocks, isFetching } = useQuery({
         return res.data.props.tableStocks;
     },
     initialData: () => props.tableStocks,
+    staleTime: 60000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
 });
 
@@ -270,8 +286,18 @@ const getLevel2Qty = (item) => {
             </Card>
         </div>
 
-        <!-- Dashboard Charts -->
-            <DashboardCharts />
+        <!-- Dashboard Charts: Decomposed Sub-Components -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SalesTrendChart 
+                class="lg:col-span-2"
+                :data="props.salesTrend" 
+                :current-days="props.currentDays" 
+            />
+            <TopMedicinesChart 
+                class="lg:col-span-1"
+                :data="props.topMedicines" 
+            />
+        </div>
 
             <!-- Inventory Monitoring List -->
             <Card class="overflow-hidden">

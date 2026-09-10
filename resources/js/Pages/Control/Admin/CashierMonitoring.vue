@@ -54,6 +54,9 @@ const { data: queryMonitoring, isFetching } = useQuery({
         kpis: props.kpis,
         transactions: props.transactions,
     }),
+    staleTime: 60000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
 });
 

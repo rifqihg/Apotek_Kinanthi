@@ -10,6 +10,7 @@ use App\Models\SaleItem;
 use App\Models\Control\WarehouseInventory;
 use App\Models\Control\IncomingStock;
 use App\Models\Control\Medicine;
+use App\Models\Control\Category;
 use App\Models\Control\CompoundedProduct;
 use App\Models\Control\AuditTrail;
 use Illuminate\Http\Request;
@@ -128,28 +129,84 @@ class KasirSaleController extends Controller
     public function otcIndex(Request $request)
     {
         $kasirId = auth()->id();
+        $search = $request->query('search');
+        $category = $request->query('category');
 
-        $medicines = Medicine::with([
-            'category',
-            'latestIncomingStock',
-            'warehouseInventories' => fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false)->orderBy('expired_date', 'asc')
-        ])->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false))
-        ->orderBy('nama_obat')
-        ->get()
-        ->map(function ($med) {
-            $med->stok_kasir = (float) $med->warehouseInventories->sum('stock_on_hand');
-            $hargaJual = (float) $med->selling_price;
-            if ($hargaJual <= 0 && $med->latestIncomingStock) {
-                $hargaJual = (float) $med->latestIncomingStock->harga_jual_akhir;
-            }
-            $med->selling_price = $hargaJual;
-            $med->satuan = $med->satuan_stok ?: ($med->base_unit ?: 'Pcs');
-            return $med;
-        });
+        $medicinesQuery = Medicine::select([
+                'id',
+                'category_id',
+                'nama_obat',
+                'kode_obat',
+                'satuan_stok',
+                'base_unit',
+                'selling_price',
+                'stok_total',
+            ])
+            ->with([
+                'category:id,nama_kategori',
+                'latestIncomingStock:id,medicine_id,harga_jual_akhir',
+                'warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'stock_on_hand', 'expired_date', 'status', 'is_frozen', 'location_type', 'location_id'])
+                    ->where('location_type', 'kasir')
+                    ->where('location_id', $kasirId)
+                    ->where('stock_on_hand', '>', 0)
+                    ->where('status', 'active')
+                    ->where('is_frozen', false)
+                    ->orderBy('expired_date', 'asc')
+            ])
+            ->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false))
+            ->when($search, fn($q) => $q->where(fn($sub) =>
+                $sub->where('nama_obat', 'like', "%{$search}%")
+                    ->orWhere('kode_obat', 'like', "%{$search}%")
+            ))
+            ->when($category && $category !== 'all', fn($q) => $q->whereHas('category', fn($cq) => $cq->where('nama_kategori', $category)))
+            ->orderBy('nama_obat');
 
-        $compoundedProducts = CompoundedProduct::where('status', 'active')->where('pricing_status', 'priced')->whereNotNull('harga_jual')->with('submission')->orderBy('nama_produk')->get();
+        $medicines = $medicinesQuery
+            ->limit(40)
+            ->get()
+            ->map(function ($med) {
+                $stokKasir = (float) $med->warehouseInventories->sum('stock_on_hand');
+                $hargaJual = (float) $med->selling_price;
+                if ($hargaJual <= 0 && $med->latestIncomingStock) {
+                    $hargaJual = (float) $med->latestIncomingStock->harga_jual_akhir;
+                }
+                return [
+                    'id' => $med->id,
+                    'category_id' => $med->category_id,
+                    'category' => $med->category ? ['id' => $med->category->id, 'nama_kategori' => $med->category->nama_kategori] : null,
+                    'nama_obat' => $med->nama_obat,
+                    'kode_obat' => $med->kode_obat,
+                    'satuan' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
+                    'selling_price' => $hargaJual,
+                    'stok_kasir' => $stokKasir,
+                ];
+            });
 
-        return inertia('Control/Kasir/OTC', compact('medicines', 'compoundedProducts'));
+        $compoundedQuery = CompoundedProduct::select(['id', 'nama_produk', 'batch_no', 'harga_jual', 'qty_hasil', 'status', 'pricing_status'])
+            ->where('status', 'active')
+            ->where('pricing_status', 'priced')
+            ->whereNotNull('harga_jual')
+            ->when($search, fn($q) => $q->where(fn($sub) =>
+                $sub->where('nama_produk', 'like', "%{$search}%")
+                    ->orWhere('batch_no', 'like', "%{$search}%")
+            ))
+            ->orderBy('nama_produk');
+
+        $compoundedProducts = $compoundedQuery
+            ->limit(20)
+            ->get();
+
+        $categories = Category::select(['id', 'name as nama_kategori', 'name'])->orderBy('name')->get();
+
+        return inertia('Control/Kasir/OTC', [
+            'medicines'          => $medicines,
+            'compoundedProducts' => $compoundedProducts,
+            'categories'         => $categories,
+            'filters'            => [
+                'search'   => $search ?? '',
+                'category' => $category ?? 'all',
+            ],
+        ]);
     }
 
     public function otcStore(Request $request)
@@ -255,7 +312,8 @@ class KasirSaleController extends Controller
      */
     private function deductKasirStock(int $medicineId, float $qtyNeeded, Sale $sale, int $userId, string $context): void
     {
-        $inventories = WarehouseInventory::where('medicine_id', $medicineId)
+        $inventories = WarehouseInventory::with('incomingStock')
+            ->where('medicine_id', $medicineId)
             ->kasir($userId)
             ->where('stock_on_hand', '>', 0)
             ->where('status', 'active')
@@ -265,6 +323,10 @@ class KasirSaleController extends Controller
             ->get();
 
         $remaining = $qtyNeeded;
+        $auditLogs = [];
+        $now = now();
+        $ip = request()->ip();
+
         foreach ($inventories as $inv) {
             if ($remaining <= 0) break;
 
@@ -272,17 +334,31 @@ class KasirSaleController extends Controller
             $inv->stock_on_hand -= $qtyToDeduct;
             $inv->save();
 
-            if ($inv->incoming_stock_id) {
-                $incoming = IncomingStock::find($inv->incoming_stock_id);
-                if ($incoming) {
-                    $incoming->qty_converted = max(0, $incoming->qty_converted - $qtyToDeduct);
-                    $incoming->saveQuietly();
-                }
+            if ($inv->incomingStock) {
+                $incoming = $inv->incomingStock;
+                $incoming->qty_converted = max(0, $incoming->qty_converted - $qtyToDeduct);
+                $incoming->saveQuietly();
             }
 
-            AuditTrail::log($userId, "stock.deducted_by_sale_{$context}", "Stok obat dikurangi {$qtyToDeduct} via transaksi {$sale->id}", WarehouseInventory::class, $inv->id);
+            $auditLogs[] = [
+                'user_id'        => $userId,
+                'action'         => "stock.deducted_by_sale_{$context}",
+                'description'    => "Stok obat dikurangi {$qtyToDeduct} via transaksi {$sale->id}",
+                'auditable_type' => WarehouseInventory::class,
+                'auditable_id'   => $inv->id,
+                'old_values'     => null,
+                'new_values'     => null,
+                'ip_address'     => $ip,
+                'performed_at'   => $now,
+                'created_at'     => $now,
+                'updated_at'     => $now,
+            ];
 
             $remaining -= $qtyToDeduct;
+        }
+
+        if (!empty($auditLogs)) {
+            AuditTrail::insert($auditLogs);
         }
 
         if ($remaining > 0) {

@@ -202,6 +202,13 @@ const safeRoute = (routeName) => {
     try { return route(routeName); } catch { return '#'; }
 };
 
+const userDashboardRoute = computed(() => {
+    if (userRole.value === 'admin') return safeRoute('control.admin.dashboard');
+    if (userRole.value === 'apoteker') return safeRoute('control.apoteker.dashboard');
+    if (userRole.value === 'kasir') return safeRoute('control.kasir.queue');
+    return safeRoute('dashboard');
+});
+
 const activePageTitle = computed(() => {
     if (page.props.title) return page.props.title;
     for (const group of currentNav.value) {
@@ -271,22 +278,22 @@ watch(() => page.props.flash?.error, (newVal) => {
 
         <!-- ═══ DESKTOP SIDEBAR ═══ -->
         <aside
-            class="hidden lg:flex flex-col h-screen bg-card border-r border-border transition-all duration-300 ease-in-out z-30 sticky top-0"
+            class="hidden lg:flex flex-col h-screen bg-[#111827] border-r border-[#1F2937] transition-all duration-300 ease-in-out z-30 sticky top-0"
             :class="isDesktopCollapsed ? 'w-16' : 'w-64'"
         >
             <!-- Logo -->
-            <Link :href="safeRoute('dashboard')" prefetch class="h-14 flex items-center gap-2.5 px-4 border-b border-border shrink-0 hover:opacity-90 transition-opacity">
-                <div class="w-8 h-8 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+            <Link :href="userDashboardRoute" prefetch class="h-14 flex items-center gap-2.5 px-4 bg-[#0F172A] border-b border-[#1F2937] shrink-0 hover:opacity-95 transition-opacity">
+                <div class="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                     K
                 </div>
-                <span v-show="!isDesktopCollapsed" class="font-semibold text-sm tracking-tight text-foreground truncate">Apotek Kinanthi</span>
+                <span v-show="!isDesktopCollapsed" class="font-semibold text-sm tracking-tight text-white truncate">Apotek Kinanthi</span>
             </Link>
 
             <!-- Navigation -->
             <ScrollArea class="flex-1 px-3 py-3">
                 <div v-for="section in currentNav" :key="section.group" class="mb-4">
-                    <p v-show="!isDesktopCollapsed" class="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ section.group }}</p>
-                    <div v-show="isDesktopCollapsed" class="h-px bg-border mx-2 mb-2"></div>
+                    <p v-show="!isDesktopCollapsed" class="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{{ section.group }}</p>
+                    <div v-show="isDesktopCollapsed" class="h-px bg-[#1F2937] mx-2 mb-2"></div>
 
                     <div class="space-y-0.5">
                         <template v-for="item in section.items" :key="item.name">
@@ -298,15 +305,15 @@ watch(() => page.props.flash?.error, (newVal) => {
                                 cache-for="1m"
                                 class="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors group relative"
                                 :class="isRouteActive(item)
-                                    ? 'bg-blue-50 text-blue-700 font-semibold dark:bg-blue-950/40 dark:text-blue-400'
-                                    : 'text-slate-500 hover:bg-blue-50/50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/20 dark:hover:text-blue-300'"
+                                    ? 'bg-[#1E293B] text-white font-semibold'
+                                    : 'text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white'"
                                 :title="isDesktopCollapsed ? item.name : ''"
                             >
-                                <svg class="w-4 h-4 shrink-0 transition-colors" :class="isRouteActive(item) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-blue-600 dark:text-slate-500 dark:group-hover:text-blue-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-4 h-4 shrink-0 transition-colors" :class="isRouteActive(item) ? 'text-[#60A5FA]' : 'text-[#94A3B8] group-hover:text-[#60A5FA]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
                                 </svg>
                                 <span v-show="!isDesktopCollapsed" class="truncate">{{ item.name }}</span>
-                                <div v-if="isRouteActive(item) && !isDesktopCollapsed" class="absolute right-2 w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                                <div v-if="isRouteActive(item) && !isDesktopCollapsed" class="absolute right-2 w-1.5 h-1.5 rounded-full bg-[#2563EB]"></div>
                             </Link>
 
                             <!-- Accordion (has children) -->
@@ -315,19 +322,19 @@ watch(() => page.props.flash?.error, (newVal) => {
                                     @click="toggleAccordion(item.key)"
                                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors group"
                                     :class="item.children?.some(c => isRouteActive(c))
-                                        ? 'text-blue-700 font-semibold dark:text-blue-400'
-                                        : 'text-slate-500 hover:bg-blue-50/50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/20 dark:hover:text-blue-300'"
+                                        ? 'text-white font-semibold'
+                                        : 'text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white'"
                                     :title="isDesktopCollapsed ? item.name : ''"
                                 >
-                                    <svg class="w-4 h-4 shrink-0 transition-colors" :class="item.children?.some(c => isRouteActive(c)) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-blue-600 dark:text-slate-500 dark:group-hover:text-blue-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-4 h-4 shrink-0 transition-colors" :class="item.children?.some(c => isRouteActive(c)) ? 'text-[#60A5FA]' : 'text-[#94A3B8] group-hover:text-[#60A5FA]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
                                     </svg>
                                     <span v-show="!isDesktopCollapsed" class="truncate flex-1 text-left">{{ item.name }}</span>
-                                    <svg v-show="!isDesktopCollapsed" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="openAccordions[item.key] ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg v-show="!isDesktopCollapsed" class="w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200" :class="openAccordions[item.key] ? 'rotate-180 text-[#60A5FA]' : 'group-hover:text-[#60A5FA]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
-                                <div v-show="openAccordions[item.key] && !isDesktopCollapsed" class="ml-4 pl-2 border-l border-border mt-1 space-y-0.5">
+                                <div v-show="openAccordions[item.key] && !isDesktopCollapsed" class="ml-4 pl-2 border-l border-[#1F2937] mt-1 space-y-0.5">
                                     <Link
                                         v-for="child in item.children"
                                         :key="child.name"
@@ -336,10 +343,10 @@ watch(() => page.props.flash?.error, (newVal) => {
                                         cache-for="1m"
                                         class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"
                                         :class="isRouteActive(child)
-                                            ? 'bg-blue-50 text-blue-700 font-semibold dark:bg-blue-950/40 dark:text-blue-400'
-                                            : 'text-slate-500 hover:text-blue-700 hover:bg-blue-50/50 dark:text-slate-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/20'"
+                                            ? 'bg-[#1E293B] text-white font-semibold'
+                                            : 'text-[#CBD5E1] hover:text-white hover:bg-[#1E293B]'"
                                     >
-                                        <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="isRouteActive(child) ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'"></span>
+                                        <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="isRouteActive(child) ? 'bg-[#2563EB]' : 'bg-[#475569]'"></span>
                                         <span class="truncate">{{ child.name }}</span>
                                     </Link>
                                 </div>
@@ -350,24 +357,24 @@ watch(() => page.props.flash?.error, (newVal) => {
             </ScrollArea>
 
             <!-- Minimalist Sidebar Footer: Profile Dropdown & Collapse Control -->
-            <div class="border-t border-border p-2 shrink-0 bg-card">
+            <div class="border-t border-[#1F2937] p-2 shrink-0 bg-[#0F172A]">
                 <div class="flex items-center gap-1">
                     <DropdownMenu>
                         <DropdownMenuTrigger as-child>
                             <Button
                                 variant="ghost"
-                                class="h-10 w-full justify-start gap-2.5 px-2 hover:bg-muted"
+                                class="h-10 w-full justify-start gap-2.5 px-2 hover:bg-[#1E293B]"
                                 :class="isDesktopCollapsed ? 'justify-center px-0 w-10 mx-auto' : ''"
                                 :title="isDesktopCollapsed ? user.name : ''"
                             >
-                                <div class="w-7 h-7 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                                <div class="w-7 h-7 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
                                     {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
                                 </div>
                                 <div v-show="!isDesktopCollapsed" class="text-left flex-1 min-w-0">
-                                    <p class="text-sm font-semibold text-foreground truncate leading-tight">{{ user.name }}</p>
-                                    <p class="text-xs text-muted-foreground truncate capitalize leading-tight">{{ roleLabel }}</p>
+                                    <p class="text-sm font-semibold text-white truncate leading-tight">{{ user.name }}</p>
+                                    <p class="text-xs text-[#94A3B8] truncate capitalize leading-tight">{{ roleLabel }}</p>
                                 </div>
-                                <svg v-show="!isDesktopCollapsed" class="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg v-show="!isDesktopCollapsed" class="w-3.5 h-3.5 text-[#94A3B8] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
                                 </svg>
                             </Button>
@@ -404,7 +411,7 @@ watch(() => page.props.flash?.error, (newVal) => {
                         v-show="!isDesktopCollapsed"
                         variant="ghost"
                         size="icon"
-                        class="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                        class="h-8 w-8 text-[#94A3B8] hover:text-white hover:bg-[#1E293B] shrink-0"
                         @click="isDesktopCollapsed = true"
                         title="Ciutkan Sidebar"
                     >
@@ -417,7 +424,7 @@ watch(() => page.props.flash?.error, (newVal) => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        class="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        class="h-7 w-7 text-[#94A3B8] hover:text-white hover:bg-[#1E293B]"
                         @click="isDesktopCollapsed = false"
                         title="Perluas Sidebar"
                     >
@@ -431,16 +438,16 @@ watch(() => page.props.flash?.error, (newVal) => {
 
         <!-- ═══ MOBILE DRAWER (SHADCN SHEET) ═══ -->
         <Sheet v-model:open="isMobileSidebarOpen">
-            <SheetContent side="left" class="w-72 p-0 flex flex-col bg-card border-border">
-                <SheetHeader class="h-14 px-4 border-b border-border flex flex-row items-center justify-between">
-                    <Link :href="safeRoute('dashboard')" prefetch @click="isMobileSidebarOpen = false" class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">K</div>
-                        <SheetTitle class="text-sm font-semibold tracking-tight">Apotek Kinanthi</SheetTitle>
+            <SheetContent side="left" class="w-72 p-0 flex flex-col bg-[#111827] border-[#1F2937]">
+                <SheetHeader class="h-14 px-4 bg-[#0F172A] border-b border-[#1F2937] flex flex-row items-center justify-between">
+                    <Link :href="userDashboardRoute" prefetch @click="isMobileSidebarOpen = false" class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-sm shadow-sm">K</div>
+                        <SheetTitle class="text-sm font-semibold tracking-tight text-white">Apotek Kinanthi</SheetTitle>
                     </Link>
                 </SheetHeader>
                 <ScrollArea class="flex-1 px-3 py-3">
                     <div v-for="section in currentNav" :key="section.group" class="mb-4">
-                        <p class="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ section.group }}</p>
+                        <p class="px-2 mb-1.5 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{{ section.group }}</p>
                         <div class="space-y-0.5">
                             <template v-for="item in section.items" :key="item.name">
                                 <Link
@@ -451,32 +458,32 @@ watch(() => page.props.flash?.error, (newVal) => {
                                     @click="isMobileSidebarOpen = false"
                                     class="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors"
                                     :class="isRouteActive(item)
-                                        ? 'bg-blue-50 text-blue-700 font-semibold dark:bg-blue-950/40 dark:text-blue-400'
-                                        : 'text-slate-500 hover:bg-blue-50/50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/20'"
+                                        ? 'bg-[#1E293B] text-white font-semibold'
+                                        : 'text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white'"
                                 >
-                                    <svg class="w-4 h-4 shrink-0 transition-colors" :class="isRouteActive(item) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-4 h-4 shrink-0 transition-colors" :class="isRouteActive(item) ? 'text-[#60A5FA]' : 'text-[#94A3B8]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
                                     </svg>
                                     <span class="truncate">{{ item.name }}</span>
-                                    <div v-if="isRouteActive(item)" class="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                                    <div v-if="isRouteActive(item)" class="ml-auto w-1.5 h-1.5 rounded-full bg-[#2563EB]"></div>
                                 </Link>
                                 <div v-else>
                                     <button
                                         @click="toggleAccordion(item.key)"
                                         class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors"
                                         :class="item.children?.some(c => isRouteActive(c))
-                                            ? 'text-blue-700 font-semibold dark:text-blue-400'
-                                            : 'text-slate-500 hover:bg-blue-50/50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/20'"
+                                            ? 'text-white font-semibold'
+                                            : 'text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white'"
                                     >
-                                        <svg class="w-4 h-4 shrink-0 transition-colors" :class="item.children?.some(c => isRouteActive(c)) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg class="w-4 h-4 shrink-0 transition-colors" :class="item.children?.some(c => isRouteActive(c)) ? 'text-[#60A5FA]' : 'text-[#94A3B8]'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
                                         </svg>
                                         <span class="truncate flex-1 text-left">{{ item.name }}</span>
-                                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="openAccordions[item.key] ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg class="w-3.5 h-3.5 text-[#94A3B8] transition-transform duration-200" :class="openAccordions[item.key] ? 'rotate-180 text-[#60A5FA]' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                         </svg>
                                     </button>
-                                    <div v-show="openAccordions[item.key]" class="ml-4 pl-2 border-l border-border mt-1 space-y-0.5">
+                                    <div v-show="openAccordions[item.key]" class="ml-4 pl-2 border-l border-[#1F2937] mt-1 space-y-0.5">
                                         <Link
                                             v-for="child in item.children"
                                             :key="child.name"
@@ -486,10 +493,10 @@ watch(() => page.props.flash?.error, (newVal) => {
                                             @click="isMobileSidebarOpen = false"
                                             class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors"
                                             :class="isRouteActive(child)
-                                                ? 'bg-blue-50 text-blue-700 font-semibold dark:bg-blue-950/40 dark:text-blue-400'
-                                                : 'text-slate-500 hover:text-blue-700 hover:bg-blue-50/50 dark:text-slate-400 dark:hover:bg-blue-950/20'"
+                                                ? 'bg-[#1E293B] text-white font-semibold'
+                                                : 'text-[#CBD5E1] hover:text-white hover:bg-[#1E293B]'"
                                         >
-                                            <span class="w-1.5 h-1.5 rounded-full" :class="isRouteActive(child) ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full" :class="isRouteActive(child) ? 'bg-[#2563EB]' : 'bg-[#475569]'"></span>
                                             <span class="truncate">{{ child.name }}</span>
                                         </Link>
                                     </div>
@@ -498,16 +505,16 @@ watch(() => page.props.flash?.error, (newVal) => {
                         </div>
                     </div>
                 </ScrollArea>
-                <div class="p-2 border-t border-border bg-card">
-                    <div class="flex items-center gap-2 p-1.5 rounded-md bg-muted/40">
-                        <div class="w-8 h-8 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                <div class="p-2 border-t border-[#1F2937] bg-[#0F172A]">
+                    <div class="flex items-center gap-2 p-1.5 rounded-md bg-[#111827]/60">
+                        <div class="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
                             {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-foreground truncate leading-tight">{{ user.name }}</p>
-                            <p class="text-xs text-muted-foreground truncate capitalize leading-tight">{{ roleLabel }}</p>
+                            <p class="text-sm font-semibold text-white truncate leading-tight">{{ user.name }}</p>
+                            <p class="text-xs text-[#94A3B8] truncate capitalize leading-tight">{{ roleLabel }}</p>
                         </div>
-                        <Button variant="ghost" size="icon" as-child class="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Keluar">
+                        <Button variant="ghost" size="icon" as-child class="h-8 w-8 text-[#94A3B8] hover:text-destructive hover:bg-destructive/10" title="Keluar">
                             <Link :href="safeRoute('logout')" method="post" as="button">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -521,26 +528,31 @@ watch(() => page.props.flash?.error, (newVal) => {
 
         <!-- ═══ MAIN CONTENT AREA ═══ -->
         <div class="flex-1 flex flex-col min-w-0">
-            <!-- Top Bar -->
-            <header class="h-14 bg-card border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 sticky top-0 z-20">
+            <!-- Top Bar / Application Header -->
+            <header class="h-16 md:h-[72px] lg:h-[76px] bg-[#FFFFFF] border-b border-[#E8EEF6] shadow-[0_4px_20px_rgba(15,23,42,0.02)] flex items-center justify-between px-4 sm:px-5 md:px-6 lg:px-8 shrink-0 sticky top-0 z-20 transition-all">
                 <!-- Left: Title / Mobile Toggle -->
-                <div class="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" class="lg:hidden h-8 w-8 text-muted-foreground hover:text-foreground" @click="isMobileSidebarOpen = true">
+                <div class="flex items-center gap-3 min-w-0">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="lg:hidden h-9 w-9 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md shrink-0"
+                        @click="isMobileSidebarOpen = true"
+                        title="Buka Menu"
+                    >
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                     </Button>
-                    <div v-if="$slots['header-title'] || activePageTitle" class="flex items-center gap-2">
-                        <div class="h-4 w-px bg-border hidden lg:block"></div>
-                        <h1 class="text-base font-semibold tracking-tight text-foreground">
+                    <div v-if="$slots['header-title'] || activePageTitle" class="flex items-center min-w-0">
+                        <h1 class="text-[18px] md:text-[19px] lg:text-[20px] font-semibold tracking-tight text-[#0F172A] leading-tight truncate">
                             <slot name="header-title">{{ activePageTitle }}</slot>
                         </h1>
                     </div>
                 </div>
 
-                <!-- Right: Clean Minimalist Role Badge -->
-                <div class="flex items-center gap-2">
-                    <Badge variant="outline" class="hidden sm:inline-flex py-0.5 px-2.5 text-xs font-medium border-border bg-muted/30 text-muted-foreground">
+                <!-- Right: Clean Minimalist Role Badge (Contextual Status) -->
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-[#E2E8F0] bg-[#FFFFFF] text-[#64748B] shadow-[0_1px_2px_rgba(0,0,0,0.03)] select-none">
                         {{ roleLabel }}
-                    </Badge>
+                    </div>
                 </div>
             </header>
 

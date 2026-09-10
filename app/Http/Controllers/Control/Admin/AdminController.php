@@ -14,6 +14,7 @@ use App\Models\Prescription;
 use App\Models\Sale;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class AdminController extends Controller
@@ -24,12 +25,189 @@ class AdminController extends Controller
     public function dashboard(Request $request)
     {
         $filter = $request->query('filter', 'abjad');
+        $period = (string) $request->query('days', '7');
+        if (!in_array($period, ['1D', '7', '30', '90', 'YTD', '365'])) {
+            $period = '7';
+        }
 
         return Inertia::render('Control/Admin/Dashboard', [
             'stats' => fn() => $this->getDashboardStats(),
             'tableStocks' => fn() => $this->getTableStocks($filter),
+            'salesTrend' => fn() => $this->getSalesTrend($period),
+            'topMedicines' => fn() => $this->getTopMedicines($period),
             'currentFilter' => $filter,
+            'currentDays' => $period,
         ]);
+    }
+
+    /**
+     * Agregat Tren Penjualan & Transaksi per Periode (1D, 7, 30, 90, YTD, 365)
+     */
+    private function getSalesTrend(string $period): array
+    {
+        // 1. FILTER 1D: HARI INI PER JAM (08:00 - 22:00 ATAU RANGE JAM OPERASIONAL)
+        if ($period === '1D') {
+            $today = Carbon::today();
+            $salesGrouped = Sale::query()
+                ->where('status', 'paid')
+                ->where('created_at', '>=', $today->copy()->startOfDay())
+                ->where('created_at', '<=', $today->copy()->endOfDay())
+                ->selectRaw('HOUR(created_at) as sale_hour, COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal')
+                ->groupBy('sale_hour')
+                ->get()
+                ->keyBy('sale_hour');
+
+            $startHour = 8;
+            $endHour = max(21, Carbon::now()->hour);
+            if ($salesGrouped->isNotEmpty()) {
+                $minHour = (int) $salesGrouped->keys()->min();
+                $maxHour = (int) $salesGrouped->keys()->max();
+                $startHour = min($startHour, $minHour);
+                $endHour = max($endHour, $maxHour);
+            }
+
+            $trend = [];
+            for ($h = $startHour; $h <= $endHour; $h++) {
+                $record = $salesGrouped->get($h);
+                $timeLabel = sprintf('%02d:00', $h);
+
+                $trend[] = [
+                    'date' => $today->format('Y-m-d') . ' ' . $timeLabel,
+                    'label' => $timeLabel,
+                    'sales' => $record ? (float) $record->total_nominal : 0,
+                    'transactions' => $record ? (int) $record->total_tx : 0,
+                ];
+            }
+
+            return $trend;
+        }
+
+        // 2. FILTER YTD: TAHUN BERJALAN (1 JANUARI - SEKARANG)
+        if ($period === 'YTD') {
+            $startOfYear = Carbon::now()->startOfYear();
+            $now = Carbon::now();
+            $currentMonth = $now->month;
+
+            $salesGrouped = Sale::query()
+                ->where('status', 'paid')
+                ->where('created_at', '>=', $startOfYear)
+                ->where('created_at', '<=', $now)
+                ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period_key, COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal")
+                ->groupBy('period_key')
+                ->get()
+                ->keyBy('period_key');
+
+            $trend = [];
+            if ($currentMonth >= 3) {
+                for ($m = 1; $m <= $currentMonth; $m++) {
+                    $monthObj = Carbon::create($now->year, $m, 1);
+                    $periodKey = $monthObj->format('Y-m');
+                    $record = $salesGrouped->get($periodKey);
+
+                    $trend[] = [
+                        'date' => $periodKey,
+                        'label' => $monthObj->translatedFormat('M'),
+                        'sales' => $record ? (float) $record->total_nominal : 0,
+                        'transactions' => $record ? (int) $record->total_tx : 0,
+                    ];
+                }
+            } else {
+                $start = $startOfYear->copy();
+                $weekIndex = 1;
+                while ($start->lte($now)) {
+                    $end = $start->copy()->endOfWeek();
+                    if ($end->gt($now)) $end = $now->copy();
+
+                    $weekSales = Sale::query()
+                        ->where('status', 'paid')
+                        ->whereBetween('created_at', [$start, $end])
+                        ->selectRaw('COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal')
+                        ->first();
+
+                    $trend[] = [
+                        'date' => $start->format('Y-m-d'),
+                        'label' => 'Mgg ' . $weekIndex,
+                        'sales' => $weekSales ? (float) $weekSales->total_nominal : 0,
+                        'transactions' => $weekSales ? (int) $weekSales->total_tx : 0,
+                    ];
+
+                    $start->addWeek()->startOfWeek();
+                    $weekIndex++;
+                }
+            }
+
+            return $trend;
+        }
+
+        // 3. FILTER HARIAN STANDAR (7, 30, 90, 365 HARI)
+        $days = (int) $period;
+        if ($days <= 0) $days = 7;
+        $startDate = Carbon::today()->subDays($days - 1)->startOfDay();
+
+        $salesGrouped = Sale::query()
+            ->where('status', 'paid')
+            ->where('created_at', '>=', $startDate)
+            ->selectRaw('DATE(created_at) as sale_date, COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal')
+            ->groupBy('sale_date')
+            ->get()
+            ->keyBy('sale_date');
+
+        $trend = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $dateObj = Carbon::today()->subDays($i);
+            $dateStr = $dateObj->format('Y-m-d');
+            $label = $dateObj->format('d M');
+
+            $record = $salesGrouped->get($dateStr);
+
+            $trend[] = [
+                'date' => $dateStr,
+                'label' => $label,
+                'sales' => $record ? (float) $record->total_nominal : 0,
+                'transactions' => $record ? (int) $record->total_tx : 0,
+            ];
+        }
+
+        return $trend;
+    }
+
+    /**
+     * Agregat Top Obat Paling Laris Berdasarkan QTY Terjual
+     */
+    private function getTopMedicines(string $period): array
+    {
+        if ($period === '1D') {
+            $startDate = Carbon::today()->startOfDay();
+            $endDate = Carbon::today()->endOfDay();
+        } elseif ($period === 'YTD') {
+            $startDate = Carbon::now()->startOfYear();
+            $endDate = Carbon::now();
+        } else {
+            $days = (int) $period;
+            if ($days <= 0) $days = 7;
+            $startDate = Carbon::today()->subDays($days - 1)->startOfDay();
+            $endDate = Carbon::now();
+        }
+
+        // Agregat JOIN dengan index komposit, grouping medicine_id, limit 5
+        return DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->join('medicines', 'medicines.id', '=', 'sale_items.medicine_id')
+            ->where('sales.status', 'paid')
+            ->whereBetween('sales.created_at', [$startDate, $endDate])
+            ->selectRaw('medicines.id, medicines.nama_obat as name, medicines.kode_obat as code, medicines.satuan_stok as unit, SUM(sale_items.quantity) as total_qty')
+            ->groupBy('medicines.id', 'medicines.nama_obat', 'medicines.kode_obat', 'medicines.satuan_stok')
+            ->orderByDesc('total_qty')
+            ->limit(5)
+            ->get()
+            ->map(fn($item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'code' => $item->code,
+                'unit' => $item->unit ?? 'Unit',
+                'qty' => (float) $item->total_qty,
+            ])
+            ->toArray();
     }
 
     private function getDashboardStats(): array

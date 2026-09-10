@@ -18,7 +18,8 @@ class AdminPricingController extends Controller
      */
     public function pricingIndex()
     {
-        $pendingProducts = CompoundedProduct::with('submission')
+        $pendingProducts = CompoundedProduct::select(['id', 'compounding_submission_id', 'nama_produk', 'batch_no', 'qty_hasil', 'hpp_per_unit', 'pricing_status', 'created_at'])
+            ->with(['submission' => fn($q) => $q->select(['id', 'target_quantity', 'total_hpp_racikan'])])
             ->where('pricing_status', 'pending_price')
             ->latest()
             ->get()
@@ -32,45 +33,63 @@ class AdminPricingController extends Controller
                 return $product;
             });
 
-        $medicines = Medicine::with('latestIncomingStock')->latest()->get()->map(function ($med) {
-            $latestStock = $med->latestIncomingStock;
-            $hppKecil = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
-            $hppMenengah = 0;
-            $hppBesar = 0;
+        $medicines = Medicine::select([
+                'id',
+                'category_id',
+                'kode_obat',
+                'nama_obat',
+                'satuan_stok',
+                'base_unit',
+                'selling_price',
+                'selling_price_mid',
+                'selling_price_large',
+                'threshold_min',
+                'rasio_konversi',
+                'conversion_factor',
+                'created_at',
+            ])
+            ->with('latestIncomingStock')
+            ->latest()
+            ->get()
+            ->map(function ($med) {
+                $latestStock = $med->latestIncomingStock;
+                $hppKecil = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
+                $hppMenengah = 0;
+                $hppBesar = 0;
 
-            if ($latestStock) {
-                // Strictly follow latest faktur
-                $med->satuan_besar = $latestStock->satuan_input;
-                $med->satuan_menengah = $latestStock->mid_unit;
-                $med->mid_to_big_ratio = $latestStock->mid_to_big_ratio;
-                $med->small_to_mid_ratio = $latestStock->small_to_mid_ratio;
-                $med->latest_batch_no = $latestStock->batch_no;
+                if ($latestStock) {
+                    // Strictly follow latest faktur
+                    $med->satuan_besar = $latestStock->satuan_input;
+                    $med->satuan_menengah = $latestStock->mid_unit;
+                    $med->mid_to_big_ratio = $latestStock->mid_to_big_ratio;
+                    $med->small_to_mid_ratio = $latestStock->small_to_mid_ratio;
+                    $med->latest_batch_no = $latestStock->batch_no;
 
-                $smallToMid = (float) ($latestStock->small_to_mid_ratio ?: 1);
-                $hppMenengah = $hppKecil * $smallToMid;
+                    $smallToMid = (float) ($latestStock->small_to_mid_ratio ?: 1);
+                    $hppMenengah = $hppKecil * $smallToMid;
 
-                if ($latestStock->mid_unit) {
-                    $midToBig = (float) ($latestStock->mid_to_big_ratio ?: 1);
-                    $hppBesar = $hppMenengah * $midToBig;
-                } else {
-                    $conversionFactor = (float) ($latestStock->unit_conversion_factor ?: 1);
-                    $hppBesar = $hppKecil * $conversionFactor;
+                    if ($latestStock->mid_unit) {
+                        $midToBig = (float) ($latestStock->mid_to_big_ratio ?: 1);
+                        $hppBesar = $hppMenengah * $midToBig;
+                    } else {
+                        $conversionFactor = (float) ($latestStock->unit_conversion_factor ?: 1);
+                        $hppBesar = $hppKecil * $conversionFactor;
+                    }
+
+                    // Fix for 2-layer disguise (where mid_unit is identical to base_unit with ratio 1)
+                    if (strtolower($med->satuan_menengah) === strtolower($med->satuan_stok) && $med->small_to_mid_ratio == 1) {
+                        $med->satuan_menengah = null;
+                        $med->small_to_mid_ratio = $med->mid_to_big_ratio; // Conversion from Besar directly to Kecil(Base)
+                        $med->mid_to_big_ratio = null;
+                    }
                 }
+                $med->base_unit = $med->satuan_stok;
+                $med->hpp_kecil = $hppKecil;
+                $med->hpp_menengah = $hppMenengah;
+                $med->hpp_besar = $hppBesar;
 
-                // Fix for 2-layer disguise (where mid_unit is identical to base_unit with ratio 1)
-                if (strtolower($med->satuan_menengah) === strtolower($med->satuan_stok) && $med->small_to_mid_ratio == 1) {
-                    $med->satuan_menengah = null;
-                    $med->small_to_mid_ratio = $med->mid_to_big_ratio; // Conversion from Besar directly to Kecil(Base)
-                    $med->mid_to_big_ratio = null;
-                }
-            }
-            $med->base_unit = $med->satuan_stok;
-            $med->hpp_kecil = $hppKecil;
-            $med->hpp_menengah = $hppMenengah;
-            $med->hpp_besar = $hppBesar;
-
-            return $med;
-        });
+                return $med;
+            });
 
         return Inertia::render('Control/Admin/Pricing', [
             'pendingProducts' => $pendingProducts,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Control\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Control\Medicine;
+use App\Models\Control\IncomingStock;
 use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -35,10 +36,10 @@ class AdminReportController extends Controller
     /**
      * Kalkulasi metrik penjualan satuan obat (single source of truth)
      */
-    private function calculateMedicineMetric($med): array
+    private function calculateMedicineMetric($med, ?IncomingStock $latestStock = null): array
     {
-        $latestStock = $med->latestActiveIncomingStock;
-        $modal = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
+        $stock = $latestStock ?? $med->latestActiveIncomingStock;
+        $modal = $stock ? (float) $stock->calculateHppSatuan() : 0;
         $terjual = (float) ($med->terjual ?? 0);
         $totalPenjualan = (float) ($med->total_penjualan ?? 0);
         $totalModal = $modal * $terjual;
@@ -133,8 +134,8 @@ class AdminReportController extends Controller
         $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
 
-        $rows = $this->getSalesQuery($startDate, $endDate)->get()->map(fn($m) => $this->calculateMedicineMetric($m));
-        if ($rows->isEmpty()) {
+        $salesQuery = $this->getSalesQuery($startDate, $endDate);
+        if (!$salesQuery->exists()) {
             return back()->with('error', 'Tidak ada data produk.');
         }
 
@@ -179,9 +180,11 @@ class AdminReportController extends Controller
         $writer->addRow(new Row([Cell::fromValue("REKAP PENJUALAN TGL $startDateFormatted - $endDateFormatted", $titleStyle)]));
         $writer->addRow(new Row([]));
 
-        $totalPenjualanKeseluruhan = $rows->sum('total_penjualan');
-        $totalModalKeseluruhan = $rows->sum('total_modal');
-        $totalLabaKeseluruhan = $rows->sum('laba');
+        // Ringkasan Agregasi KPI Penjualan
+        $summary = $this->calculateSalesSummary($startDate, $endDate);
+        $totalPenjualanKeseluruhan = $summary['total_amount'];
+        $totalModalKeseluruhan = $summary['total_modal'];
+        $totalLabaKeseluruhan = $summary['total_laba'];
 
         // Summary Atas
         $writer->addRow(new Row([Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue('Total Penjualan', $boldStyle), Cell::fromValue($totalPenjualanKeseluruhan, $boldCurrencyStyle)]));
@@ -208,14 +211,27 @@ class AdminReportController extends Controller
             Cell::fromValue('STATUS', $headerStyle),
         ]));
         
-        $sheet->setAutoFilter(new AutoFilter(0, 9, 11, 9 + $rows->count()));
+        // Preload active incoming stocks map untuk mencegah N+1 saat cursor stream
+        $latestStocks = IncomingStock::where('status_gate', 'active')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->unique('medicine_id')
+            ->keyBy('medicine_id');
+
+        $totalRows = Medicine::count();
+        $sheet->setAutoFilter(new AutoFilter(0, 9, 11, 9 + $totalRows));
 
         $no = 1;
         $sumQtyAwal = 0;
         $sumTerjual = 0;
         $sumSisaStok = 0;
 
-        foreach ($rows as $row) {
+        // Streaming baris data dari database menggunakan Eloquent Cursor (Generator O(1) Memory)
+        /** @var Medicine $med */
+        foreach ($salesQuery->cursor() as $med) {
+            $latestStock = $latestStocks->get($med->id);
+            $row = $this->calculateMedicineMetric($med, $latestStock);
+
             $sumQtyAwal += $row['qty_awal'];
             $sumTerjual += $row['terjual'];
             $sumSisaStok += $row['sisa_stok'];

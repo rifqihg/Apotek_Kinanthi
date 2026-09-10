@@ -1,17 +1,43 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ 
     rawMaterials: { type: Array, default: () => [] },
-    medicines: { type: Array, default: () => [] }
+    medicines: { type: Array, default: () => [] },
+    filters: { type: Object, default: () => ({}) }
 });
 
 const activeTab = ref('raw_materials');
-const search = ref('');
+const search = ref(props.filters?.search || '');
+const isSearching = ref(false);
+
+// Debounced Server-Side Live Search via Inertia Partial Reload
+let searchTimer = null;
+const performServerSearch = () => {
+    isSearching.value = true;
+    router.reload({
+        data: {
+            search: search.value || undefined,
+        },
+        preserveState: true,
+        preserveScroll: true,
+        only: ['rawMaterials', 'medicines', 'filters'],
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+};
+
+watch(search, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        performServerSearch();
+    }, 300);
+});
 
 const filteredRawMaterials = computed(() => {
     if (!search.value) return props.rawMaterials || [];
@@ -60,9 +86,13 @@ const isNearExpiry = (dateStr) => {
                         v-model="search"
                         type="text" 
                         placeholder="Cari nama atau kode..." 
-                        class="h-9 w-full pl-9 pr-4 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        class="h-9 w-full pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
                     />
-                    <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <svg v-if="!isSearching" class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <svg v-else class="w-4 h-4 animate-spin text-primary absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                    <button v-if="search" @click="search = ''" class="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground text-xs font-medium">
+                        ✕
+                    </button>
                 </div>
 
                 <!-- Tab Toggle -->

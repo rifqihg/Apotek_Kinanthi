@@ -42,6 +42,9 @@ const { data: queryQueue, isFetching } = useQuery({
         prescriptions: props.prescriptions,
         sales: props.sales,
     }),
+    staleTime: 5000, // Real-time queue exception: 5s freshness
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
 });
 

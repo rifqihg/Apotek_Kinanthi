@@ -37,6 +37,9 @@ const { data: queryAudits, isFetching } = useQuery({
         return res.data?.props?.audits || props.audits;
     },
     initialData: () => props.audits,
+    staleTime: 60000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
 });
 

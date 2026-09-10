@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import Swal from 'sweetalert2';
@@ -8,12 +8,44 @@ defineOptions({ layout: ControlLayout });
 
 const props = defineProps({
     medicines: Array,
-    compoundedProducts: Array
+    compoundedProducts: Array,
+    categories: Array,
+    filters: Object,
 });
 
 const activeTab = ref('obat_jadi'); // 'obat_jadi' atau 'racikan'
-const searchQuery = ref('');
-const selectedCategory = ref('all');
+const searchQuery = ref(props.filters?.search || '');
+const selectedCategory = ref(props.filters?.category || 'all');
+const isSearching = ref(false);
+
+// Debounced Server-Side Live Search via Inertia Partial Reload
+let searchTimer = null;
+const performServerSearch = () => {
+    isSearching.value = true;
+    router.reload({
+        data: {
+            search: searchQuery.value || undefined,
+            category: selectedCategory.value !== 'all' ? selectedCategory.value : undefined,
+        },
+        preserveState: true,
+        preserveScroll: true,
+        only: ['medicines', 'compoundedProducts', 'filters'],
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+};
+
+watch(searchQuery, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        performServerSearch();
+    }, 300);
+});
+
+watch(selectedCategory, () => {
+    performServerSearch();
+});
 
 const cart = ref([]);
 const paymentMethod = ref('tunai');
@@ -30,6 +62,12 @@ const formatNumber = (num) => parseFloat(num || 0).toLocaleString('id-ID');
 
 // Available categories with counts for filter pills (matching POS style in Image 2)
 const categoryList = computed(() => {
+    if (props.categories && props.categories.length > 0) {
+        return props.categories.map(c => ({
+            name: c.nama_kategori,
+            count: props.medicines ? props.medicines.filter(m => (m.category?.nama_kategori || m.kategori) === c.nama_kategori).length : 0
+        }));
+    }
     if (!props.medicines) return [];
     const map = {};
     props.medicines.forEach(m => {
@@ -39,13 +77,13 @@ const categoryList = computed(() => {
     return Object.entries(map).map(([name, count]) => ({ name, count }));
 });
 
-// Filtered medicines
+// Filtered medicines (Instant local filter + Server-side debounce sync)
 const filteredMedicines = computed(() => {
     if (!props.medicines) return [];
     return props.medicines.filter(m => {
         const query = searchQuery.value.toLowerCase().trim();
         const matchesSearch = !query || 
-            m.nama_obat.toLowerCase().includes(query) ||
+            (m.nama_obat && m.nama_obat.toLowerCase().includes(query)) ||
             (m.kode_obat && m.kode_obat.toLowerCase().includes(query)) ||
             (m.kategori && m.kategori.toLowerCase().includes(query));
         
@@ -62,7 +100,7 @@ const filteredCompounded = computed(() => {
     return props.compoundedProducts.filter(p => {
         const query = searchQuery.value.toLowerCase().trim();
         return !query || 
-            p.nama_produk.toLowerCase().includes(query) ||
+            (p.nama_produk && p.nama_produk.toLowerCase().includes(query)) ||
             (p.batch_no && p.batch_no.toLowerCase().includes(query));
     });
 });
@@ -293,7 +331,8 @@ onUnmounted(() => {
                         <!-- SEARCH BAR -->
                         <div class="relative w-full sm:w-80">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <svg v-if="!isSearching" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <svg v-else class="w-4 h-4 animate-spin text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
                             </div>
                             <input 
                                 v-model="searchQuery" 

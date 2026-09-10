@@ -27,49 +27,100 @@ class StockOpnameService
                 'status'         => 'draft',
             ]);
 
-            // 1. Process Medicines
+            $itemsToInsert = [];
+
+            // 1. Process Medicines (Bulk Insert & Mass Update)
             $medicinesQuery = WarehouseInventory::where('stock_on_hand', '>', 0)->where('status', 'active');
             if ($categoryId) {
                 $medicinesQuery->whereHas('medicine', fn($q) => $q->where('category_id', $categoryId));
             }
-            foreach ($medicinesQuery->get() as $batch) {
-                StockOpnameItem::create([
-                    'stock_opname_id'        => $opname->id,
-                    'medicine_id'            => $batch->medicine_id,
-                    'warehouse_inventory_id' => $batch->id,
-                    'batch_no'               => $batch->batch_no,
-                    'system_stock'           => $batch->stock_on_hand,
-                ]);
-                $batch->update(['is_frozen' => true]);
+            $medicineBatches = $medicinesQuery->get(['id', 'medicine_id', 'batch_no', 'stock_on_hand']);
+            if ($medicineBatches->isNotEmpty()) {
+                $now = now();
+                foreach ($medicineBatches as $batch) {
+                    $itemsToInsert[] = [
+                        'stock_opname_id'        => $opname->id,
+                        'medicine_id'            => $batch->medicine_id,
+                        'warehouse_inventory_id' => $batch->id,
+                        'raw_material_id'        => null,
+                        'raw_material_stock_id'  => null,
+                        'compounded_product_id'  => null,
+                        'batch_no'               => $batch->batch_no,
+                        'batch_id'               => null,
+                        'system_stock'           => $batch->stock_on_hand,
+                        'physical_stock'         => null,
+                        'difference'             => 0,
+                        'reason'                 => null,
+                        'evidence_photo'         => null,
+                        'created_at'             => $now,
+                        'updated_at'             => $now,
+                    ];
+                }
+                WarehouseInventory::whereIn('id', $medicineBatches->pluck('id'))->update(['is_frozen' => true]);
             }
 
-            // 2. Process Raw Materials
+            // 2. Process Raw Materials (Bulk Insert & Mass Update)
             $materialsQuery = RawMaterialStock::where('stock_on_hand', '>', 0)->where('status', 'active');
             if ($categoryId) {
                 $materialsQuery->whereHas('rawMaterial', fn($q) => $q->where('category_id', $categoryId));
             }
-            foreach ($materialsQuery->get() as $batch) {
-                StockOpnameItem::create([
-                    'stock_opname_id'       => $opname->id,
-                    'raw_material_id'       => $batch->raw_material_id,
-                    'raw_material_stock_id' => $batch->id,
-                    'batch_no'              => $batch->batch_no,
-                    'system_stock'          => $batch->stock_on_hand,
-                ]);
-                $batch->update(['is_frozen' => true]);
+            $materialBatches = $materialsQuery->get(['id', 'raw_material_id', 'batch_no', 'stock_on_hand']);
+            if ($materialBatches->isNotEmpty()) {
+                $now = now();
+                foreach ($materialBatches as $batch) {
+                    $itemsToInsert[] = [
+                        'stock_opname_id'        => $opname->id,
+                        'medicine_id'            => null,
+                        'warehouse_inventory_id' => null,
+                        'raw_material_id'        => $batch->raw_material_id,
+                        'raw_material_stock_id'  => $batch->id,
+                        'compounded_product_id'  => null,
+                        'batch_no'               => $batch->batch_no,
+                        'batch_id'               => null,
+                        'system_stock'           => $batch->stock_on_hand,
+                        'physical_stock'         => null,
+                        'difference'             => 0,
+                        'reason'                 => null,
+                        'evidence_photo'         => null,
+                        'created_at'             => $now,
+                        'updated_at'             => $now,
+                    ];
+                }
+                RawMaterialStock::whereIn('id', $materialBatches->pluck('id'))->update(['is_frozen' => true]);
             }
 
             // 3. Process Compounded Products (skip if category filter applies)
             if (!$categoryId) {
-                $compoundedBatches = CompoundedProduct::where('qty_hasil', '>', 0)->where('status', 'active')->get();
-                foreach ($compoundedBatches as $batch) {
-                    StockOpnameItem::create([
-                        'stock_opname_id'       => $opname->id,
-                        'compounded_product_id' => $batch->id,
-                        'batch_no'              => $batch->batch_no,
-                        'system_stock'          => $batch->qty_hasil,
-                    ]);
-                    $batch->update(['is_frozen' => true]);
+                $compoundedBatches = CompoundedProduct::where('qty_hasil', '>', 0)->where('status', 'active')->get(['id', 'batch_no', 'qty_hasil']);
+                if ($compoundedBatches->isNotEmpty()) {
+                    $now = now();
+                    foreach ($compoundedBatches as $batch) {
+                        $itemsToInsert[] = [
+                            'stock_opname_id'        => $opname->id,
+                            'medicine_id'            => null,
+                            'warehouse_inventory_id' => null,
+                            'raw_material_id'        => null,
+                            'raw_material_stock_id'  => null,
+                            'compounded_product_id'  => $batch->id,
+                            'batch_no'               => $batch->batch_no,
+                            'batch_id'               => null,
+                            'system_stock'           => $batch->qty_hasil,
+                            'physical_stock'         => null,
+                            'difference'             => 0,
+                            'reason'                 => null,
+                            'evidence_photo'         => null,
+                            'created_at'             => $now,
+                            'updated_at'             => $now,
+                        ];
+                    }
+                    CompoundedProduct::whereIn('id', $compoundedBatches->pluck('id'))->update(['is_frozen' => true]);
+                }
+            }
+
+            // Eksekusi Mass Bulk Insert dalam chunk 500 row
+            if (!empty($itemsToInsert)) {
+                foreach (array_chunk($itemsToInsert, 500) as $chunk) {
+                    StockOpnameItem::insert($chunk);
                 }
             }
 

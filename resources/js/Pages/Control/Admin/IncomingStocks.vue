@@ -27,6 +27,9 @@ const { data: queryStocks, isFetching } = useQuery({
         return res.data.props.stocks;
     },
     initialData: () => props.stocks,
+    staleTime: 60000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
 });
 

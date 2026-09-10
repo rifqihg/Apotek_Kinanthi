@@ -20,6 +20,13 @@ class Category extends Model
         return $this->hasMany(Medicine::class);
     }
 
+    protected $appends = ['nama_kategori'];
+
+    public function getNamaKategoriAttribute(): ?string
+    {
+        return $this->name;
+    }
+
     public function rawMaterials()
     {
         return $this->hasMany(RawMaterial::class);
