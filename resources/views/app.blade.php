@@ -4,7 +4,13 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ config('app.name', 'Apotek Kinanthi') }}</title>
+
+        <!-- Favicon (Rasio Aspek 1:1 Persegi Sempurna Bebas Distorsi) -->
+        <link rel="icon" type="image/webp" sizes="32x32" href="/favicon.webp">
+        <link rel="icon" type="image/webp" sizes="16x16" href="/favicon.webp">
+        <link rel="icon" type="image/x-icon" href="/favicon.ico">
+        <link rel="apple-touch-icon" href="/favicon.webp">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">

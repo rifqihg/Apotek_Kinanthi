@@ -9,7 +9,7 @@
                 <!-- Inner ornament -->
                 <div class="absolute inset-0 bg-gradient-to-br from-teal-500 to-teal-700 opacity-80"></div>
                 <div class="relative z-10">
-                    <img src="/images/logo.webp" alt="Apotek Kinanthi Logo" class="w-20 h-20 rounded-full object-cover mx-auto shadow-md border-2 border-white mb-4" />
+                    <img src="/images/logo-clean.webp" alt="Logo Apotek Kinanthi" class="w-20 h-20 aspect-square object-contain mx-auto mb-4" />
                     <h1 class="text-2xl font-extrabold tracking-wide">Apotek Kinanthi</h1>
                     <p class="text-teal-100 text-sm mt-1">Sistem Manajemen & Inventori</p>
                 </div>

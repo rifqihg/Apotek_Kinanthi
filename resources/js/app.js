@@ -7,10 +7,10 @@ import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { VueQueryPlugin } from '@tanstack/vue-query'; 
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Apotek Kinanthi';
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => title ? `${title} | Apotek Kinanthi` : 'Apotek Kinanthi',
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.vue`,

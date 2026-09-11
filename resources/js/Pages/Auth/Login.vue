@@ -17,7 +17,7 @@ const submit = () => {
 <template>
     <Head title="Log In" />
 
-    <div class="min-h-screen flex flex-col lg:flex-row font-sans bg-cover bg-center bg-no-repeat" style="background-image: url('/images/login/background.png');">
+    <div class="min-h-screen flex flex-col lg:flex-row font-sans bg-cover bg-center bg-no-repeat" style="background-image: url('/images/background.webp');">
         
         <!-- ==============================================
              LEFT PANEL
@@ -26,12 +26,12 @@ const submit = () => {
             <div class="w-full max-w-sm">
             
             <!-- Header -->
-            <div class="flex items-center gap-4 mb-10 z-10">
-                <img src="/images/login/logo_apotek.png" alt="Logo" class="w-12 h-12 object-contain" />
-                <div class="h-10 w-[1.5px] bg-slate-300"></div>
+            <div class="flex items-center gap-4 sm:gap-5 mb-10 z-10">
+                <img src="/images/logo-clean.webp" alt="Logo Apotek Kinanthi" class="w-16 h-16 sm:w-20 sm:h-20 aspect-square object-contain shrink-0 drop-shadow-sm" />
+                <div class="h-12 sm:h-14 w-[1.5px] bg-slate-300 shrink-0"></div>
                 <div>
-                    <h1 class="text-2xl font-bold text-[#1e293b] tracking-tight">Apotek Kinanthi</h1>
-                    <div class="text-[11px] text-[#0d9488] font-semibold uppercase tracking-wider mt-0.5">
+                    <h1 class="text-2xl sm:text-[26px] font-bold text-[#1e293b] tracking-tight leading-tight">Apotek Kinanthi</h1>
+                    <div class="text-[11px] sm:text-xs text-[#0d9488] font-semibold uppercase tracking-wider mt-0.5">
                         Pharmacy Management System | Login Page
                     </div>
                 </div>

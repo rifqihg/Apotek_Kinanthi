@@ -9,6 +9,7 @@ import axios from 'axios';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Button } from '@/Components/ui/button';
+import { formatInventoryThreshold } from '@/lib/utils';
 
 defineOptions({ layout: ControlLayout });
 
@@ -426,8 +427,8 @@ const getLevel2Qty = (item) => {
                                     </template>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-center text-sm text-muted-foreground tracking-wide">
-                                {{ item.batas_aman }} Unit
+                            <TableCell class="text-center text-sm font-medium text-foreground tracking-wide">
+                                {{ formatInventoryThreshold(item.batas_aman, item.small_to_mid_ratio, item.mid_to_big_ratio, { tersier: item.satuan_input, sekunder: item.mid_unit, primer: item.satuan_stok }) }}
                             </TableCell>
                             <TableCell class="text-center">
                                 <span 

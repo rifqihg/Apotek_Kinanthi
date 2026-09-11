@@ -14,6 +14,7 @@ import {
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/Components/ui/alert';
+import { Avatar, AvatarImage, AvatarFallback } from '@/Components/ui/avatar';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || { name: 'User', role: 'admin' });
@@ -282,11 +283,14 @@ watch(() => page.props.flash?.error, (newVal) => {
             :class="isDesktopCollapsed ? 'w-16' : 'w-64'"
         >
             <!-- Logo -->
-            <Link :href="userDashboardRoute" prefetch class="h-14 flex items-center gap-2.5 px-4 bg-[#0F172A] border-b border-[#1F2937] shrink-0 hover:opacity-95 transition-opacity">
-                <div class="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                    K
-                </div>
-                <span v-show="!isDesktopCollapsed" class="font-semibold text-sm tracking-tight text-white truncate">Apotek Kinanthi</span>
+            <Link 
+                :href="userDashboardRoute" 
+                prefetch 
+                class="h-16 md:h-[72px] lg:h-[76px] flex items-center bg-[#0F172A] border-b border-[#1F2937] shrink-0 hover:opacity-95 transition-all"
+                :class="isDesktopCollapsed ? 'justify-center px-2' : 'px-4 gap-3'"
+            >
+                <img src="/images/logo-clean.webp" alt="Logo Apotek Kinanthi" class="w-11 h-11 lg:w-12 lg:h-12 aspect-square object-contain shrink-0" />
+                <span v-show="!isDesktopCollapsed" class="font-bold text-base lg:text-[17px] tracking-tight text-white truncate">Apotek Kinanthi</span>
             </Link>
 
             <!-- Navigation -->
@@ -367,9 +371,12 @@ watch(() => page.props.flash?.error, (newVal) => {
                                 :class="isDesktopCollapsed ? 'justify-center px-0 w-10 mx-auto' : ''"
                                 :title="isDesktopCollapsed ? user.name : ''"
                             >
-                                <div class="w-7 h-7 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-                                    {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
-                                </div>
+                                <Avatar class="w-8 h-8 rounded-full border border-slate-600/50 bg-slate-800/80 shrink-0 shadow-sm">
+                                    <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+                                    <AvatarFallback class="bg-slate-700/80 text-slate-200 font-bold text-xs">
+                                        {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
+                                    </AvatarFallback>
+                                </Avatar>
                                 <div v-show="!isDesktopCollapsed" class="text-left flex-1 min-w-0">
                                     <p class="text-sm font-semibold text-white truncate leading-tight">{{ user.name }}</p>
                                     <p class="text-xs text-[#94A3B8] truncate capitalize leading-tight">{{ roleLabel }}</p>
@@ -439,10 +446,10 @@ watch(() => page.props.flash?.error, (newVal) => {
         <!-- ═══ MOBILE DRAWER (SHADCN SHEET) ═══ -->
         <Sheet v-model:open="isMobileSidebarOpen">
             <SheetContent side="left" class="w-72 p-0 flex flex-col bg-[#111827] border-[#1F2937]">
-                <SheetHeader class="h-14 px-4 bg-[#0F172A] border-b border-[#1F2937] flex flex-row items-center justify-between">
-                    <Link :href="userDashboardRoute" prefetch @click="isMobileSidebarOpen = false" class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-sm shadow-sm">K</div>
-                        <SheetTitle class="text-sm font-semibold tracking-tight text-white">Apotek Kinanthi</SheetTitle>
+                <SheetHeader class="h-16 px-4 bg-[#0F172A] border-b border-[#1F2937] flex flex-row items-center justify-between shrink-0">
+                    <Link :href="userDashboardRoute" prefetch @click="isMobileSidebarOpen = false" class="flex items-center gap-3">
+                        <img src="/images/logo-clean.webp" alt="Logo Apotek Kinanthi" class="w-11 h-11 aspect-square object-contain shrink-0" />
+                        <SheetTitle class="text-base font-bold tracking-tight text-white">Apotek Kinanthi</SheetTitle>
                     </Link>
                 </SheetHeader>
                 <ScrollArea class="flex-1 px-3 py-3">
@@ -507,9 +514,12 @@ watch(() => page.props.flash?.error, (newVal) => {
                 </ScrollArea>
                 <div class="p-2 border-t border-[#1F2937] bg-[#0F172A]">
                     <div class="flex items-center gap-2 p-1.5 rounded-md bg-[#111827]/60">
-                        <div class="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-                            {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
-                        </div>
+                        <Avatar class="w-8 h-8 rounded-full border border-slate-600/50 bg-slate-800/80 shrink-0 shadow-sm">
+                            <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+                            <AvatarFallback class="bg-slate-700/80 text-slate-200 font-bold text-xs">
+                                {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
+                            </AvatarFallback>
+                        </Avatar>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-semibold text-white truncate leading-tight">{{ user.name }}</p>
                             <p class="text-xs text-[#94A3B8] truncate capitalize leading-tight">{{ roleLabel }}</p>

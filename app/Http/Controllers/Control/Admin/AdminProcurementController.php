@@ -103,7 +103,7 @@ class AdminProcurementController extends Controller
 
         $suppliers = Supplier::active()->select(['id', 'nama_pbf'])->orderBy('nama_pbf')->get();
         $medicines = Medicine::with('latestActiveIncomingStock')
-            ->select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi'])
+            ->select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
             ->orderBy('nama_obat')
             ->get()
             ->map(function ($m) {
@@ -147,6 +147,7 @@ class AdminProcurementController extends Controller
             'items.*.qty_masuk' => 'required|integer|min:1',
             'items.*.harga_beli_satuan' => 'required|numeric|min:0',
             'items.*.diskon_persen' => 'nullable|numeric|min:0|max:100',
+            'items.*.min_stock_threshold' => 'nullable|integer|min:0',
         ]);
 
         $settings = Setting::current();
