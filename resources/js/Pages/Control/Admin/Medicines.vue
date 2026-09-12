@@ -106,71 +106,222 @@ const toggleRow = (id) => {
     <Head :title="title" />
 
     <div class="space-y-6 animate-in fade-in duration-700">
-            <!-- COMPACT PREMIUM HERO HEADER -->
-            <div class="relative p-6 bg-card rounded-xl border border-border shadow-sm overflow-hidden group">
-                <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110 duration-1000"></div>
-                
-                <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-2">
-                            <span class="px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider rounded-md border border-primary/20">Master Data</span>
-                            <span class="px-2.5 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Katalog Terpusat</span>
-                        </div>
-                        <div>
-                            <h1 class="text-2xl font-bold text-foreground tracking-tight leading-none uppercase">Katalog Obat Jadi</h1>
-                            <p class="text-muted-foreground font-medium mt-1.5 max-w-xl text-sm">Manajemen sediaan dari faktur masuk dan hasil racikan apoteker.</p>
-                        </div>
+            <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+                <!-- HERO BANNER CARD (lg:col-span-8: diperlebar dan dipertinggi proporsional) -->
+                <div 
+                    class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-2xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300"
+                >
+                    <!-- Left Text Column -->
+                    <div class="relative z-10 max-w-sm sm:max-w-md">
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                            {{ activeTab === 'faktur' ? 'Katalog Obat dari Faktur' : 'Katalog Formula & Obat Racikan' }}
+                        </h1>
+                        <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                            {{ activeTab === 'faktur' 
+                                ? 'Manajemen dan pemantauan menyeluruh data sediaan obat dari faktur pembelian masuk secara terpusat.' 
+                                : 'Manajemen master formula peracikan, takaran bahan baku aktif, dan standarisasi sediaan racikan apotek.' 
+                            }}
+                        </p>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row items-center gap-4">
-                        <Link :href="route('control.admin.medicines.faktur')" 
-                              class="p-4 rounded-lg shadow-sm flex items-center gap-4 transition-all"
-                              :class="activeTab === 'faktur' ? 'bg-primary/5 border-2 border-primary' : 'bg-card border border-border hover:bg-muted/50'">
-                            <div class="text-right">
-                                <p class="text-xs font-semibold uppercase tracking-wider leading-none" :class="activeTab === 'faktur' ? 'text-primary' : 'text-muted-foreground'">Total Faktur</p>
-                                <p class="text-2xl font-semibold tracking-tight text-primary leading-none mt-1.5">{{ activeFakturStocks.total || 0 }}</p>
-                            </div>
-                            <div class="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center text-lg border border-primary/20 text-primary">📦</div>
-                        </Link>
-                        <Link :href="route('control.admin.medicines.racikan')" 
-                              class="p-4 rounded-lg shadow-sm flex items-center gap-4 transition-all"
-                              :class="activeTab === 'racikan' ? 'bg-purple-50/50 border-2 border-purple-500' : 'bg-card border border-border hover:bg-muted/50'">
-                            <div class="text-right">
-                                <p class="text-xs font-semibold uppercase tracking-wider leading-none" :class="activeTab === 'racikan' ? 'text-purple-600' : 'text-muted-foreground'">Total Racikan</p>
-                                <p class="text-2xl font-semibold tracking-tight text-purple-600 leading-none mt-1.5">{{ activeRacikanProducts.total || 0 }}</p>
-                            </div>
-                            <div class="w-10 h-10 bg-purple-50 rounded-md flex items-center justify-center text-lg border border-purple-100 text-purple-600">🧪</div>
-                        </Link>
+                    <!-- Right Vector Illustration Column (Proporsional & Tidak Lonjong) -->
+                    <div class="relative z-10 flex items-center justify-center shrink-0">
+                        <!-- SVG FAKTUR (Botol + Kapsul + Tablet ⊖ + Sparkle) -->
+                        <svg v-if="activeTab === 'faktur'" class="h-[68px] sm:h-[76px] w-auto select-none shrink-0" viewBox="0 0 150 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Baseline dashed line -->
+                            <line x1="6" y1="64" x2="144" y2="64" stroke="#CBD5E1" stroke-width="1.4" stroke-dasharray="3 3" stroke-linecap="round" />
+                            
+                            <!-- Accent dots -->
+                            <circle cx="34" cy="28" r="1.8" fill="#3B82F6" />
+                            <circle cx="128" cy="34" r="1.8" fill="#10B981" />
+
+                            <!-- Medicine Bottle (behind arc) -->
+                            <g transform="translate(53, 14)">
+                                <rect x="7" y="0" width="16" height="5" rx="1.8" stroke="#2563EB" stroke-width="1.8" fill="#FFFFFF" />
+                                <rect x="11" y="5" width="8" height="3" stroke="#2563EB" stroke-width="1.5" fill="#FFFFFF" />
+                                <rect x="0" y="8" width="30" height="42" rx="7" stroke="#2563EB" stroke-width="2" fill="#FFFFFF" />
+                                <!-- measurement ticks -->
+                                <line x1="0" y1="19" x2="5" y2="19" stroke="#93C5FD" stroke-width="1.4" stroke-linecap="round" />
+                                <line x1="0" y1="31" x2="4" y2="31" stroke="#93C5FD" stroke-width="1.4" stroke-linecap="round" />
+                                <!-- badge (+) -->
+                                <circle cx="15" cy="29" r="8" stroke="#2563EB" stroke-width="1.6" fill="#EFF6FF" />
+                                <path d="M15 25v8M11 29h8" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" />
+                            </g>
+
+                            <!-- Swoop arc line with starting dot (drawn in front of the bottle) -->
+                            <circle cx="18" cy="36" r="2.4" fill="#334155" />
+                            <path d="M 18 36 C 16 62, 54 66, 80 61 C 98 56, 115 44, 128 53" stroke="#64748B" stroke-width="1.6" stroke-linecap="round" fill="none" />
+
+                            <!-- Tilted Capsule -->
+                            <g transform="translate(93, 22) rotate(30)">
+                                <rect x="0" y="0" width="14" height="32" rx="7" stroke="#059669" stroke-width="1.8" fill="#FFFFFF" />
+                                <path d="M0 7 A7 7 0 0 1 14 7 V16 H0 Z" fill="#A7F3D0" />
+                                <line x1="0" y1="16" x2="14" y2="16" stroke="#059669" stroke-width="1.6" />
+                            </g>
+
+                            <!-- Round Pill with minus ⊖ (overlaps baseline and capsule base) -->
+                            <circle cx="126" cy="56" r="7.5" stroke="#475569" stroke-width="1.8" fill="#FFFFFF" />
+                            <line x1="122" y1="56" x2="130" y2="56" stroke="#475569" stroke-width="1.6" stroke-linecap="round" />
+                        </svg>
+
+                        <!-- SVG RACIKAN (Erlenmeyer Flask + Kapsul + Herbal Pill) -->
+                        <svg v-else class="h-[68px] sm:h-[76px] w-auto select-none shrink-0" viewBox="0 0 150 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Baseline dashed line -->
+                            <line x1="6" y1="64" x2="144" y2="64" stroke="#CBD5E1" stroke-width="1.4" stroke-dasharray="3 3" stroke-linecap="round" />
+                            
+                            <!-- Accent dots -->
+                            <circle cx="34" cy="28" r="1.8" fill="#10B981" />
+                            <circle cx="128" cy="34" r="1.8" fill="#34D399" />
+
+                            <!-- Lab Flask (behind arc) -->
+                            <g transform="translate(50, 14)">
+                                <rect x="15" y="0" width="14" height="5" rx="1.8" stroke="#059669" stroke-width="1.8" fill="#ECFDF5" />
+                                <path d="M17 5v12L6 45a4.5 4.5 0 0 0 3.8 6.5h26.4a4.5 4.5 0 0 0 3.8-6.5L27 17V5" stroke="#059669" stroke-width="2" stroke-linejoin="round" fill="#FFFFFF" />
+                                <path d="M9.5 36c3-1.5 7 1.5 11 0s7-.5 11 1l1.8 7a3.5 3.5 0 0 1-3.4 4.5H13a3.5 3.5 0 0 1-3.4-4.5l1.9-8z" fill="#A7F3D0" fill-opacity="0.85" />
+                                <circle cx="22" cy="40" r="2" fill="#059669" />
+                                <circle cx="19" cy="32" r="1.5" fill="#34D399" />
+                            </g>
+
+                            <!-- Swoop arc line with starting dot (drawn in front) -->
+                            <circle cx="18" cy="36" r="2.4" fill="#047857" />
+                            <path d="M 18 36 C 16 62, 54 66, 80 61 C 98 56, 115 44, 128 53" stroke="#059669" stroke-width="1.6" stroke-linecap="round" fill="none" />
+
+                            <!-- Tilted Capsule -->
+                            <g transform="translate(93, 22) rotate(30)">
+                                <rect x="0" y="0" width="14" height="32" rx="7" stroke="#059669" stroke-width="1.8" fill="#FFFFFF" />
+                                <path d="M0 7 A7 7 0 0 1 14 7 V16 H0 Z" fill="#10B981" />
+                                <line x1="0" y1="16" x2="14" y2="16" stroke="#059669" stroke-width="1.6" />
+                            </g>
+
+                            <!-- Round Pill with herbal dot -->
+                            <circle cx="126" cy="56" r="7.5" stroke="#059669" stroke-width="1.8" fill="#FFFFFF" />
+                            <circle cx="126" cy="56" r="2.5" fill="#10B981" />
+                        </svg>
                     </div>
+                </div>
+
+                <!-- 2 STAT CARDS (lg:col-span-4: diperkecil lebarnya, tinggi mengikuti hero banner) -->
+                <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                    <!-- Card 1: Total Data Faktur -->
+                    <Link 
+                        :href="route('control.admin.medicines.faktur')" 
+                        class="bg-white dark:bg-card border rounded-2xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
+                        :class="activeTab === 'faktur' 
+                            ? 'border-blue-400/90 ring-2 ring-blue-500/10' 
+                            : 'border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700'"
+                    >
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-blue-600 transition-colors truncate">
+                                TOTAL DATA FAKTUR
+                            </span>
+                            <div class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="my-0.5">
+                            <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                                {{ activeFakturStocks.total || 0 }}
+                            </span>
+                        </div>
+                        <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
+                            Item sediaan faktur masuk
+                        </p>
+                    </Link>
+
+                    <!-- Card 2: Total Data Racikan -->
+                    <Link 
+                        :href="route('control.admin.medicines.racikan')" 
+                        class="bg-white dark:bg-card border rounded-2xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
+                        :class="activeTab === 'racikan' 
+                            ? 'border-emerald-400/90 ring-2 ring-emerald-500/10' 
+                            : 'border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700'"
+                    >
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-emerald-600 transition-colors truncate">
+                                TOTAL DATA RACIKAN
+                            </span>
+                            <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 2v7.31L4.41 19.59A2 2 0 0 0 6 22h12a2 2 0 0 0 1.59-2.41L14 9.31V2"></path>
+                                    <line x1="8.5" y1="2" x2="15.5" y2="2"></line>
+                                    <path d="M7 16h10"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="my-0.5">
+                            <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                                {{ activeRacikanProducts.total || 0 }}
+                            </span>
+                        </div>
+                        <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
+                            Item racikan aktif apoteker
+                        </p>
+                    </Link>
                 </div>
             </div>
 
             <!-- CONTENT AREA -->
-            <div class="w-full space-y-6">
-                <!-- SEARCH & FILTER BAR -->
-                <div class="bg-card p-4 rounded-lg shadow-sm border border-border flex flex-col md:flex-row gap-4 justify-between items-center">
-                    <div class="flex items-center gap-3 w-full">
-                        <div class="flex-1 relative group">
-                            <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-foreground transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            <input 
-                                type="text" 
-                                v-model="searchQuery"
-                                @keyup.enter="handleSearch" 
-                                placeholder="Cari berdasarkan nama obat, batch, atau kode SKU..." 
-                                class="w-full h-10 pl-10 pr-4 bg-background border border-input focus:ring-1 focus:ring-ring focus:border-input rounded-md text-sm font-medium transition-all outline-none"
-                            />
-                        </div>
+            <div class="w-full space-y-4">
+                <!-- SEARCH & ACTION BAR -->
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full">
+                    <div class="relative flex-1 w-full">
+                        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input 
+                            type="text" 
+                            v-model="searchQuery" 
+                            @keyup.enter="handleSearch"
+                            placeholder="Cari berdasarkan nama obat, batch, atau kategori..." 
+                            class="w-full h-10 pl-10 pr-4 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl text-xs sm:text-sm font-medium text-slate-800 dark:text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                        />
+                    </div>
+
+                    <div class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+                        <!-- Filter Button -->
                         <button 
+                            type="button" 
                             @click="handleSearch"
                             :disabled="isFetching"
-                            class="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-75 text-white font-semibold rounded-md transition-all flex items-center gap-2 justify-center shadow-sm"
+                            class="h-10 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
                         >
-                            <svg v-if="isFetching" class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <svg v-if="!isFetching" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                            <svg v-else class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span>{{ isFetching ? 'Mencari...' : 'Cari' }}</span>
+                            <span>Filter</span>
                         </button>
+
+                        <!-- + Tambah Button -->
+                        <Link 
+                            v-if="activeTab === 'faktur'"
+                            :href="route('control.admin.incoming-stocks')"
+                            class="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 whitespace-nowrap"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Tambah Faktur</span>
+                        </Link>
+
+                        <Link 
+                            v-else
+                            :href="route('control.admin.compounded-products')"
+                            class="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 whitespace-nowrap"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Tambah Racikan</span>
+                        </Link>
                     </div>
                 </div>
 
@@ -188,10 +339,17 @@ const toggleRow = (id) => {
                             </thead>
                             <tbody class="divide-y divide-border">
                                 <tr v-if="!activeFakturStocks.data || activeFakturStocks.data.length === 0">
-                                    <td colspan="5" class="px-6 py-12 text-center">
-                                        <div class="flex flex-col items-center">
-                                            <div class="w-14 h-14 bg-muted border border-border rounded-lg flex items-center justify-center text-2xl mb-3 text-muted-foreground">📦</div>
-                                            <p class="text-muted-foreground font-semibold uppercase tracking-wider text-xs">Belum Ada Obat Dari Faktur</p>
+                                    <td colspan="5" class="px-6 py-16 text-center">
+                                        <div class="flex flex-col items-center justify-center max-w-md mx-auto">
+                                            <div class="w-14 h-14 bg-slate-100 dark:bg-muted rounded-2xl flex items-center justify-center text-slate-400 mb-4 border border-slate-200/60 dark:border-border shadow-2xs">
+                                                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                            </div>
+                                            <p class="text-base font-bold text-slate-800 dark:text-foreground">Belum Ada Data Obat Dari Faktur</p>
+                                            <p class="text-xs text-slate-500 dark:text-muted-foreground mt-1.5 leading-relaxed">
+                                                Katalog obat dari faktur masih kosong. Silakan tambahkan faktur pembelian masuk dari distributor untuk mengisi data obat dan stok.
+                                            </p>
                                         </div>
                                     </td>
                                 </tr>
@@ -349,10 +507,17 @@ const toggleRow = (id) => {
                             </thead>
                             <tbody class="divide-y divide-border">
                                 <tr v-if="!activeRacikanProducts.data || activeRacikanProducts.data.length === 0">
-                                    <td colspan="4" class="px-6 py-12 text-center">
-                                        <div class="flex flex-col items-center">
-                                            <div class="w-14 h-14 bg-purple-50 border border-purple-100 rounded-lg flex items-center justify-center text-2xl mb-3 text-purple-300">🧪</div>
-                                            <p class="text-muted-foreground font-semibold uppercase tracking-wider text-xs">Belum Ada Produk Racikan</p>
+                                    <td colspan="4" class="px-6 py-16 text-center">
+                                        <div class="flex flex-col items-center justify-center max-w-md mx-auto">
+                                            <div class="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/50 rounded-2xl flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100 dark:border-emerald-900 shadow-2xs">
+                                                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                                </svg>
+                                            </div>
+                                            <p class="text-base font-bold text-slate-800 dark:text-foreground">Belum Ada Data Formula / Obat Racikan</p>
+                                            <p class="text-xs text-slate-500 dark:text-muted-foreground mt-1.5 leading-relaxed">
+                                                Katalog produk racikan apoteker masih kosong. Silakan buat sediaan racikan untuk menambahkan katalog.
+                                            </p>
                                         </div>
                                     </td>
                                 </tr>

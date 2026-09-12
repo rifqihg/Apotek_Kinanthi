@@ -82,67 +82,15 @@ class AdminController extends Controller
             return $trend;
         }
 
-        // 2. FILTER YTD: TAHUN BERJALAN (1 JANUARI - SEKARANG)
+        // 2. FILTER HARIAN STANDAR (7, 30, 90, 365 HARI & YTD TAHUN BERJALAN)
         if ($period === 'YTD') {
-            $startOfYear = Carbon::now()->startOfYear();
-            $now = Carbon::now();
-            $currentMonth = $now->month;
-
-            $salesGrouped = Sale::query()
-                ->where('status', 'paid')
-                ->where('created_at', '>=', $startOfYear)
-                ->where('created_at', '<=', $now)
-                ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period_key, COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal")
-                ->groupBy('period_key')
-                ->get()
-                ->keyBy('period_key');
-
-            $trend = [];
-            if ($currentMonth >= 3) {
-                for ($m = 1; $m <= $currentMonth; $m++) {
-                    $monthObj = Carbon::create($now->year, $m, 1);
-                    $periodKey = $monthObj->format('Y-m');
-                    $record = $salesGrouped->get($periodKey);
-
-                    $trend[] = [
-                        'date' => $periodKey,
-                        'label' => $monthObj->translatedFormat('M'),
-                        'sales' => $record ? (float) $record->total_nominal : 0,
-                        'transactions' => $record ? (int) $record->total_tx : 0,
-                    ];
-                }
-            } else {
-                $start = $startOfYear->copy();
-                $weekIndex = 1;
-                while ($start->lte($now)) {
-                    $end = $start->copy()->endOfWeek();
-                    if ($end->gt($now)) $end = $now->copy();
-
-                    $weekSales = Sale::query()
-                        ->where('status', 'paid')
-                        ->whereBetween('created_at', [$start, $end])
-                        ->selectRaw('COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal')
-                        ->first();
-
-                    $trend[] = [
-                        'date' => $start->format('Y-m-d'),
-                        'label' => 'Mgg ' . $weekIndex,
-                        'sales' => $weekSales ? (float) $weekSales->total_nominal : 0,
-                        'transactions' => $weekSales ? (int) $weekSales->total_tx : 0,
-                    ];
-
-                    $start->addWeek()->startOfWeek();
-                    $weekIndex++;
-                }
-            }
-
-            return $trend;
+            $startDate = Carbon::today()->startOfYear();
+            $days = (int) $startDate->diffInDays(Carbon::today()) + 1;
+        } else {
+            $days = (int) $period;
+            if ($days <= 0) $days = 7;
+            $startDate = Carbon::today()->subDays($days - 1)->startOfDay();
         }
-
-        // 3. FILTER HARIAN STANDAR (7, 30, 90, 365 HARI)
-        $days = (int) $period;
-        if ($days <= 0) $days = 7;
-        $startDate = Carbon::today()->subDays($days - 1)->startOfDay();
 
         $salesGrouped = Sale::query()
             ->where('status', 'paid')
