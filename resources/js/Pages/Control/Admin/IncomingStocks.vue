@@ -6,6 +6,7 @@ defineOptions({ layout: ControlLayout });
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 import axios from 'axios';
+import { formatInventoryThreshold } from '@/lib/utils';
 
 const props = defineProps({ stocks: Object, suppliers: Array, medicines: Array, settings: Object, filters: Object });
 const showModal = ref(false);
@@ -116,12 +117,14 @@ const getEmptyItem = () => ({
     new_medicine_kategori: '',
     new_medicine_satuan_kecil: 'Tablet',
     new_medicine_rasio_konversi: 1,
+    no_multi_unit: false,
     small_unit_skipped: false,
     unit_conversion_factor: 1,
     satuan_input: 'Box',
     mid_unit: 'Strip',
     mid_to_big_ratio: 1,
     small_to_mid_ratio: 1,
+    min_stock_threshold: 10,
     batch_no: '',
     expired_date: '',
     qty_masuk: 1,
@@ -160,11 +163,45 @@ const filteredMedicines = (query) => {
 };
 
 const selectMedicine = (index, m) => {
-    form.items[index].medicine_id = m.id;
-    form.items[index].search_query = m.nama_obat;
-    form.items[index].active_dropdown = false;
-    form.items[index].unit_conversion_factor = m.rasio_konversi || 1;
-    form.items[index].new_medicine_satuan_kecil = m.satuan_stok || 'Unit';
+    const item = form.items[index];
+    item.medicine_id = m.id;
+    item.search_query = m.nama_obat;
+    item.active_dropdown = false;
+    item.unit_conversion_factor = m.rasio_konversi || 1;
+    item.new_medicine_satuan_kecil = m.satuan_stok || 'Tablet';
+    if (m.threshold_min !== undefined && m.threshold_min !== null) {
+        item.min_stock_threshold = m.threshold_min;
+    }
+    if (m.satuan_besar) {
+        item.satuan_input = m.satuan_besar;
+    }
+    if (m.satuan_menengah) {
+        item.mid_unit = m.satuan_menengah;
+        item.small_unit_skipped = false;
+        item.no_multi_unit = false;
+    } else if (m.satuan_besar && m.satuan_besar === m.satuan_stok && (!m.rasio_konversi || m.rasio_konversi == 1)) {
+        item.no_multi_unit = true;
+        item.small_unit_skipped = false;
+    } else if (m.satuan_besar && m.satuan_besar !== m.satuan_stok) {
+        item.no_multi_unit = false;
+        item.small_unit_skipped = true;
+    } else {
+        item.no_multi_unit = false;
+        item.small_unit_skipped = false;
+    }
+};
+
+const getPrimaryUnit = (item) => {
+    if (item.no_multi_unit) {
+        return item.satuan_input || 'Unit';
+    }
+    return item.new_medicine_satuan_kecil || 'Tablet';
+};
+
+const handleNoMultiUnitChange = (item) => {
+    if (item.no_multi_unit) {
+        item.small_unit_skipped = false;
+    }
 };
 
 const midUnitCategories = [
@@ -179,6 +216,14 @@ const unitCategories = [
     { name: 'Sediaan Topikal & Semi-Padat', units: ['Tube', 'Tbe', 'Pot'] },
     { name: 'Sediaan Steril & Injeksi', units: ['Ampul', 'Amp', 'Vial'] },
     { name: 'Sediaan Khusus', units: ['Suppositoria', 'Supp', 'Canister', 'Inhaler'] },
+];
+
+const singleUnitCategories = [
+    { name: 'Sediaan Steril & Injeksi', units: ['Ampul', 'Vial', 'Infus', 'Pen'] },
+    { name: 'Sediaan Cair & Sirup', units: ['Botol', 'Flsh', 'Sachet', 'Drop', 'Pack'] },
+    { name: 'Sediaan Topikal & Salep', units: ['Tube', 'Pot', 'Gel'] },
+    { name: 'Sediaan Padat & Oral', units: ['Tablet', 'Kaplet', 'Kapsul', 'Strip', 'Blister', 'Pcs', 'Box'] },
+    { name: 'Sediaan Khusus & Lainnya', units: ['Suppositoria', 'Inhaler', 'Canister', 'Patch', 'Koyo'] },
 ];
 
 const calculateItemSubtotal = (item) => {
@@ -199,12 +244,18 @@ const formGrandTotal = computed(() => {
 
 function submit() {
     form.items.forEach(item => {
-        if (item.small_unit_skipped) {
+        if (item.no_multi_unit) {
+            item.unit_conversion_factor = 1;
+            item.mid_to_big_ratio = 1;
+            item.small_to_mid_ratio = 1;
+            item.mid_unit = null;
+            item.new_medicine_satuan_kecil = item.satuan_input;
+        } else if (item.small_unit_skipped) {
             item.small_to_mid_ratio = item.unit_conversion_factor;
             item.mid_unit = null; // Clear mid unit so backend knows it's a 2-level hierarchy
             item.mid_to_big_ratio = 1;
         } else {
-            item.unit_conversion_factor = item.mid_to_big_ratio * item.small_to_mid_ratio;
+            item.unit_conversion_factor = (item.mid_to_big_ratio || 1) * (item.small_to_mid_ratio || 1);
         }
     });
 
@@ -393,7 +444,22 @@ function submit() {
                             <tr v-for="item in group.items" :key="item.id" class="hover:bg-muted/30 transition-colors">
                                 <td class="px-4 py-3">
                                     <p class="text-sm font-semibold text-foreground">{{ item.medicine?.nama_obat }}</p>
-                                    <p class="text-xs text-muted-foreground mt-0.5">{{ item.satuan_input }}</p>
+                                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                        <span class="text-xs text-muted-foreground">{{ item.satuan_input }}</span>
+                                        <span class="text-muted-foreground/60 text-xs">&bull;</span>
+                                        <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border font-medium">
+                                            Ambang Batas: {{ item.medicine?.threshold_min ?? 10 }} {{ item.medicine?.satuan_stok || 'Unit' }}
+                                        </span>
+                                        <span 
+                                            v-if="item.medicine"
+                                            class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded font-semibold border"
+                                            :class="Number(item.medicine.stok_total) <= Number(item.medicine.threshold_min) 
+                                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+                                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'"
+                                        >
+                                            {{ Number(item.medicine.stok_total) <= Number(item.medicine.threshold_min) ? 'Perlu Restock' : 'Stok Aman' }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center text-xs px-2 py-0.5 rounded border border-border bg-muted/40 text-muted-foreground tracking-wide">
@@ -403,7 +469,12 @@ function submit() {
                                 <td class="px-4 py-3 text-sm text-muted-foreground">
                                     {{ new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) }}
                                 </td>
-                                <td class="px-4 py-3 text-center font-bold text-sm text-foreground">{{ item.qty_masuk }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="font-bold text-sm text-foreground">{{ item.qty_masuk }}</span>
+                                    <span class="block text-[11px] text-muted-foreground mt-0.5">
+                                        &asymp; {{ item.qty_converted || (item.qty_masuk * (item.unit_conversion_factor || 1)) }} {{ item.medicine?.satuan_stok || 'Unit' }}
+                                    </span>
+                                </td>
                                 <td class="px-4 py-3 text-right text-sm text-muted-foreground">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</td>
                                 <td class="px-4 py-3 text-center text-sm text-muted-foreground">{{ Number(item.diskon_persen) }}%</td>
                                 <td class="px-4 py-3 text-right font-bold text-sm text-emerald-600 dark:text-emerald-400">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</td>
@@ -430,6 +501,7 @@ function submit() {
     </div>
 
     <!-- Modal Input Faktur Baru -->
+    <Teleport to="body">
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div class="bg-card rounded-lg border border-border shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" @click.stop>
             <!-- Modal Header -->
@@ -592,20 +664,77 @@ function submit() {
 
                             <!-- UNIT CONVERSION SECTION -->
                             <div class="mt-4 p-3 bg-muted/20 border border-border rounded-lg space-y-3">
-                                <div class="flex items-center justify-between mb-3">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                                     <h5 class="text-xs font-semibold text-foreground uppercase tracking-wider">Konversi Multi-Satuan (Opsional)</h5>
-                                    <label class="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer bg-card px-2.5 py-1 rounded-md border border-border hover:bg-muted transition-colors">
-                                        <input type="checkbox" v-model="item.small_unit_skipped" class="rounded border-input text-primary focus:ring-ring w-3.5 h-3.5">
-                                        Abaikan Satuan Menengah
-                                    </label>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <!-- Checkbox 1: Tanpa Konversi Multi Satuan -->
+                                        <label class="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer bg-card px-2.5 py-1 rounded-md border border-border hover:bg-muted transition-colors">
+                                            <input 
+                                                type="checkbox" 
+                                                v-model="item.no_multi_unit" 
+                                                @change="handleNoMultiUnitChange(item)"
+                                                class="rounded border-input text-primary focus:ring-ring w-3.5 h-3.5"
+                                            >
+                                            Tanpa Konversi Multi Satuan
+                                        </label>
+
+                                        <!-- Checkbox 2: Abaikan Satuan Menengah -->
+                                        <label 
+                                            v-if="!item.no_multi_unit"
+                                            class="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer bg-card px-2.5 py-1 rounded-md border border-border hover:bg-muted transition-colors"
+                                        >
+                                            <input 
+                                                type="checkbox" 
+                                                v-model="item.small_unit_skipped" 
+                                                class="rounded border-input text-primary focus:ring-ring w-3.5 h-3.5"
+                                            >
+                                            Abaikan Satuan Menengah
+                                        </label>
+                                    </div>
                                 </div>
                                 
-                                <div class="flex flex-col md:flex-row gap-3">
-                                    <!-- LEVEL 1 -->
+                                <!-- KEMASAN TUNGGAL (1 LAPIS) -->
+                                <div v-if="item.no_multi_unit" class="p-3 bg-card border border-border rounded-md space-y-2 w-full">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                                            Satuan Kemasan (Tunggal / 1 Lapis)
+                                        </label>
+                                        <span class="text-[11px] text-muted-foreground">Tanpa konversi (1:1 fisik & stok)</span>
+                                    </div>
+                                    <div class="relative">
+                                        <div 
+                                            @click.stop="toggleDropdown('unit_single', index)"
+                                            class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
+                                            :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit_single_' + index}"
+                                        >
+                                            <span class="truncate text-foreground font-semibold">{{ item.satuan_input || 'Pilih Satuan' }}</span>
+                                            <svg class="w-4 h-4 text-muted-foreground transition-transform" :class="{'rotate-180': activeDropdown === 'unit_single_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                        <div v-if="activeDropdown === 'unit_single_' + index" class="absolute z-30 w-full left-0 top-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
+                                            <div class="max-h-56 overflow-y-auto custom-scrollbar">
+                                                <div v-for="category in singleUnitCategories" :key="category.name" class="border-b border-border last:border-0">
+                                                    <div class="px-3 py-1.5 bg-muted sticky top-0 z-10 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{{ category.name }}</div>
+                                                    <div class="p-1 grid grid-cols-1 gap-0.5">
+                                                        <div 
+                                                            v-for="u in category.units" 
+                                                            :key="u" 
+                                                            @click.stop="item.satuan_input = u; item.new_medicine_satuan_kecil = u; activeDropdown = null"
+                                                            class="px-2.5 py-1 text-xs hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer font-medium text-foreground pl-4"
+                                                        >{{ u }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- KEMASAN MULTI-SATUAN (2 ATAU 3 LAPIS) -->
+                                <div v-else class="flex flex-col md:flex-row gap-3">
+                                    <!-- LEVEL 1: TERSIER -->
                                     <div class="p-3 bg-card border border-border rounded-md space-y-2 flex-none w-full transition-all" 
-                                         :class="item.small_unit_skipped ? 'md:flex-1' : 'md:w-[140px]'">
+                                         :class="item.small_unit_skipped ? 'md:flex-1' : 'md:w-[155px] shrink-0'">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tersier (Terbesar)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Tersier (Terbesar)</label>
                                         </div>
                                         <div class="relative">
                                             <div 
@@ -613,7 +742,7 @@ function submit() {
                                                 class="w-full h-9 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
                                                 :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit1_' + index}"
                                             >
-                                                <span class="truncate text-foreground">{{ item.satuan_input || 'Pilih Satuan' }}</span>
+                                                <span class="truncate text-foreground font-semibold">{{ item.satuan_input || 'Pilih Satuan' }}</span>
                                                 <svg class="w-4 h-4 text-muted-foreground transition-transform" :class="{'rotate-180': activeDropdown === 'unit1_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                             </div>
                                             <div v-if="activeDropdown === 'unit1_' + index" class="absolute z-30 w-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
@@ -628,24 +757,24 @@ function submit() {
                                         </div>
                                     </div>
 
-                                    <!-- LEVEL 2 (Menengah) -->
-                                    <div v-if="!item.small_unit_skipped" class="p-3 bg-card border border-border rounded-md space-y-2 flex-none w-full md:w-auto">
+                                    <!-- LEVEL 2: SEKUNDER (MENENGAH) -->
+                                    <div v-if="!item.small_unit_skipped" class="p-3 bg-card border border-border rounded-md space-y-2 w-full md:flex-1 min-w-0">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sekunder (Menengah)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Sekunder (Menengah)</label>
                                         </div>
-                                        <div class="flex gap-1.5 relative">
-                                            <div class="flex items-center gap-1 shrink-0 bg-muted border border-border rounded-md px-2 py-0.5">
-                                                <span class="text-xs font-semibold text-muted-foreground truncate max-w-[60px]">1 {{ item.satuan_input || 'Box' }} =</span>
-                                                <input v-model="item.mid_to_big_ratio" type="number" min="1" class="w-14 h-8 bg-background border border-input rounded-md px-1 text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                        <div class="flex gap-1.5 relative items-center">
+                                            <div class="flex items-center gap-1 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
+                                                <span class="text-xs font-medium text-muted-foreground whitespace-nowrap">1 {{ item.satuan_input || 'Box' }} =</span>
+                                                <input v-model="item.mid_to_big_ratio" type="number" min="1" class="w-9 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                             </div>
                                             
                                             <div class="flex-1 min-w-0">
                                                 <div 
                                                     @click.stop="toggleDropdown('unit2', index)"
-                                                    class="w-full h-8 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
+                                                    class="w-full h-9 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
                                                     :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit2_' + index}"
                                                 >
-                                                    <span class="truncate text-foreground">{{ item.mid_unit || 'Pilih' }}</span>
+                                                    <span class="truncate text-foreground font-semibold">{{ item.mid_unit || 'Pilih' }}</span>
                                                     <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'unit2_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                 </div>
                                             </div>
@@ -667,26 +796,26 @@ function submit() {
                                         </div>
                                     </div>
 
-                                    <!-- LEVEL 3 (Terkecil) -->
-                                    <div class="p-3 bg-card border border-border rounded-md space-y-2 flex-1 min-w-0">
+                                    <!-- LEVEL 3: PRIMER (TERKECIL) -->
+                                    <div class="p-3 bg-card border border-border rounded-md space-y-2 w-full md:flex-1 min-w-0">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{{ item.small_unit_skipped ? 'Sekunder' : 'Primer' }} (Terkecil)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">{{ item.small_unit_skipped ? 'Sekunder' : 'Primer' }} (Terkecil)</label>
                                         </div>
-                                        <div class="flex gap-1.5 relative">
-                                            <div class="flex items-center gap-1 shrink-0 bg-muted border border-border rounded-md px-2 py-0.5">
-                                                <span class="text-xs font-semibold text-muted-foreground truncate max-w-[60px]">1 {{ !item.small_unit_skipped ? (item.mid_unit || 'Strip') : (item.satuan_input || 'Box') }} =</span>
+                                        <div class="flex gap-1.5 relative items-center">
+                                            <div class="flex items-center gap-1 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
+                                                <span class="text-xs font-medium text-muted-foreground whitespace-nowrap">1 {{ !item.small_unit_skipped ? (item.mid_unit || 'Strip') : (item.satuan_input || 'Box') }} =</span>
                                                 
-                                                <input v-if="!item.small_unit_skipped" v-model="item.small_to_mid_ratio" type="number" min="1" class="w-14 h-8 bg-background border border-input rounded-md px-1 text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
-                                                <input v-else v-model="item.unit_conversion_factor" type="number" min="1" class="w-14 h-8 bg-background border border-input rounded-md px-1 text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                                <input v-if="!item.small_unit_skipped" v-model="item.small_to_mid_ratio" type="number" min="1" class="w-9 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                                <input v-else v-model="item.unit_conversion_factor" type="number" min="1" class="w-9 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                             </div>
                                             
                                             <div class="flex-1 min-w-0">
                                                 <div 
                                                     @click.stop="toggleDropdown('unit3', index)"
-                                                    class="w-full h-8 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
+                                                    class="w-full h-9 bg-background border border-input rounded-md px-2.5 py-1 text-sm font-medium flex justify-between items-center cursor-pointer transition-colors hover:bg-muted/50"
                                                     :class="{'ring-1 ring-ring border-input': activeDropdown === 'unit3_' + index}"
                                                 >
-                                                    <span class="truncate text-foreground">{{ item.new_medicine_satuan_kecil || 'Pilih' }}</span>
+                                                    <span class="truncate text-foreground font-semibold">{{ item.new_medicine_satuan_kecil || 'Pilih' }}</span>
                                                     <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'unit3_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                                 </div>
                                             </div>
@@ -706,12 +835,59 @@ function submit() {
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Baris Ambang Batas Stok Kritis & Visualisasi ERP -->
+                            <div class="p-3.5 bg-card border border-border rounded-lg shadow-xs space-y-2">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                    <!-- Kolom Kiri: Input Ambang Batas -->
+                                    <div class="space-y-1">
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">
+                                            Ambang Batas Stok Kritis <span class="text-destructive">*</span>
+                                        </label>
+                                        <div class="relative flex items-center">
+                                            <input 
+                                                v-model.number="item.min_stock_threshold" 
+                                                type="number" 
+                                                min="0" 
+                                                class="w-full h-9 bg-background border border-input rounded-md pl-3.5 pr-24 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-colors" 
+                                                placeholder="10" 
+                                                required 
+                                            />
+                                            <div class="absolute right-1.5 px-2.5 py-1 bg-muted rounded text-xs font-semibold text-foreground pointer-events-none uppercase tracking-wider border border-border">
+                                                {{ getPrimaryUnit(item) }}
+                                            </div>
+                                        </div>
+                                        <p class="text-[11px] text-muted-foreground">
+                                            Peringatan restock aktif jika sisa stok &le; ambang batas satuan terkecil (<span class="font-medium text-foreground">{{ getPrimaryUnit(item) }}</span>).
+                                        </p>
+                                    </div>
+
+                                    <!-- Kolom Kanan: Visualisasi Konversi & ERP Formatter -->
+                                    <div class="p-3 bg-muted/30 border border-border rounded-md flex flex-col justify-center gap-1">
+                                        <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Visualisasi Konversi Ambang Batas:
+                                        </p>
+                                        <p class="text-sm font-bold text-foreground break-words">
+                                            {{ item.no_multi_unit 
+                                                ? (item.min_stock_threshold || 0) + ' ' + getPrimaryUnit(item) 
+                                                : formatInventoryThreshold(item.min_stock_threshold, item.small_to_mid_ratio || 1, item.small_unit_skipped ? 1 : (item.mid_to_big_ratio || 1), { tersier: item.satuan_input, sekunder: item.mid_unit, primer: getPrimaryUnit(item) }) 
+                                            }}
+                                        </p>
+                                        <p class="text-[11px] text-muted-foreground">
+                                            {{ item.no_multi_unit 
+                                                ? 'Kemasan tunggal langsung (tanpa konversi multi-satuan bertingkat).' 
+                                                : 'Estimasi kuota kemasan logistik yang setara dengan nilai ambang batas.' 
+                                            }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
     <!-- Bagian 3: Ringkasan Total -->
                 <div class="bg-muted/40 rounded-lg border border-border p-4 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
@@ -742,5 +918,6 @@ function submit() {
             </form>
         </div>
     </div>
+    </Teleport>
 </div>
 </template>
