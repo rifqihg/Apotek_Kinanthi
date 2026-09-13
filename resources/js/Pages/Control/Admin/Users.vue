@@ -1,14 +1,22 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 defineOptions({ layout: ControlLayout });
 
-defineProps({ users: Object });
+const props = defineProps({ users: Object });
 const showModal = ref(false);
 const editing = ref(null);
 const form = useForm({ name:'', email:'', role:'kasir', password:'', password_confirmation:'' });
+
+const stats = computed(() => {
+    const list = props.users?.data || [];
+    const total = props.users?.total ?? list.length;
+    const apoteker = list.filter(u => u.role === 'apoteker').length;
+    const kasir = list.filter(u => u.role === 'kasir').length;
+    return { total, apoteker, kasir };
+});
 
 const roleClass = (r) => ({
     admin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -29,17 +37,98 @@ function destroy(u) { if(confirm(`Hapus user "${u.name}"?`)) router.delete(route
 <Head title="Manajemen User" />
 
 <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
-            <div>
-                <h2 class="text-xl font-bold text-foreground tracking-tight">Manajemen User</h2>
-                <p class="text-muted-foreground text-sm mt-1">Kelola akun pengguna dan hak akses (Role)</p>
+    <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        <!-- HERO BANNER CARD (lg:col-span-8) -->
+        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+            <!-- Left Text Column -->
+            <div class="relative z-10 max-w-sm sm:max-w-md">
+                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                    Manajemen Pengguna & Hak Akses
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                    Pengaturan akun operasional staf Apotek Kinanthi serta pembagian wewenang role Admin, Apoteker, dan Kasir.
+                </p>
             </div>
-            <button @click="openCreate" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 rounded-md text-sm font-medium shadow-sm transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah User Baru
-            </button>
+
+            <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+            <div class="relative z-10 flex items-center justify-center shrink-0">
+                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Primary User Profile (behind left) -->
+                        <circle cx="17" cy="13" r="8" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
+                        <path d="M4 46c0-8.5 6-14 14-14s14 5.5 14 14" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
+                        <rect x="12.5" y="34" width="9" height="8" rx="1.8" stroke="#2563EB" stroke-width="1.4" fill="#EFF6FF" />
+                        <line x1="14.5" y1="38" x2="19.5" y2="38" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round" />
+                        <!-- RBAC Security Shield (in front right) -->
+                        <g transform="translate(23, 11)">
+                            <path d="M14 2l13 5.5v12c0 9-6 15-13 18-7-3-13-9-13-18V7.5L14 2z" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
+                            <path d="M14 5.5l10 4.2v9.5c0 6.8-4.5 11.8-10 14.5-5.5-2.7-10-7.7-10-14.5V9.7l10-4.2z" fill="#EFF6FF" />
+                            <path d="M9.5 18.5l3.5 3.5 6-6" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </g>
+                    </svg>
+                </div>
+            </div>
         </div>
+
+        <!-- 2 STAT CARDS (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+            <!-- Card 1: Tim Apoteker -->
+            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                <div class="flex items-center justify-between gap-1">
+                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        TIM APOTEKER
+                    </span>
+                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="my-0.5">
+                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                        {{ stats.apoteker }}
+                    </span>
+                </div>
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    Otoritas resep & racikan
+                </p>
+            </div>
+
+            <!-- Card 2: Operator Kasir -->
+            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                <div class="flex items-center justify-between gap-1">
+                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        OPERATOR KASIR
+                    </span>
+                    <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted border border-slate-200 dark:border-border flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="my-0.5">
+                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                        {{ stats.kasir }}
+                    </span>
+                </div>
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    Layanan kasir & transaksi
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACTION BAR -->
+    <div class="flex items-center justify-between gap-3">
+        <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+            Daftar Akun Pengguna
+        </h2>
+        <button @click="openCreate" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Tambah User Baru
+        </button>
+    </div>
 
         <!-- Table -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">

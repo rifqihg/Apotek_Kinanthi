@@ -10,6 +10,14 @@ const props = defineProps({
     activeIncomingStocks: Array,
 });
 
+const stats = computed(() => {
+    const list = props.returns?.data || [];
+    const total = props.returns?.total ?? list.length;
+    const totalUnits = list.reduce((acc, curr) => acc + (Number(curr.qty_retur) || 0), 0);
+    const uniqueSuppliers = new Set(list.map(r => r.supplier?.id || r.supplier_id).filter(Boolean)).size;
+    return { total, totalUnits, uniqueSuppliers };
+});
+
 const showModal = ref(false);
 
 const form = useForm({
@@ -117,30 +125,102 @@ const submitReturn = () => {
 <template>
     <Head title="Retur Obat ke Supplier" />
 
-    <div class="py-6 space-y-6">
-        <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            <!-- HEADER -->
-            <div class="p-6 bg-card rounded-lg border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div class="space-y-1">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Inventory</span>
-                        <span class="px-2.5 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Retur</span>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold tracking-tight text-foreground">Retur Obat</h1>
-                        <p class="text-sm text-muted-foreground">Kelola pengembalian obat ke supplier</p>
-                    </div>
+    <div class="space-y-6">
+        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- HERO BANNER CARD (lg:col-span-8) -->
+            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Manajemen Retur Obat
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Pencatatan pengembalian sediaan obat yang cacat, rusak, atau mendekati kedaluwarsa ke pihak distributor resmi.
+                    </p>
                 </div>
 
-                <div class="flex items-center gap-3">
-                    <button @click="showModal = true" class="inline-flex items-center justify-center gap-2 px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+                <div class="relative z-10 flex items-center justify-center shrink-0">
+                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                        <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Return Medicine Box (behind left) -->
+                            <rect x="4" y="11" width="30" height="39" rx="4" stroke="#D97706" stroke-width="2.2" fill="#FFFFFF" />
+                            <rect x="14" y="11" width="8" height="39" fill="#FEF3C7" stroke="#FDE68A" stroke-width="1.2" />
+                            <circle cx="18" cy="30" r="6" stroke="#D97706" stroke-width="1.5" fill="#FFFBEB" />
+                            <path d="M18 27v3.5M18 33v.5" stroke="#D97706" stroke-width="1.8" stroke-linecap="round" />
+                            <!-- Return Circular Arrow Badge (in front right) -->
+                            <g transform="translate(22, 5)">
+                                <circle cx="16" cy="16" r="14" stroke="#D97706" stroke-width="2.2" fill="#FFFBEB" />
+                                <circle cx="16" cy="16" r="10.5" fill="#FEF3C7" fill-opacity="0.6" />
+                                <path d="M22.5 10.5A9 9 0 1 0 23.5 18" stroke="#D97706" stroke-width="2.2" stroke-linecap="round" fill="none" />
+                                <path d="M23.5 6.5v4.5h-4.5" stroke="#D97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                            </g>
                         </svg>
-                        Buat Retur
-                    </button>
+                    </div>
                 </div>
             </div>
+
+            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                <!-- Card 1: Sediaan Diretur -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            SEDIAAN DIRETUR
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-100 dark:border-amber-900 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-amber-600 dark:text-amber-400 leading-none">
+                            {{ stats.totalUnits }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Klaim sediaan fisik
+                    </p>
+                </div>
+
+                <!-- Card 2: PBF Rekanan -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            PBF REKANAN
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted border border-slate-200 dark:border-border flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                            {{ stats.uniqueSuppliers }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Distributor terkait retur
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BAR -->
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                Riwayat Retur Obat
+            </h2>
+            <button @click="showModal = true" class="inline-flex items-center justify-center gap-2 px-4 h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Buat Retur
+            </button>
+        </div>
 
             <!-- TABLE: RIWAYAT RETUR -->
             <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
@@ -205,7 +285,6 @@ const submitReturn = () => {
                 </div>
             </div>
         </div>
-    </div>
 
     <!-- MODAL BUAT RETUR -->
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">

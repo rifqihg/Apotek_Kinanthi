@@ -1,6 +1,6 @@
 <script setup>
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
@@ -9,6 +9,13 @@ const props = defineProps({ rawMaterials: Object });
 const showModal = ref(false);
 const editMode = ref(false);
 const currentId = ref(null);
+
+const stats = computed(() => {
+    const list = props.rawMaterials?.data || [];
+    const critical = list.filter(m => (Number(m.stok_sistem) || 0) <= (Number(m.stok_minimum) || 0)).length;
+    const available = list.length;
+    return { critical, available };
+});
 
 const bentukSediaanOptions = [
     { label: 'Padat (Solid)', value: 'Padat', units: ['mg', 'g', 'kg', 'Tablet', 'Kapsul', 'Pil', 'Bungkus', 'Box'] },
@@ -93,13 +100,98 @@ const currentUnits = () => {
 <template>
     <Head title="Stok Bahan Baku" />
     <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-xl font-bold tracking-tight text-foreground">Stok Bahan Baku Farmasi</h1>
-                <p class="text-xs text-muted-foreground mt-0.5">Registrasi dan pelacakan batch bahan mentah laboratorium</p>
+        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- HERO BANNER CARD (lg:col-span-8) -->
+            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Inventaris Bahan Baku Farmasi
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Registrasi batch bahan mentah laboratorium, standarisasi sediaan, dan pemantauan stok minimum.
+                    </p>
+                </div>
+
+                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+                <div class="relative z-10 flex items-center justify-center shrink-0">
+                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Chemical Container (behind left) -->
+                        <rect x="9" y="4" width="14" height="4.5" rx="1.8" stroke="#059669" stroke-width="2" fill="#ECFDF5" />
+                        <rect x="4" y="8.5" width="24" height="42" rx="5" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
+                        <rect x="7.5" y="18" width="17" height="19" rx="3" stroke="#A7F3D0" stroke-width="1.4" fill="#F0FDF4" />
+                        <path d="M16 22c-2.8 1.8-2.8 7 0 9 2.8-2 2.8-7.2 0-9z" fill="#059669" />
+                        <line x1="16" y1="22" x2="16" y2="31" stroke="#059669" stroke-width="1.2" stroke-linecap="round" />
+                        <!-- Mortar & Pestle (in front right) -->
+                        <g transform="translate(19, 15)">
+                            <path d="M12 2l16 18" stroke="#047857" stroke-width="4" stroke-linecap="round" />
+                            <circle cx="12" cy="2" r="2.2" fill="#047857" />
+                            <path d="M4 19h28c0 12-6 18-14 18S4 31 4 19z" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
+                            <ellipse cx="18" cy="19" rx="14" ry="4" stroke="#059669" stroke-width="1.8" fill="#ECFDF5" />
+                            <ellipse cx="18" cy="19" rx="10" ry="2.2" fill="#A7F3D0" />
+                            <path d="M12 37h12v2H12z" fill="#059669" />
+                        </g>
+                    </svg>
+                </div>
+                </div>
             </div>
-            <button @click="openModal()" class="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors inline-flex items-center justify-center gap-2">
+
+            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                <!-- Card 1: Stok Kritis -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            STOK KRITIS
+                        </span>
+                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.critical > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.critical > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
+                            {{ stats.critical }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        {{ stats.critical > 0 ? 'Perlu restock segera' : 'Semua stok mencukupi' }}
+                    </p>
+                </div>
+
+                <!-- Card 2: Bahan Tersedia -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            SIAP RACIK
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                            {{ stats.available }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Item bahan baku aktif
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BAR -->
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                Daftar Bahan Baku Laboratorium
+            </h2>
+            <button @click="openModal()" class="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors inline-flex items-center justify-center gap-2 shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Registrasi Bahan Baru
             </button>

@@ -128,36 +128,90 @@ const clearFilters = () => {
 <template>
 <Head title="Log Pergerakan Stok" />
 <div class="space-y-6">
-    
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-foreground tracking-tight">Log Pergerakan Stok</h1>
-            <p class="text-muted-foreground text-sm mt-1">Lacak seluruh aktivitas stok secara transparan berdasarkan riwayat mutasi.</p>
-        </div>
-    </div>
+    <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        <!-- HERO BANNER CARD (lg:col-span-8) -->
+        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+            <!-- Left Text Column -->
+            <div class="relative z-10 max-w-sm sm:max-w-md">
+                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                    Log Pergerakan Stok
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                    Pelacakan riwayat aliran obat secara transparan berdasarkan seluruh mutasi masuk, keluar, dan transaksi kasir.
+                </p>
+            </div>
 
-    <!-- KPI Cards -->
-    <div v-if="activeKpi" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-card border border-border p-5 rounded-lg shadow-sm flex items-center gap-4">
-            <div class="w-10 h-10 bg-emerald-500/10 rounded-md flex items-center justify-center text-lg text-emerald-600 shrink-0 border border-emerald-500/20">📥</div>
-            <div>
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Trx Stok Masuk</p>
-                <p class="text-2xl font-bold text-foreground leading-none mt-1">{{ activeKpi.in || 0 }}</p>
+            <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+            <div class="relative z-10 flex items-center justify-center shrink-0">
+                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Stock Ledger Sheet (behind left) -->
+                        <rect x="4" y="4" width="31" height="44" rx="4" stroke="#0891B2" stroke-width="2.2" fill="#FFFFFF" />
+                        <rect x="8" y="9" width="15" height="3.5" rx="1.2" fill="#06B6D4" />
+                        <line x1="8" y1="17" x2="28" y2="17" stroke="#0891B2" stroke-opacity="0.25" stroke-width="1.4" />
+                        <line x1="8" y1="23" x2="28" y2="23" stroke="#0891B2" stroke-opacity="0.25" stroke-width="1.4" />
+                        <!-- Dynamic Trend Line Chart -->
+                        <path d="M8 39l6-7 7 3 9-11" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                        <circle cx="14" cy="32" r="1.6" fill="#06B6D4" />
+                        <circle cx="21" cy="35" r="1.6" fill="#06B6D4" />
+                        <circle cx="30" cy="24" r="2" fill="#0891B2" />
+                        <!-- In/Out Mutation Badge (in front right) -->
+                        <g transform="translate(23, 16)">
+                            <circle cx="14.5" cy="14.5" r="13.5" stroke="#0891B2" stroke-width="2.2" fill="#FFFFFF" />
+                            <circle cx="14.5" cy="14.5" r="10.5" fill="#ECFEFF" />
+                            <path d="M10.5 19V10M7 13.5l3.5-3.5 3.5 3.5" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M18.5 10v9m-3.5-3.5l3.5 3.5 3.5-3.5" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        </g>
+                    </svg>
+                </div>
             </div>
         </div>
-        <div class="bg-card border border-border p-5 rounded-lg shadow-sm flex items-center gap-4">
-            <div class="w-10 h-10 bg-amber-500/10 rounded-md flex items-center justify-center text-lg text-amber-600 shrink-0 border border-amber-500/20">📤</div>
-            <div>
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Trx Stok Keluar</p>
-                <p class="text-2xl font-bold text-foreground leading-none mt-1">{{ activeKpi.out || 0 }}</p>
+
+        <!-- 2 STAT CARDS (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+            <!-- Card 1: Arus Stok Masuk -->
+            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                <div class="flex items-center justify-between gap-1">
+                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        ARUS MASUK
+                    </span>
+                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="my-0.5">
+                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                        {{ activeKpi.in || 0 }}
+                    </span>
+                </div>
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    Faktur & penyesuaian masuk
+                </p>
             </div>
-        </div>
-        <div class="bg-card border border-border p-5 rounded-lg shadow-sm flex items-center gap-4">
-            <div class="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center text-lg text-primary shrink-0 border border-primary/20">📊</div>
-            <div>
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Mutasi</p>
-                <p class="text-2xl font-bold text-foreground leading-none mt-1">{{ activeKpi.total || 0 }}</p>
+
+            <!-- Card 2: Arus Stok Keluar -->
+            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                <div class="flex items-center justify-between gap-1">
+                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        ARUS KELUAR
+                    </span>
+                    <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted border border-slate-200 dark:border-border flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 8v12m0 0l4-4m-4 4l-4-4M7 16V4m0 0L3 8m4-4l4 4" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="my-0.5">
+                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                        {{ activeKpi.out || 0 }}
+                    </span>
+                </div>
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    Penjualan kasir & racikan
+                </p>
             </div>
         </div>
     </div>

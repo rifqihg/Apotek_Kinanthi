@@ -1,11 +1,28 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ suppliers: Object });
+
+const stats = computed(() => {
+    const list = props.suppliers?.data || [];
+    const total = props.suppliers?.total ?? list.length;
+    const active = list.filter(s => s.is_active).length;
+    const inactive = list.filter(s => !s.is_active).length;
+    return { total, active, inactive };
+});
+
+const search = ref('');
+const filteredSuppliers = computed(() => {
+    if (!search.value) return props.suppliers?.data || [];
+    const q = search.value.toLowerCase();
+    return (props.suppliers?.data || []).filter(s =>
+        s.nama_pbf?.toLowerCase().includes(q) || s.alamat?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q)
+    );
+});
 
 const showModal = ref(false);
 const editingSupplier = ref(null);
@@ -56,39 +73,108 @@ function destroy(supplier) {
     <Head title="Data Supplier PBF" />
 
     <div class="space-y-6">
-            <!-- COMPACT HERO HEADER -->
-            <div class="p-6 bg-card rounded-lg border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div class="space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Logistik</span>
-                        <span class="px-2.5 py-0.5 bg-muted/50 text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">Sistem Eksternal</span>
-                    </div>
-                    <h1 class="text-xl font-bold text-foreground tracking-tight">Data Supplier PBF</h1>
-                    <p class="text-muted-foreground text-sm max-w-xl">Kelola direktori Pedagang Besar Farmasi (PBF) dan rekanan distributor resmi obat.</p>
+        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- HERO BANNER CARD (lg:col-span-8) -->
+            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Manajemen Supplier & PBF
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Direktori Pedagang Besar Farmasi resmi, kontak penanggung jawab sales, dan tata kelola kemitraan distribusi apotek.
+                    </p>
                 </div>
 
-                <div class="flex flex-col sm:flex-row items-center gap-4">
-                    <div class="bg-background border border-border px-4 py-2.5 rounded-md shadow-sm flex items-center gap-3">
-                        <div class="text-right">
-                            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Rekanan</p>
-                            <p class="text-xl font-semibold tracking-tight text-foreground">{{ suppliers.total || suppliers.data.length }}</p>
+                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+                <div class="relative z-10 flex items-center justify-center shrink-0">
+                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                        <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- PBF Facility (behind left) -->
+                            <rect x="4" y="8" width="28" height="43" rx="3" stroke="#0284C7" stroke-width="2" fill="#FFFFFF" />
+                            <rect x="11" y="4" width="14" height="4" rx="1.5" stroke="#0284C7" stroke-width="1.6" fill="#E0F2FE" />
+                            <rect x="8" y="13" width="7" height="6" rx="1.2" fill="#BAE6FD" />
+                            <rect x="21" y="13" width="7" height="6" rx="1.2" fill="#BAE6FD" />
+                            <rect x="8" y="23" width="7" height="6" rx="1.2" fill="#BAE6FD" />
+                            <rect x="21" y="23" width="7" height="6" rx="1.2" fill="#BAE6FD" />
+                            <path d="M14 51V39h8v12" stroke="#0284C7" stroke-width="1.6" fill="#F0F9FF" />
+                            <!-- Logistics Van (in front right) -->
+                            <g transform="translate(20, 26)">
+                                <rect x="0" y="0" width="23" height="19" rx="2.5" stroke="#0284C7" stroke-width="2" fill="#FFFFFF" />
+                                <circle cx="11.5" cy="9.5" r="4" fill="#E0F2FE" />
+                                <path d="M11.5 7v5M9 9.5h5" stroke="#0284C7" stroke-width="1.5" stroke-linecap="round" />
+                                <path d="M23 7h6l4 6v6h-10V7z" stroke="#0284C7" stroke-width="2" fill="#F0F9FF" />
+                                <path d="M25 9h4l2.5 4H25v-4z" fill="#BAE6FD" />
+                                <circle cx="7" cy="20" r="3.5" stroke="#0284C7" stroke-width="1.8" fill="#FFFFFF" />
+                                <circle cx="7" cy="20" r="1.3" fill="#0284C7" />
+                                <circle cx="27" cy="20" r="3.5" stroke="#0284C7" stroke-width="1.8" fill="#FFFFFF" />
+                                <circle cx="27" cy="20" r="1.3" fill="#0284C7" />
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                <!-- Card 1: Distributor Aktif -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            DISTRIBUTOR AKTIF
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                         </div>
-                        <div class="w-8 h-8 bg-muted rounded-md flex items-center justify-center text-sm border border-border">🏢</div>
                     </div>
-                    <button @click="openCreate" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 h-9 px-4 rounded-md text-sm font-medium shadow-sm transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Tambah Supplier
-                    </button>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                            {{ stats.active }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Mitra siap transaksi
+                    </p>
                 </div>
-            </div>
 
-            <!-- SEARCH & FILTER -->
-            <div class="bg-card rounded-lg shadow-sm border border-border p-3 flex flex-col md:flex-row gap-4">
-                <div class="flex-1 relative">
-                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input type="text" placeholder="Cari berdasarkan nama PBF atau wilayah..." class="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
+                <!-- Card 2: Perlu Tinjauan -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            PERLU TINJAUAN
+                        </span>
+                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.inactive > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.inactive > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
+                            {{ stats.inactive }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        {{ stats.inactive > 0 ? 'Mitra non-aktif / arsip' : 'Semua mitra aktif' }}
+                    </p>
                 </div>
             </div>
+        </div>
+
+        <!-- SEARCH & ACTION BAR -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="relative w-full sm:flex-1">
+                <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input v-model="search" type="text" placeholder="Cari berdasarkan nama PBF atau wilayah..." class="w-full h-10 pl-10 pr-3.5 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
+            </div>
+            <button @click="openCreate" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Tambah Supplier
+            </button>
+        </div>
 
             <!-- TABLE CONTAINER -->
             <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
@@ -103,7 +189,7 @@ function destroy(supplier) {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
-                        <tr v-if="suppliers.data.length === 0">
+                        <tr v-if="filteredSuppliers.length === 0">
                             <td colspan="5" class="px-6 py-12 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="w-12 h-12 bg-muted border border-border rounded-md flex items-center justify-center text-xl mb-3 text-muted-foreground">🏢</div>
@@ -111,7 +197,7 @@ function destroy(supplier) {
                                 </div>
                             </td>
                         </tr>
-                        <tr v-for="s in suppliers.data" :key="s.id" class="hover:bg-muted/40 transition-colors">
+                        <tr v-for="s in filteredSuppliers" :key="s.id" class="hover:bg-muted/40 transition-colors">
                             <td class="px-5 py-3.5 whitespace-nowrap">
                                 <div class="flex items-center gap-3">
                                     <div class="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center font-bold text-xs uppercase border border-border">

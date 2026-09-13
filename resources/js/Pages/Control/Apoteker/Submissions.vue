@@ -200,6 +200,13 @@ function proceedCancel() {
     });
 }
 
+const stats = computed(() => {
+    const list = props.submissions?.data || [];
+    const pending = list.filter(s => s.status === 'pending_final_verification').length;
+    const active = list.filter(s => s.status === 'active').length;
+    return { pending, active };
+});
+
 // Auto open modal if prefilling from prescription
 if (prefillItemId) {
     showModal.value = true;
@@ -209,13 +216,95 @@ if (prefillItemId) {
 <template>
     <Head title="Log Racikan" />
     <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
-            <div>
-                <h1 class="text-2xl font-bold text-foreground tracking-tight">Manajemen Log Racikan Obat</h1>
-                <p class="text-sm text-muted-foreground mt-1">Daftar riwayat dan pengajuan compounding apotek</p>
+        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- HERO BANNER CARD (lg:col-span-8) -->
+            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Log Pengajuan & Racikan Obat
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Pencatatan riwayat compounding farmasi, perhitungan neraca massa bahan aktif, dan validasi mutu sediaan.
+                    </p>
+                </div>
+
+                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+                <div class="relative z-10 flex items-center justify-center shrink-0">
+                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                        <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Erlenmeyer Lab Flask (behind left) -->
+                            <rect x="12" y="4" width="14" height="4.5" rx="1.8" stroke="#059669" stroke-width="2" fill="#ECFDF5" />
+                            <path d="M15 8.5v11L5 46.5a4 4 0 0 0 3.5 5.5h23a4 4 0 0 0 3.5-5.5L25 19.5V8.5" stroke="#059669" stroke-width="2.2" stroke-linejoin="round" fill="#FFFFFF" />
+                            <path d="M8 39c3-1.5 6 1.5 10 0s6-.5 10 1l2 6.5a3 3 0 0 1-2.5 4H10a3 3 0 0 1-2.8-4l.8-7.5z" fill="#A7F3D0" fill-opacity="0.9" />
+                            <line x1="16" y1="26" x2="20" y2="26" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
+                            <line x1="14" y1="31" x2="20" y2="31" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
+                            <!-- Tilted Capsule (interlocking in front right) -->
+                            <g transform="translate(37, 33) rotate(28)">
+                                <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
+                                <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#10B981" />
+                                <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#059669" stroke-width="1.8" />
+                            </g>
+                        </svg>
+                    </div>
+                </div>
             </div>
-            <button @click="showModal=true;form.reset();form.bahan_baku=[{id_batch:'',qty_taken_pcs:'',wastage_percentage:2,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 rounded-md text-sm font-medium shadow-sm transition-colors">
+
+            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                <!-- Card 1: Verifikasi Akhir -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            VERIFIKASI AKHIR
+                        </span>
+                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.pending > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.pending > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
+                            {{ stats.pending }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        {{ stats.pending > 0 ? 'Perlu konfirmasi mutu' : 'Tidak ada antrean' }}
+                    </p>
+                </div>
+
+                <!-- Card 2: Racikan Siap -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            RACIKAN SIAP
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                            {{ stats.active }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Sediaan aktif apotek
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BAR -->
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                Daftar Riwayat Pengajuan Racikan
+            </h2>
+            <button @click="showModal=true;form.reset();form.bahan_baku=[{id_batch:'',qty_taken_pcs:'',wastage_percentage:2,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Buat Racikan Baru
             </button>

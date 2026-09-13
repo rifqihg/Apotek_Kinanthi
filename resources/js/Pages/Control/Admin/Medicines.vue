@@ -110,7 +110,7 @@ const toggleRow = (id) => {
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
                 <!-- HERO BANNER CARD (lg:col-span-8: diperlebar dan dipertinggi proporsional) -->
                 <div 
-                    class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-2xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300"
+                    class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300"
                 >
                     <!-- Left Text Column -->
                     <div class="relative z-10 max-w-sm sm:max-w-md">
@@ -125,79 +125,39 @@ const toggleRow = (id) => {
                         </p>
                     </div>
 
-                    <!-- Right Vector Illustration Column (Proporsional & Tidak Lonjong) -->
+                    <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
                     <div class="relative z-10 flex items-center justify-center shrink-0">
-                        <!-- SVG FAKTUR (Botol + Kapsul + Tablet ⊖ + Sparkle) -->
-                        <svg v-if="activeTab === 'faktur'" class="h-[68px] sm:h-[76px] w-auto select-none shrink-0" viewBox="0 0 150 78" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Baseline dashed line -->
-                            <line x1="6" y1="64" x2="144" y2="64" stroke="#CBD5E1" stroke-width="1.4" stroke-dasharray="3 3" stroke-linecap="round" />
-                            
-                            <!-- Accent dots -->
-                            <circle cx="34" cy="28" r="1.8" fill="#3B82F6" />
-                            <circle cx="128" cy="34" r="1.8" fill="#10B981" />
+                        <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                            <!-- SVG FAKTUR (Botol Obat Etiket Presisi + Kapsul Interlocking) -->
+                            <svg v-if="activeTab === 'faktur'" class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="4" width="16" height="4.5" rx="2" stroke="#2563EB" stroke-width="2" fill="#EFF6FF" />
+                                <rect x="14" y="8.5" width="8" height="3" stroke="#2563EB" stroke-width="1.6" fill="#FFFFFF" />
+                                <rect x="4" y="11.5" width="28" height="40" rx="5" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
+                                <rect x="8" y="20" width="20" height="24" rx="3" stroke="#2563EB" stroke-width="1.5" fill="#EFF6FF" />
+                                <line x1="12" y1="26" x2="24" y2="26" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" />
+                                <line x1="12" y1="32" x2="22" y2="32" stroke="#2563EB" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" />
+                                <line x1="12" y1="37" x2="19" y2="37" stroke="#2563EB" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" />
+                                <g transform="translate(37, 33) rotate(28)">
+                                    <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
+                                    <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#BFDBFE" />
+                                    <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#2563EB" stroke-width="1.8" />
+                                </g>
+                            </svg>
 
-                            <!-- Medicine Bottle (behind arc) -->
-                            <g transform="translate(53, 14)">
-                                <rect x="7" y="0" width="16" height="5" rx="1.8" stroke="#2563EB" stroke-width="1.8" fill="#FFFFFF" />
-                                <rect x="11" y="5" width="8" height="3" stroke="#2563EB" stroke-width="1.5" fill="#FFFFFF" />
-                                <rect x="0" y="8" width="30" height="42" rx="7" stroke="#2563EB" stroke-width="2" fill="#FFFFFF" />
-                                <!-- measurement ticks -->
-                                <line x1="0" y1="19" x2="5" y2="19" stroke="#93C5FD" stroke-width="1.4" stroke-linecap="round" />
-                                <line x1="0" y1="31" x2="4" y2="31" stroke="#93C5FD" stroke-width="1.4" stroke-linecap="round" />
-                                <!-- badge (+) -->
-                                <circle cx="15" cy="29" r="8" stroke="#2563EB" stroke-width="1.6" fill="#EFF6FF" />
-                                <path d="M15 25v8M11 29h8" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" />
-                            </g>
-
-                            <!-- Swoop arc line with starting dot (drawn in front of the bottle) -->
-                            <circle cx="18" cy="36" r="2.4" fill="#334155" />
-                            <path d="M 18 36 C 16 62, 54 66, 80 61 C 98 56, 115 44, 128 53" stroke="#64748B" stroke-width="1.6" stroke-linecap="round" fill="none" />
-
-                            <!-- Tilted Capsule -->
-                            <g transform="translate(93, 22) rotate(30)">
-                                <rect x="0" y="0" width="14" height="32" rx="7" stroke="#059669" stroke-width="1.8" fill="#FFFFFF" />
-                                <path d="M0 7 A7 7 0 0 1 14 7 V16 H0 Z" fill="#A7F3D0" />
-                                <line x1="0" y1="16" x2="14" y2="16" stroke="#059669" stroke-width="1.6" />
-                            </g>
-
-                            <!-- Round Pill with minus ⊖ (overlaps baseline and capsule base) -->
-                            <circle cx="126" cy="56" r="7.5" stroke="#475569" stroke-width="1.8" fill="#FFFFFF" />
-                            <line x1="122" y1="56" x2="130" y2="56" stroke="#475569" stroke-width="1.6" stroke-linecap="round" />
-                        </svg>
-
-                        <!-- SVG RACIKAN (Erlenmeyer Flask + Kapsul + Herbal Pill) -->
-                        <svg v-else class="h-[68px] sm:h-[76px] w-auto select-none shrink-0" viewBox="0 0 150 78" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Baseline dashed line -->
-                            <line x1="6" y1="64" x2="144" y2="64" stroke="#CBD5E1" stroke-width="1.4" stroke-dasharray="3 3" stroke-linecap="round" />
-                            
-                            <!-- Accent dots -->
-                            <circle cx="34" cy="28" r="1.8" fill="#10B981" />
-                            <circle cx="128" cy="34" r="1.8" fill="#34D399" />
-
-                            <!-- Lab Flask (behind arc) -->
-                            <g transform="translate(50, 14)">
-                                <rect x="15" y="0" width="14" height="5" rx="1.8" stroke="#059669" stroke-width="1.8" fill="#ECFDF5" />
-                                <path d="M17 5v12L6 45a4.5 4.5 0 0 0 3.8 6.5h26.4a4.5 4.5 0 0 0 3.8-6.5L27 17V5" stroke="#059669" stroke-width="2" stroke-linejoin="round" fill="#FFFFFF" />
-                                <path d="M9.5 36c3-1.5 7 1.5 11 0s7-.5 11 1l1.8 7a3.5 3.5 0 0 1-3.4 4.5H13a3.5 3.5 0 0 1-3.4-4.5l1.9-8z" fill="#A7F3D0" fill-opacity="0.85" />
-                                <circle cx="22" cy="40" r="2" fill="#059669" />
-                                <circle cx="19" cy="32" r="1.5" fill="#34D399" />
-                            </g>
-
-                            <!-- Swoop arc line with starting dot (drawn in front) -->
-                            <circle cx="18" cy="36" r="2.4" fill="#047857" />
-                            <path d="M 18 36 C 16 62, 54 66, 80 61 C 98 56, 115 44, 128 53" stroke="#059669" stroke-width="1.6" stroke-linecap="round" fill="none" />
-
-                            <!-- Tilted Capsule -->
-                            <g transform="translate(93, 22) rotate(30)">
-                                <rect x="0" y="0" width="14" height="32" rx="7" stroke="#059669" stroke-width="1.8" fill="#FFFFFF" />
-                                <path d="M0 7 A7 7 0 0 1 14 7 V16 H0 Z" fill="#10B981" />
-                                <line x1="0" y1="16" x2="14" y2="16" stroke="#059669" stroke-width="1.6" />
-                            </g>
-
-                            <!-- Round Pill with herbal dot -->
-                            <circle cx="126" cy="56" r="7.5" stroke="#059669" stroke-width="1.8" fill="#FFFFFF" />
-                            <circle cx="126" cy="56" r="2.5" fill="#10B981" />
-                        </svg>
+                            <!-- SVG RACIKAN (Lab Flask Erlenmeyer + Kapsul Interlocking) -->
+                            <svg v-else class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="12" y="4" width="14" height="4.5" rx="1.8" stroke="#059669" stroke-width="2" fill="#ECFDF5" />
+                                <path d="M15 8.5v11L5 46.5a4 4 0 0 0 3.5 5.5h23a4 4 0 0 0 3.5-5.5L25 19.5V8.5" stroke="#059669" stroke-width="2.2" stroke-linejoin="round" fill="#FFFFFF" />
+                                <path d="M8 39c3-1.5 6 1.5 10 0s6-.5 10 1l2 6.5a3 3 0 0 1-2.5 4H10a3 3 0 0 1-2.8-4l.8-7.5z" fill="#A7F3D0" fill-opacity="0.9" />
+                                <line x1="16" y1="26" x2="20" y2="26" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
+                                <line x1="14" y1="31" x2="20" y2="31" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
+                                <g transform="translate(37, 33) rotate(28)">
+                                    <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
+                                    <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#10B981" />
+                                    <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#059669" stroke-width="1.8" />
+                                </g>
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
@@ -206,7 +166,7 @@ const toggleRow = (id) => {
                     <!-- Card 1: Total Data Faktur -->
                     <Link 
                         :href="route('control.admin.medicines.faktur')" 
-                        class="bg-white dark:bg-card border rounded-2xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
+                        class="bg-white dark:bg-card border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
                         :class="activeTab === 'faktur' 
                             ? 'border-blue-400/90 ring-2 ring-blue-500/10' 
                             : 'border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700'"
@@ -236,7 +196,7 @@ const toggleRow = (id) => {
                     <!-- Card 2: Total Data Racikan -->
                     <Link 
                         :href="route('control.admin.medicines.racikan')" 
-                        class="bg-white dark:bg-card border rounded-2xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
+                        class="bg-white dark:bg-card border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
                         :class="activeTab === 'racikan' 
                             ? 'border-emerald-400/90 ring-2 ring-emerald-500/10' 
                             : 'border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700'"
@@ -341,7 +301,7 @@ const toggleRow = (id) => {
                                 <tr v-if="!activeFakturStocks.data || activeFakturStocks.data.length === 0">
                                     <td colspan="5" class="px-6 py-16 text-center">
                                         <div class="flex flex-col items-center justify-center max-w-md mx-auto">
-                                            <div class="w-14 h-14 bg-slate-100 dark:bg-muted rounded-2xl flex items-center justify-center text-slate-400 mb-4 border border-slate-200/60 dark:border-border shadow-2xs">
+                                            <div class="w-14 h-14 bg-slate-100 dark:bg-muted rounded-xl flex items-center justify-center text-slate-400 mb-4 border border-slate-200/60 dark:border-border shadow-2xs">
                                                 <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
@@ -509,7 +469,7 @@ const toggleRow = (id) => {
                                 <tr v-if="!activeRacikanProducts.data || activeRacikanProducts.data.length === 0">
                                     <td colspan="4" class="px-6 py-16 text-center">
                                         <div class="flex flex-col items-center justify-center max-w-md mx-auto">
-                                            <div class="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/50 rounded-2xl flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100 dark:border-emerald-900 shadow-2xs">
+                                            <div class="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100 dark:border-emerald-900 shadow-2xs">
                                                 <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                                                 </svg>

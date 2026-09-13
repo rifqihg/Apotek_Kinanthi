@@ -1,13 +1,20 @@
 <script setup>
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
 
-defineProps({ formulas: Object });
+const props = defineProps({ formulas: Object });
 const showModal = ref(false);
 const form = useForm({ nama_resep:'', kategori_sediaan:'', instruksi_racik:'' });
+
+const stats = computed(() => {
+    const list = props.formulas?.data || [];
+    const total = list.length;
+    const standard = list.filter(f => f.kategori_sediaan).length;
+    return { total, standard };
+});
 
 function submit() { 
     const routeName = route().current().startsWith('control.admin') 
@@ -21,13 +28,99 @@ function submit() {
     <Head title="Formula Obat" />
 
     <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
-            <div>
-                <h1 class="text-2xl font-bold text-foreground tracking-tight">Pustaka Resep & Formula Obat</h1>
-                <p class="text-sm text-muted-foreground mt-1">Kelola panduan instruksi racikan standar kefarmasian</p>
+        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- HERO BANNER CARD (lg:col-span-8) -->
+            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Pustaka Resep & Formula Obat
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Standarisasi prototipe formula racikan apotek, panduan instruksi pengerjaan, dan takaran bahan baku.
+                    </p>
+                </div>
+
+                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+                <div class="relative z-10 flex items-center justify-center shrink-0">
+                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Formula Document Sheet (behind left) -->
+                        <rect x="4" y="4" width="30" height="44" rx="4" stroke="#0D9488" stroke-width="2.2" fill="#FFFFFF" />
+                        <rect x="11" y="4" width="7" height="8" rx="1.2" fill="#0D9488" />
+                        <rect x="8" y="16" width="15" height="3.5" rx="1" fill="#99F6E4" />
+                        <line x1="8" y1="24" x2="27" y2="24" stroke="#0D9488" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
+                        <line x1="8" y1="29" x2="23" y2="29" stroke="#0D9488" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
+                        <line x1="8" y1="34" x2="25" y2="34" stroke="#0D9488" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
+                        <!-- Mortar & Pestle (in front right) -->
+                        <g transform="translate(19, 16)">
+                            <path d="M12 2l16 17" stroke="#0F766E" stroke-width="4" stroke-linecap="round" />
+                            <circle cx="12" cy="2" r="2.2" fill="#0F766E" />
+                            <path d="M4 18h28c0 11-6 17-14 17S4 29 4 18z" stroke="#0D9488" stroke-width="2.2" fill="#FFFFFF" />
+                            <ellipse cx="18" cy="18" rx="14" ry="4" stroke="#0D9488" stroke-width="1.8" fill="#F0FDFA" />
+                            <ellipse cx="18" cy="18" rx="10" ry="2.2" fill="#99F6E4" />
+                            <path d="M12 35h12v2H12z" fill="#0D9488" />
+                        </g>
+                    </svg>
+                </div>
+                </div>
             </div>
-            <button @click="showModal=true;form.reset();form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 rounded-md text-sm font-medium shadow-sm transition-colors">
+
+            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                <!-- Card 1: Total Formula -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            FORMULA AKTIF
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-teal-50 dark:bg-teal-950/50 border border-teal-100 dark:border-teal-900 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-teal-600 dark:text-teal-400 leading-none">
+                            {{ stats.total }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Master racikan tercatat
+                    </p>
+                </div>
+
+                <!-- Card 2: Terstandarisasi -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            KATEGORI SEDIAAN
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted border border-slate-200 dark:border-border flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                            {{ stats.standard }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        Kategori terklasifikasi
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BAR -->
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                Katalog Formula & Protokol Peracikan
+            </h2>
+            <button @click="showModal=true;form.reset();form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Tambah Formula Baru
             </button>

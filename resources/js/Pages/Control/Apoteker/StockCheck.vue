@@ -67,51 +67,150 @@ const isNearExpiry = (dateStr) => {
     const diffDays = (exp - now) / (1000 * 60 * 60 * 24);
     return diffDays >= 0 && diffDays <= 90;
 };
+
+const stats = computed(() => {
+    let nearCount = 0;
+    let expiredCount = 0;
+
+    (props.medicines || []).forEach(m => {
+        (m.incoming_stocks || []).forEach(b => {
+            if (isExpired(b.expired_date)) expiredCount++;
+            else if (isNearExpiry(b.expired_date)) nearCount++;
+        });
+    });
+
+    (props.rawMaterials || []).forEach(rm => {
+        if (isExpired(rm.expired_date)) expiredCount++;
+        else if (isNearExpiry(rm.expired_date)) nearCount++;
+    });
+
+    return { nearCount, expiredCount };
+});
 </script>
 
 <template>
     <Head title="Cek Ketersediaan Batch (FEFO)" />
     <div class="space-y-6">
-        <!-- Header & Controls -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
-            <div>
-                <h1 class="text-xl font-bold tracking-tight text-foreground">Cek Ketersediaan Batch (FEFO)</h1>
-                <p class="text-xs text-muted-foreground mt-0.5">Pantau urutan batch kedaluwarsa untuk presisi peracikan dan penyerahan obat</p>
-            </div>
-            
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <!-- Search input -->
-                <div class="relative w-full sm:w-64">
-                    <input 
-                        v-model="search"
-                        type="text" 
-                        placeholder="Cari nama atau kode..." 
-                        class="h-9 w-full pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
-                    />
-                    <svg v-if="!isSearching" class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <svg v-else class="w-4 h-4 animate-spin text-primary absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                    <button v-if="search" @click="search = ''" class="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground text-xs font-medium">
-                        ✕
-                    </button>
+        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- HERO BANNER CARD (lg:col-span-8) -->
+            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Cek Ketersediaan Batch (FEFO)
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Pantau urutan pengeluaran first-expired first-out (FEFO), identifikasi tanggal kedaluwarsa, dan minimalkan risiko stok mati.
+                    </p>
                 </div>
 
-                <!-- Tab Toggle -->
-                <div class="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border">
-                    <button 
-                        @click="activeTab = 'raw_materials'" 
-                        :class="activeTab === 'raw_materials' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                        class="h-7 px-3 rounded-md text-xs transition-colors"
-                    >
-                        Bahan Baku ({{ filteredRawMaterials.length }})
-                    </button>
-                    <button 
-                        @click="activeTab = 'medicines'" 
-                        :class="activeTab === 'medicines' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                        class="h-7 px-3 rounded-md text-xs transition-colors"
-                    >
-                        Obat Jadi ({{ filteredMedicines.length }})
-                    </button>
+                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
+                <div class="relative z-10 flex items-center justify-center shrink-0">
+                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
+                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Calendar Card with Clock (behind left) -->
+                        <rect x="4" y="6" width="30" height="43" rx="4" stroke="#D97706" stroke-width="2.2" fill="#FFFFFF" />
+                        <rect x="10" y="3.5" width="4" height="4.5" rx="1.2" fill="#D97706" />
+                        <rect x="24" y="3.5" width="4" height="4.5" rx="1.2" fill="#D97706" />
+                        <path d="M4 6h30v9H4z" fill="#FEF3C7" />
+                        <!-- Clock inside calendar -->
+                        <circle cx="19" cy="30" r="9.5" stroke="#D97706" stroke-width="1.8" fill="#FFFBEB" />
+                        <path d="M19 25v5l3 2.5" stroke="#D97706" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                        <!-- Delivery Medicine Box (in front right) -->
+                        <g transform="translate(20, 18)">
+                            <rect x="0" y="3" width="30" height="28" rx="3" stroke="#D97706" stroke-width="2.2" fill="#FFFFFF" />
+                            <path d="M0 11h30" stroke="#D97706" stroke-width="1.6" />
+                            <rect x="12" y="3" width="6.5" height="28" fill="#FEF3C7" stroke="#FDE68A" stroke-width="1.2" />
+                            <rect x="3.5" y="15" width="6.5" height="8.5" rx="1" stroke="#FDE68A" stroke-width="1.2" fill="#FFFBEB" />
+                            <line x1="5" y1="18" x2="8.5" y2="18" stroke="#D97706" stroke-width="0.9" />
+                        </g>
+                    </svg>
                 </div>
+                </div>
+            </div>
+
+            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                <!-- Card 1: Mendekati ED -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            MENDEKATI ED (≤ 90 HARI)
+                        </span>
+                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.nearCount > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.nearCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
+                            {{ stats.nearCount }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        {{ stats.nearCount > 0 ? 'Prioritas racik / FEFO' : 'Semua batch aman' }}
+                    </p>
+                </div>
+
+                <!-- Card 2: Sudah Expired -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            KEDALUWARSA
+                        </span>
+                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.expiredCount > 0 ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-100 dark:border-rose-900 text-rose-600 dark:text-rose-400' : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400'">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-0.5">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.expiredCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'">
+                            {{ stats.expiredCount }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                        {{ stats.expiredCount > 0 ? 'Perlu karantina segera' : 'Stok bebas kedaluwarsa' }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION & FILTER BAR -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-card p-3 sm:px-4 rounded-xl border border-slate-200/80 dark:border-border shadow-2xs">
+            <!-- Search input -->
+            <div class="relative w-full sm:w-72">
+                <input 
+                    v-model="search"
+                    type="text" 
+                    placeholder="Cari nama atau kode bahan/obat..." 
+                    class="h-9 w-full pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                />
+                <svg v-if="!isSearching" class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <svg v-else class="w-4 h-4 animate-spin text-primary absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                <button v-if="search" @click="search = ''" class="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground text-xs font-medium">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Tab Toggle -->
+            <div class="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border shrink-0">
+                <button 
+                    @click="activeTab = 'raw_materials'" 
+                    :class="activeTab === 'raw_materials' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
+                    class="h-7 px-3.5 rounded-md text-xs transition-colors"
+                >
+                    Bahan Baku ({{ filteredRawMaterials.length }})
+                </button>
+                <button 
+                    @click="activeTab = 'medicines'" 
+                    :class="activeTab === 'medicines' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
+                    class="h-7 px-3.5 rounded-md text-xs transition-colors"
+                >
+                    Obat Jadi ({{ filteredMedicines.length }})
+                </button>
             </div>
         </div>
 
