@@ -50,7 +50,9 @@ export function formatInventoryThreshold(totalQty, ratioSekunder = 1, ratioTersi
   // Jika 2 tingkat kemasan aktif
   const ratio2 = rSekunder > 1 ? rSekunder : (rTersier > 1 ? rTersier : 1);
   if (ratio2 > 1) {
-    const bigUnit = rTersier > 1 ? uTersier : uSekunder;
+    const bigUnit = (unitNames?.tersier && (!unitNames?.sekunder || unitNames.sekunder === uPrimer || rTersier > 1))
+      ? uTersier
+      : (unitNames?.tersier || uSekunder);
     const mid = Math.floor(qty / ratio2);
     const small = qty % ratio2;
 

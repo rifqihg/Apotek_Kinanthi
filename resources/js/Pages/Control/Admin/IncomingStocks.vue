@@ -198,6 +198,30 @@ const getPrimaryUnit = (item) => {
     return item.new_medicine_satuan_kecil || 'Tablet';
 };
 
+const getItemThresholdPreview = (item) => {
+    if (item.no_multi_unit) {
+        return `${item.min_stock_threshold || 0} ${getPrimaryUnit(item)}`;
+    }
+    const rSekunder = item.small_unit_skipped 
+        ? (Number(item.unit_conversion_factor) || 1) 
+        : (Number(item.small_to_mid_ratio) || 1);
+    const rTersier = item.small_unit_skipped 
+        ? 1 
+        : (Number(item.mid_to_big_ratio) || 1);
+    const midUnit = item.small_unit_skipped ? null : item.mid_unit;
+
+    return formatInventoryThreshold(
+        item.min_stock_threshold,
+        rSekunder,
+        rTersier,
+        {
+            tersier: item.satuan_input,
+            sekunder: midUnit,
+            primer: getPrimaryUnit(item),
+        }
+    );
+};
+
 const handleNoMultiUnitChange = (item) => {
     if (item.no_multi_unit) {
         item.small_unit_skipped = false;
@@ -799,7 +823,7 @@ function submit() {
                                     <!-- LEVEL 3: PRIMER (TERKECIL) -->
                                     <div class="p-3 bg-card border border-border rounded-md space-y-2 w-full md:flex-1 min-w-0">
                                         <div class="flex justify-between items-center mb-1">
-                                            <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">{{ item.small_unit_skipped ? 'Sekunder' : 'Primer' }} (Terkecil)</label>
+                                            <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">{{ item.small_unit_skipped ? 'Primer' : 'Primer' }} (Terkecil)</label>
                                         </div>
                                         <div class="flex gap-1.5 relative items-center">
                                             <div class="flex items-center gap-1.5 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
@@ -871,10 +895,7 @@ function submit() {
                                             Visualisasi Konversi Ambang Batas:
                                         </p>
                                         <p class="text-sm font-bold text-foreground break-words">
-                                            {{ item.no_multi_unit 
-                                                ? (item.min_stock_threshold || 0) + ' ' + getPrimaryUnit(item) 
-                                                : formatInventoryThreshold(item.min_stock_threshold, item.small_to_mid_ratio || 1, item.small_unit_skipped ? 1 : (item.mid_to_big_ratio || 1), { tersier: item.satuan_input, sekunder: item.mid_unit, primer: getPrimaryUnit(item) }) 
-                                            }}
+                                            {{ getItemThresholdPreview(item) }}
                                         </p>
                                         <p class="text-[11px] text-muted-foreground">
                                             {{ item.no_multi_unit 

@@ -221,11 +221,11 @@ class AdminController extends Controller
                 // Required for Katalog Faktur QTY formatting logic
                 'qty_masuk' => $incoming ? $incoming->qty_masuk : 0,
                 'qty_converted' => $incoming ? $incoming->qty_converted : 0,
-                'satuan_input' => $incoming ? $incoming->satuan_input : null,
-                'mid_unit' => $incoming ? $incoming->mid_unit : null,
-                'unit_conversion_factor' => $incoming ? $incoming->unit_conversion_factor : 1,
-                'mid_to_big_ratio' => $incoming ? $incoming->mid_to_big_ratio : 0,
-                'small_to_mid_ratio' => $incoming ? $incoming->small_to_mid_ratio : 0,
+                'satuan_input' => $incoming ? $incoming->satuan_input : $medicine->satuan_besar,
+                'mid_unit' => $incoming ? $incoming->mid_unit : $medicine->satuan_menengah,
+                'unit_conversion_factor' => $incoming ? $incoming->unit_conversion_factor : ($medicine->rasio_konversi ?: 1),
+                'mid_to_big_ratio' => $incoming ? $incoming->mid_to_big_ratio : 1,
+                'small_to_mid_ratio' => $incoming ? $incoming->small_to_mid_ratio : ($medicine->rasio_konversi ?: 1),
                 'satuan_stok' => $medicine->satuan_stok ?? 'Unit',
                 
                 'batas_aman' => $medicine->threshold_min,
