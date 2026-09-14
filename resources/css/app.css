@@ -91,6 +91,14 @@
     .border-sidebar-border {
         border-color: #1F2937;
     }
+    .no-spinner {
+        -moz-appearance: textfield;
+    }
+    .no-spinner::-webkit-outer-spin-button,
+    .no-spinner::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 }
 
 @layer base {

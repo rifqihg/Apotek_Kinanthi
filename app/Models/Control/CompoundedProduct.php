@@ -2,9 +2,11 @@
 
 namespace App\Models\Control;
 
+use App\Models\SaleItem;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CompoundedProduct extends Model
 {
@@ -45,6 +47,11 @@ class CompoundedProduct extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function saleItems(): HasMany
+    {
+        return $this->hasMany(SaleItem::class, 'compounded_product_id');
     }
 
     public function scopeActive($query)

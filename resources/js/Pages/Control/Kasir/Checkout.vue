@@ -1,13 +1,16 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
+import Swal from 'sweetalert2';
 
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({
     prescription: Object,
 });
+
+const page = usePage();
 
 const form = useForm({
     prescription_id: props.prescription.id,
@@ -29,6 +32,8 @@ const form = useForm({
     }))
 });
 
+const hasInvalidPrice = computed(() => form.items.some(i => i.item_type === 'racikan' && (!i.unit_price || Number(i.unit_price) <= 0)));
+
 const subtotalAmount = computed(() => form.items.reduce((sum, item) => sum + ((Number(item.unit_price) || 0) * item.quantity), 0));
 
 const discountAmount = computed(() => {
@@ -40,13 +45,49 @@ const finalTotalAmount = computed(() => Math.max(0, subtotalAmount.value - disco
 
 const changeAmount = computed(() => Math.max(0, (Number(form.paid_amount) || 0) - finalTotalAmount.value));
 
-const isPaidValid = computed(() => (Number(form.paid_amount) || 0) >= finalTotalAmount.value && finalTotalAmount.value >= 0);
+const isPaidValid = computed(() => (Number(form.paid_amount) || 0) >= finalTotalAmount.value && finalTotalAmount.value >= 0 && !hasInvalidPrice.value);
 
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
+// Graceful alert for backend session flash errors
+watch(() => page.props.flash?.error, (errMsg) => {
+    if (errMsg) {
+        Swal.fire({
+            title: 'Transaksi Ditolak',
+            text: errMsg,
+            icon: 'error',
+            confirmButtonColor: '#DC2626',
+            confirmButtonText: 'Tutup'
+        });
+    }
+}, { immediate: true });
+
 const submit = () => {
-    if (!isPaidValid.value) return;
-    form.post(route('control.kasir.sales.store'));
+    if (!isPaidValid.value) {
+        if (hasInvalidPrice.value) {
+            Swal.fire({
+                title: 'Harga Belum Ditetapkan',
+                text: 'Item racikan di resep ini belum divalidasi harganya oleh Admin. Transaksi tidak dapat dilanjutkan.',
+                icon: 'warning',
+                confirmButtonColor: '#D97706',
+                confirmButtonText: 'Mengerti'
+            });
+        }
+        return;
+    }
+
+    form.post(route('control.kasir.sales.store'), {
+        onError: (errors) => {
+            const msg = errors.error || errors.message || Object.values(errors)[0] || 'Terjadi kesalahan saat memproses transaksi pembayaran.';
+            Swal.fire({
+                title: 'Transaksi Gagal',
+                text: msg,
+                icon: 'error',
+                confirmButtonColor: '#DC2626',
+                confirmButtonText: 'Tutup'
+            });
+        }
+    });
 };
 </script>
 
@@ -94,7 +135,8 @@ const submit = () => {
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <div v-if="item.item_type === 'racikan'">
-                                        <span class="font-semibold text-foreground">{{ formatRupiah(item.unit_price) }}</span>
+                                        <span v-if="Number(item.unit_price) > 0" class="font-semibold text-foreground">{{ formatRupiah(item.unit_price) }}</span>
+                                        <span v-else class="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 px-2 py-0.5 rounded">Pending Harga</span>
                                     </div>
                                     <div v-else>
                                         <input type="number" v-model="form.items[idx].unit_price" class="h-8 w-32 text-right text-xs bg-background border border-input rounded-md px-2 font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="Input harga" required min="0" step="0.01">
@@ -162,7 +204,9 @@ const submit = () => {
 
                 <div class="mt-6">
                     <button type="submit" :disabled="form.processing || !isPaidValid" class="w-full h-10 px-4 rounded-md text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center gap-1.5" :class="isPaidValid ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-muted text-muted-foreground cursor-not-allowed shadow-none'">
-                        Konfirmasi Pembayaran
+                        <span v-if="form.processing">Memproses Transaksi...</span>
+                        <span v-else-if="hasInvalidPrice">Harga Racikan Belum Divalidasi</span>
+                        <span v-else>Konfirmasi Pembayaran</span>
                     </button>
                 </div>
             </form>

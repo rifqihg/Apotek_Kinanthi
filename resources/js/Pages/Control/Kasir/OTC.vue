@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import Swal from 'sweetalert2';
 
@@ -52,6 +52,23 @@ const paymentMethod = ref('tunai');
 const discountAmount = ref(0);
 const paidAmount = ref(0);
 const isPaymentModalOpen = ref(false);
+const isProcessingPayment = ref(false);
+
+const page = usePage();
+
+// Watch for flash error messages from server
+watch(() => page.props.flash?.error, (errMsg) => {
+    if (errMsg) {
+        isProcessingPayment.value = false;
+        Swal.fire({
+            title: 'Transaksi Ditolak',
+            text: errMsg,
+            icon: 'error',
+            confirmButtonColor: '#DC2626',
+            confirmButtonText: 'Tutup'
+        });
+    }
+});
 
 // Helper to format currency
 const formatRupiah = (number) => {
@@ -238,11 +255,13 @@ const setQuickCash = (amount) => {
 };
 
 const submitPayment = () => {
-    if (cart.value.length === 0) return;
+    if (cart.value.length === 0 || isProcessingPayment.value) return;
     if (paymentMethod.value === 'tunai' && paidAmount.value < grandTotal.value) {
         Swal.fire('Uang Kurang', `Uang yang diterima kurang dari total tagihan (${formatRupiah(grandTotal.value)}).`, 'error');
         return;
     }
+
+    isProcessingPayment.value = true;
 
     router.post(route('control.kasir.otc.store'), {
         payment_method: paymentMethod.value,
@@ -256,6 +275,7 @@ const submitPayment = () => {
         }))
     }, {
         onSuccess: () => {
+            isProcessingPayment.value = false;
             isPaymentModalOpen.value = false;
             cart.value = [];
             paidAmount.value = 0;
@@ -267,6 +287,20 @@ const submitPayment = () => {
                 confirmButtonColor: '#16A34A',
                 confirmButtonText: 'Selesai'
             });
+        },
+        onError: (errors) => {
+            isProcessingPayment.value = false;
+            const msg = errors.error || errors.message || Object.values(errors)[0] || 'Terjadi kesalahan saat memproses transaksi OTC.';
+            Swal.fire({
+                title: 'Transaksi Ditolak',
+                text: msg,
+                icon: 'error',
+                confirmButtonColor: '#DC2626',
+                confirmButtonText: 'Tutup'
+            });
+        },
+        onFinish: () => {
+            isProcessingPayment.value = false;
         }
     });
 };
@@ -793,11 +827,12 @@ onUnmounted(() => {
                     <button 
                         type="button" 
                         @click="submitPayment" 
-                        :disabled="paymentMethod === 'tunai' && paidAmount < grandTotal"
+                        :disabled="isProcessingPayment || (paymentMethod === 'tunai' && paidAmount < grandTotal)"
                         class="w-2/3 h-9 bg-emerald-600 hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-white font-medium rounded-md text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center gap-1.5"
                     >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                        <span>Selesaikan Transaksi</span>
+                        <svg v-if="!isProcessingPayment" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>{{ isProcessingPayment ? 'Memproses...' : 'Selesaikan Transaksi' }}</span>
                     </button>
                 </div>
 

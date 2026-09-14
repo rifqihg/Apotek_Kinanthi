@@ -67,14 +67,7 @@ const adminNav = [
     {
         group: 'MASTER DATA',
         items: [
-            {
-                name: 'Katalog Obat', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
-                key: 'katalog',
-                children: [
-                    { name: 'Katalog Faktur', href: 'control.admin.medicines.faktur', component: 'Control/Admin/Medicines' },
-                    { name: 'Katalog Racikan', href: 'control.admin.medicines.racikan', component: 'Control/Admin/Medicines' }
-                ]
-            },
+            { name: 'Katalog Faktur', href: 'control.admin.medicines.faktur', component: 'Control/Admin/Medicines', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
             { name: 'Supplier / PBF', href: 'control.admin.suppliers', component: 'Control/Admin/Suppliers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
             { name: 'Bahan Baku', href: 'control.admin.raw-materials', component: 'Control/Admin/RawMaterials', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4' },
             { name: 'Produk Racikan', href: 'control.admin.compounded-products', component: 'Control/Admin/CompoundedProducts', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
@@ -95,8 +88,7 @@ const adminNav = [
         items: [
             { name: 'Laporan Penjualan', href: 'control.admin.reports.sales', component: 'Control/Admin/SalesReport', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
             { name: 'Monitoring Transaksi', href: 'control.admin.reports.cashier-monitoring', component: 'Control/Admin/CashierMonitoring', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
-            { name: 'Audit Trail', href: 'control.admin.audit-trails', component: 'Control/Admin/AuditTrail', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { name: 'Log Stok', href: 'control.admin.stock-logs', component: 'Control/Admin/StockLogs', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+            { name: 'Mutasi & Audit', href: 'control.admin.stock-logs', component: 'Control/Admin/StockLogs', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
         ]
     },
     {
@@ -223,7 +215,7 @@ const activePageTitle = computed(() => {
         }
     }
     const specialRoutes = {
-        'control.admin.medicines.faktur': 'Faktur Pembelian',
+        'control.admin.medicines.faktur': 'Katalog Faktur',
         'control.admin.medicines.racikan': 'Katalog Racikan',
         'control.admin.stock-opname.show': 'Detail Stock Opname',
         'control.apoteker.submissions.show': 'Detail Racikan',
@@ -231,6 +223,8 @@ const activePageTitle = computed(() => {
         'control.apoteker.prescriptions.create': 'Input Resep Baru',
         'control.kasir.checkout': 'Pembayaran Kasir',
         'control.kasir.receipt': 'Struk Penjualan',
+        'control.admin.stock-logs': 'Mutasi & Audit',
+        'control.admin.audit-trails': 'Mutasi & Audit',
         'profile.edit': 'Pengaturan Akun',
     };
     for (const [rName, title] of Object.entries(specialRoutes)) {

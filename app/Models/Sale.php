@@ -39,9 +39,33 @@ class Sale extends Model
         parent::boot();
 
         static::creating(function ($sale) {
+            if (!empty($sale->sale_number)) {
+                return;
+            }
+
             $date = now()->format('Ymd');
-            $count = static::whereDate('created_at', now())->count() + 1;
-            $sale->sale_number = 'INV-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+            $prefix = 'INV-' . $date . '-';
+
+            // Kunci pesimistik pada record terakhir hari ini untuk mencegah tabrakan ID
+            $lastSale = static::where('sale_number', 'like', $prefix . '%')
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->first();
+
+            $nextSequence = 1;
+            if ($lastSale && preg_match('/-(\d+)$/', $lastSale->sale_number, $matches)) {
+                $nextSequence = (int) $matches[1] + 1;
+            }
+
+            do {
+                $candidate = $prefix . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+                $exists = static::where('sale_number', $candidate)->exists();
+                if ($exists) {
+                    $nextSequence++;
+                }
+            } while ($exists);
+
+            $sale->sale_number = $candidate;
         });
     }
 

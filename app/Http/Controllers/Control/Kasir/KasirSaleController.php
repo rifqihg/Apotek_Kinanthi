@@ -13,9 +13,11 @@ use App\Models\Control\Medicine;
 use App\Models\Control\Category;
 use App\Models\Control\CompoundedProduct;
 use App\Models\Control\AuditTrail;
+use App\Models\Control\StockMutation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class KasirSaleController extends Controller
 {
@@ -56,9 +58,9 @@ class KasirSaleController extends Controller
             'payment_method' => 'required|in:tunai,transfer,qris',
             'discount_amount' => 'nullable|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
-            'items' => 'required|array',
+            'items' => 'required|array|min:1',
             'items.*.prescription_item_id' => 'required|exists:prescription_items,id',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
             'items.*.quantity' => 'required|numeric|min:0.01',
         ]);
 
@@ -67,55 +69,59 @@ class KasirSaleController extends Controller
         }
 
         try {
-            return DB::transaction(function () use ($v, $request) {
-                $calc = $this->calculateTotals($v['items'], $v['discount_amount'] ?? 0, (float) $v['paid_amount']);
-                $prescription = Prescription::findOrFail($v['prescription_id']);
-
-                $sale = Sale::create([
-                    'kasir_id' => auth()->id(),
-                    'prescription_id' => $prescription->id,
-                    'sale_type' => 'resep',
-                    'total_amount' => $calc['finalTotal'],
-                    'discount_amount' => $calc['discount'],
-                    'paid_amount' => $v['paid_amount'],
-                    'change_amount' => $calc['change'],
-                    'payment_method' => $v['payment_method'],
-                    'status' => 'paid',
-                    'paid_at' => now(),
-                ]);
+            return DB::transaction(function () use ($v) {
+                $prescription = Prescription::with(['patient'])->findOrFail($v['prescription_id']);
+                $resolvedItems = [];
 
                 foreach ($v['items'] as $itemData) {
-                    $pItem = PrescriptionItem::findOrFail($itemData['prescription_item_id']);
-                    $itemName = $pItem->item_type === 'obat_jadi'
-                        ? ($pItem->medicine->nama_obat ?? 'Unknown Obat')
-                        : ($pItem->compoundedProduct->nama_produk ?? $pItem->custom_formula_name);
+                    $pItem = PrescriptionItem::with(['medicine', 'compoundedProduct'])->findOrFail($itemData['prescription_item_id']);
+                    $qty = (float) $itemData['quantity'];
 
-                    SaleItem::create([
-                        'sale_id' => $sale->id,
-                        'prescription_item_id' => $pItem->id,
-                        'item_type' => $pItem->item_type,
-                        'medicine_id' => $pItem->medicine_id,
-                        'compounded_product_id' => $pItem->compounded_product_id,
-                        'item_name' => $itemName,
-                        'quantity' => $itemData['quantity'],
-                        'unit' => $pItem->unit,
-                        'unit_price' => $itemData['unit_price'],
-                        'subtotal' => $itemData['unit_price'] * $itemData['quantity'],
-                    ]);
+                    if ($pItem->item_type === 'obat_jadi') {
+                        $med = $pItem->medicine ?: Medicine::findOrFail($pItem->medicine_id);
+                        $unitPrice = (float) $med->selling_price;
+                        if ($pItem->unit === $med->satuan_besar && (float) $med->selling_price_large > 0) {
+                            $unitPrice = (float) $med->selling_price_large;
+                        } elseif ($pItem->unit === $med->satuan_menengah && (float) $med->selling_price_mid > 0) {
+                            $unitPrice = (float) $med->selling_price_mid;
+                        }
 
-                    if ($pItem->item_type === 'obat_jadi' && $pItem->medicine_id) {
-                        $this->deductKasirStock((int) $pItem->medicine_id, (float) $itemData['quantity'], $sale, (int) auth()->id(), 'resep');
+                        $resolvedItems[] = [
+                            'prescription_item' => $pItem,
+                            'prescription_item_id' => $pItem->id,
+                            'item_type' => 'obat_jadi',
+                            'medicine_id' => $med->id,
+                            'name' => $med->nama_obat ?? 'Unknown Obat',
+                            'unit' => $pItem->unit,
+                            'quantity' => $qty,
+                            'unit_price' => $unitPrice,
+                        ];
+                    } else {
+                        $cp = $pItem->compoundedProduct ?: ($pItem->compounded_product_id ? CompoundedProduct::find($pItem->compounded_product_id) : null);
+                        if (!$cp) abort(422, 'Item racikan tidak ditemukan.');
+                        $this->validateCompoundedItem($cp, $qty);
+
+                        $resolvedItems[] = [
+                            'prescription_item' => $pItem,
+                            'prescription_item_id' => $pItem->id,
+                            'item_type' => 'racikan',
+                            'compounded_product_id' => $cp->id,
+                            'model' => $cp,
+                            'name' => $cp->nama_produk ?? ($pItem->custom_formula_name ?? 'Racikan'),
+                            'unit' => $pItem->unit,
+                            'quantity' => $qty,
+                            'unit_price' => (float) $cp->harga_jual,
+                        ];
                     }
-                    $pItem->update(['status' => 'selesai']);
                 }
 
-                $prescription->update(['status' => 'selesai']);
-                AuditTrail::log($request->user()->id, 'sale.created', "Transaksi {$sale->sale_number} senilai {$sale->total_amount} oleh kasir", Sale::class, $sale->id);
-
+                $sale = $this->executeSaleTransaction($v, $resolvedItems, $prescription);
                 return redirect()->route('control.kasir.sales.receipt', $sale->id)->with('success', 'Transaksi berhasil disimpan.');
             });
+        } catch (HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->withErrors(['error' => $e->getMessage()])->with('error', $e->getMessage());
         }
     }
 
@@ -132,80 +138,48 @@ class KasirSaleController extends Controller
         $search = $request->query('search');
         $category = $request->query('category');
 
-        $medicinesQuery = Medicine::select([
-                'id',
-                'category_id',
-                'nama_obat',
-                'kode_obat',
-                'satuan_stok',
-                'base_unit',
-                'selling_price',
-                'stok_total',
-            ])
+        $medicines = Medicine::select(['id', 'category_id', 'nama_obat', 'kode_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total'])
             ->with([
                 'category:id,nama_kategori',
                 'latestIncomingStock:id,medicine_id,harga_jual_akhir',
-                'warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'stock_on_hand', 'expired_date', 'status', 'is_frozen', 'location_type', 'location_id'])
+                'warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'stock_on_hand'])
                     ->where('location_type', 'kasir')
                     ->where('location_id', $kasirId)
                     ->where('stock_on_hand', '>', 0)
                     ->where('status', 'active')
                     ->where('is_frozen', false)
-                    ->orderBy('expired_date', 'asc')
             ])
             ->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false))
-            ->when($search, fn($q) => $q->where(fn($sub) =>
-                $sub->where('nama_obat', 'like', "%{$search}%")
-                    ->orWhere('kode_obat', 'like', "%{$search}%")
-            ))
+            ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('nama_obat', 'like', "%{$search}%")->orWhere('kode_obat', 'like', "%{$search}%")))
             ->when($category && $category !== 'all', fn($q) => $q->whereHas('category', fn($cq) => $cq->where('nama_kategori', $category)))
-            ->orderBy('nama_obat');
-
-        $medicines = $medicinesQuery
+            ->orderBy('nama_obat')
             ->limit(40)
             ->get()
-            ->map(function ($med) {
-                $stokKasir = (float) $med->warehouseInventories->sum('stock_on_hand');
-                $hargaJual = (float) $med->selling_price;
-                if ($hargaJual <= 0 && $med->latestIncomingStock) {
-                    $hargaJual = (float) $med->latestIncomingStock->harga_jual_akhir;
-                }
-                return [
-                    'id' => $med->id,
-                    'category_id' => $med->category_id,
-                    'category' => $med->category ? ['id' => $med->category->id, 'nama_kategori' => $med->category->nama_kategori] : null,
-                    'nama_obat' => $med->nama_obat,
-                    'kode_obat' => $med->kode_obat,
-                    'satuan' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
-                    'selling_price' => $hargaJual,
-                    'stok_kasir' => $stokKasir,
-                ];
-            });
+            ->map(fn($med) => [
+                'id' => $med->id,
+                'category_id' => $med->category_id,
+                'category' => $med->category ? ['id' => $med->category->id, 'nama_kategori' => $med->category->nama_kategori] : null,
+                'nama_obat' => $med->nama_obat,
+                'kode_obat' => $med->kode_obat,
+                'satuan' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
+                'selling_price' => (float) ($med->selling_price > 0 ? $med->selling_price : ($med->latestIncomingStock?->harga_jual_akhir ?? 0)),
+                'stok_kasir' => (float) $med->warehouseInventories->sum('stock_on_hand'),
+            ]);
 
-        $compoundedQuery = CompoundedProduct::select(['id', 'nama_produk', 'batch_no', 'harga_jual', 'qty_hasil', 'status', 'pricing_status'])
+        $compoundedProducts = CompoundedProduct::select(['id', 'nama_produk', 'batch_no', 'harga_jual', 'qty_hasil', 'status', 'pricing_status'])
             ->where('status', 'active')
             ->where('pricing_status', 'priced')
             ->whereNotNull('harga_jual')
-            ->when($search, fn($q) => $q->where(fn($sub) =>
-                $sub->where('nama_produk', 'like', "%{$search}%")
-                    ->orWhere('batch_no', 'like', "%{$search}%")
-            ))
-            ->orderBy('nama_produk');
-
-        $compoundedProducts = $compoundedQuery
+            ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('nama_produk', 'like', "%{$search}%")->orWhere('batch_no', 'like', "%{$search}%")))
+            ->orderBy('nama_produk')
             ->limit(20)
             ->get();
 
-        $categories = Category::select(['id', 'name as nama_kategori', 'name'])->orderBy('name')->get();
-
         return inertia('Control/Kasir/OTC', [
-            'medicines'          => $medicines,
+            'medicines' => $medicines,
             'compoundedProducts' => $compoundedProducts,
-            'categories'         => $categories,
-            'filters'            => [
-                'search'   => $search ?? '',
-                'category' => $category ?? 'all',
-            ],
+            'categories' => Category::select(['id', 'name as nama_kategori', 'name'])->orderBy('name')->get(),
+            'filters' => ['search' => $search ?? '', 'category' => $category ?? 'all'],
         ]);
     }
 
@@ -218,67 +192,143 @@ class KasirSaleController extends Controller
             'items' => 'required|array|min:1',
             'items.*.item_type' => 'required|in:obat_jadi,racikan',
             'items.*.id' => 'required|numeric',
-            'items.*.quantity' => 'required|numeric|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
         ]);
 
         try {
-            return DB::transaction(function () use ($v, $request) {
-                $calc = $this->calculateTotals($v['items'], $v['discount_amount'] ?? 0, (float) $v['paid_amount']);
-
-                $sale = Sale::create([
-                    'kasir_id' => auth()->id(),
-                    'prescription_id' => null,
-                    'sale_type' => 'otc',
-                    'total_amount' => $calc['finalTotal'],
-                    'discount_amount' => $calc['discount'],
-                    'paid_amount' => $v['paid_amount'],
-                    'change_amount' => $calc['change'],
-                    'payment_method' => $v['payment_method'],
-                    'status' => 'paid',
-                    'paid_at' => now(),
-                ]);
+            return DB::transaction(function () use ($v) {
+                $resolvedItems = [];
 
                 foreach ($v['items'] as $itemData) {
-                    $medicineId = null;
-                    $compoundedProductId = null;
-
+                    $qty = (float) $itemData['quantity'];
                     if ($itemData['item_type'] === 'obat_jadi') {
-                        $medicine = Medicine::findOrFail($itemData['id']);
-                        $itemName = $medicine->nama_obat;
-                        $medicineId = $medicine->id;
-                        $unit = $medicine->satuan_stok;
+                        $med = Medicine::findOrFail($itemData['id']);
+                        $resolvedItems[] = [
+                            'item_type' => 'obat_jadi',
+                            'medicine_id' => $med->id,
+                            'name' => $med->nama_obat,
+                            'unit' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
+                            'quantity' => $qty,
+                            'unit_price' => (float) $med->selling_price,
+                        ];
                     } else {
-                        $product = CompoundedProduct::findOrFail($itemData['id']);
-                        $itemName = $product->nama_produk;
-                        $compoundedProductId = $product->id;
-                        $unit = 'Paket';
-                    }
-
-                    SaleItem::create([
-                        'sale_id' => $sale->id,
-                        'prescription_item_id' => null,
-                        'item_type' => $itemData['item_type'],
-                        'medicine_id' => $medicineId,
-                        'compounded_product_id' => $compoundedProductId,
-                        'item_name' => $itemName,
-                        'quantity' => $itemData['quantity'],
-                        'unit' => $unit,
-                        'unit_price' => $itemData['unit_price'],
-                        'subtotal' => $itemData['unit_price'] * $itemData['quantity'],
-                    ]);
-
-                    if ($itemData['item_type'] === 'obat_jadi' && $medicineId) {
-                        $this->deductKasirStock((int) $medicineId, (float) $itemData['quantity'], $sale, (int) auth()->id(), 'otc');
+                        $cp = CompoundedProduct::findOrFail($itemData['id']);
+                        $this->validateCompoundedItem($cp, $qty);
+                        $resolvedItems[] = [
+                            'item_type' => 'racikan',
+                            'compounded_product_id' => $cp->id,
+                            'model' => $cp,
+                            'name' => $cp->nama_produk,
+                            'unit' => $cp->satuan ?: 'Paket',
+                            'quantity' => $qty,
+                            'unit_price' => (float) $cp->harga_jual,
+                        ];
                     }
                 }
 
-                AuditTrail::log($request->user()->id, 'sale.created', "Transaksi OTC {$sale->sale_number} senilai {$sale->total_amount} oleh kasir", Sale::class, $sale->id);
-
+                $sale = $this->executeSaleTransaction($v, $resolvedItems);
                 return redirect()->route('control.kasir.sales.receipt', $sale->id)->with('success', 'Transaksi OTC berhasil disimpan.');
             });
+        } catch (HttpException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->withErrors(['error' => $e->getMessage()])->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Eksekusi penyimpanan transaksi penjualan, pemotongan stok, dan pencatatan audit trail atomik.
+     */
+    private function executeSaleTransaction(array $v, array $resolvedItems, ?Prescription $prescription = null): Sale
+    {
+        $calc = $this->calculateTotals($resolvedItems, $v['discount_amount'] ?? 0, (float) $v['paid_amount']);
+        $userId = (int) auth()->id();
+        $isResep = $prescription !== null;
+
+        $sale = Sale::create([
+            'kasir_id' => $userId,
+            'prescription_id' => $prescription?->id,
+            'sale_type' => $isResep ? 'resep' : 'otc',
+            'total_amount' => $calc['finalTotal'],
+            'discount_amount' => $calc['discount'],
+            'paid_amount' => $v['paid_amount'],
+            'change_amount' => $calc['change'],
+            'payment_method' => $v['payment_method'],
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $refLabel = $isResep ? "resep {$prescription->prescription_number}" : "transaksi {$sale->sale_number}";
+
+        foreach ($resolvedItems as $rItem) {
+            $qty = $rItem['quantity'];
+            $unitPrice = $rItem['unit_price'];
+
+            SaleItem::create([
+                'sale_id' => $sale->id,
+                'prescription_item_id' => $rItem['prescription_item_id'] ?? null,
+                'item_type' => $rItem['item_type'],
+                'medicine_id' => $rItem['medicine_id'] ?? null,
+                'compounded_product_id' => $rItem['compounded_product_id'] ?? null,
+                'item_name' => $rItem['name'],
+                'quantity' => $qty,
+                'unit' => $rItem['unit'],
+                'unit_price' => $unitPrice,
+                'subtotal' => $unitPrice * $qty,
+            ]);
+
+            if ($rItem['item_type'] === 'obat_jadi') {
+                $this->deductKasirStock((int) $rItem['medicine_id'], $qty, $sale, $userId, $sale->sale_type);
+            } else {
+                $cp = $rItem['model'];
+                $cp->decrement('qty_hasil', $qty);
+
+                StockMutation::create([
+                    'item_id' => $cp->id,
+                    'item_type' => CompoundedProduct::class,
+                    'type' => 'keluar',
+                    'quantity' => $qty,
+                    'balance_after' => $cp->qty_hasil,
+                    'reference_type' => Sale::class,
+                    'reference_id' => $sale->id,
+                    'note' => "Penjualan racikan {$cp->nama_produk} via {$refLabel}",
+                ]);
+
+                AuditTrail::log(
+                    $userId,
+                    $isResep ? 'compounding.stock_deducted' : 'compounding.stock_deducted_otc',
+                    "Stok racikan {$cp->nama_produk} berkurang {$qty} via {$refLabel}",
+                    CompoundedProduct::class,
+                    $cp->id
+                );
+            }
+
+            if (!empty($rItem['prescription_item'])) {
+                $rItem['prescription_item']->update(['status' => 'selesai']);
+            }
+        }
+
+        if ($prescription) {
+            $prescription->update(['status' => 'selesai']);
+        }
+
+        $saleTypeUpper = $isResep ? '' : 'OTC ';
+        AuditTrail::log($userId, 'sale.created', "Transaksi {$saleTypeUpper}{$sale->sale_number} senilai {$sale->total_amount} oleh kasir", Sale::class, $sale->id);
+
+        return $sale;
+    }
+
+    /**
+     * Validasi status harga dan ketersediaan stok produk racikan.
+     */
+    private function validateCompoundedItem(CompoundedProduct $product, float $qty): void
+    {
+        if ($product->pricing_status === 'pending_price' || (float) $product->harga_jual <= 0) {
+            abort(422, 'Item racikan belum divalidasi harganya oleh Admin.');
+        }
+        if ($product->qty_hasil < $qty) {
+            abort(422, "Stok produk racikan '{$product->nama_produk}' tidak mencukupi (sisa: {$product->qty_hasil}).");
         }
     }
 

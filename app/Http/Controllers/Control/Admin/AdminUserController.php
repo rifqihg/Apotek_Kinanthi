@@ -14,94 +14,79 @@ use Inertia\Inertia;
 class AdminUserController extends Controller
 {
     /**
-     * Display audit trail log activities.
+     * Redirect standalone audit trail route to unified StockLogs page with audit tab.
      */
     public function auditTrails(Request $request)
     {
-        $query = AuditTrail::with('user')->latest('performed_at');
-
-        // Advanced Filtering
-        if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('description', 'like', "%{$request->search}%")
-                    ->orWhere('action', 'like', "%{$request->search}%")
-                    ->orWhereHas('user', function ($qu) use ($request) {
-                        $qu->where('name', 'like', "%{$request->search}%");
-                    });
-            });
-        }
-
-        if ($request->role) {
-            $query->whereHas('user', function ($q) use ($request) {
-                $q->where('role', $request->role);
-            });
-        }
-
-        return Inertia::render('Control/Admin/AuditTrail', [
-            'audits' => $query->paginate(20)->withQueryString(),
-            'filters' => $request->only(['search', 'role'])
-        ]);
+        return redirect()->route('control.admin.stock-logs', array_merge($request->query(), ['tab' => 'audit']));
     }
 
     /**
-     * Display stock mutation logs and internal movement history.
+     * Display unified stock mutation logs and audit trail activity history.
      */
     public function stockLogs(Request $request)
     {
-        $query = StockMutation::with([
+        // 1. Mutasi Fisik Stok
+        $mutationQuery = StockMutation::with([
             'inventory.medicine', 
-            'inventory.incomingStock', 
             'rawMaterialStock.rawMaterial', 
             'item'
         ])->where('quantity', '>', 0);
 
-        if ($request->has('start_date') && $request->has('end_date') && $request->start_date && $request->end_date) {
-            $query->whereBetween('created_at', [$request->start_date . ' 00:00:00', $request->end_date . ' 23:59:59']);
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $mutationQuery->whereBetween('created_at', ["{$request->start_date} 00:00:00", "{$request->end_date} 23:59:59"]);
         }
 
-        if ($request->has('type') && $request->type !== 'all') {
-            if ($request->type === 'Masuk') {
-                $query->whereIn('type', ['Masuk', 'Penyesuaian Masuk']);
-            } elseif ($request->type === 'Retur') {
-                $query->where(function($q) {
-                    $q->where('reference_type', ReturnForm::class)
-                      ->orWhere('type', 'Retur');
-                });
-            } elseif ($request->type === 'Jual') {
-                $query->where(function($q) {
-                    $q->whereIn('type', ['Keluar', 'Penjualan', 'Penyesuaian Keluar'])
-                      ->where(function($q2) {
-                          $q2->whereNull('reference_type')
-                             ->orWhere('reference_type', '!=', ReturnForm::class);
-                      });
-                });
-            }
+        if ($request->filled('type') && $request->type !== 'all') {
+            match ($request->type) {
+                'Masuk' => $mutationQuery->whereIn('type', ['Masuk', 'Penyesuaian Masuk']),
+                'Retur' => $mutationQuery->where(fn($q) => $q->where('reference_type', ReturnForm::class)->orWhere('type', 'Retur')),
+                'Jual'  => $mutationQuery->where(fn($q) => $q->whereIn('type', ['Keluar', 'Penjualan', 'Penyesuaian Keluar'])->where(fn($q2) => $q2->whereNull('reference_type')->orWhere('reference_type', '!=', ReturnForm::class))),
+                default => null,
+            };
         }
 
-        if ($request->has('search') && $request->search) {
+        if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->whereHas('inventory.medicine', function ($q2) use ($search) {
-                    $q2->where('nama_obat', 'like', "%{$search}%");
-                })->orWhereHas('rawMaterialStock.rawMaterial', function ($q2) use ($search) {
-                    $q2->where('nama_bahan', 'like', "%{$search}%");
-                });
-            });
+            $mutationQuery->where(fn($q) =>
+                $q->whereHas('inventory.medicine', fn($q2) => $q2->where('nama_obat', 'like', "%{$search}%"))
+                  ->orWhereHas('rawMaterialStock.rawMaterial', fn($q2) => $q2->where('nama_bahan', 'like', "%{$search}%"))
+            );
         }
 
-        $kpi_in = (clone $query)->whereIn('type', ['Masuk', 'Penyesuaian Masuk', 'Retur'])->count();
-        $kpi_out = (clone $query)->whereIn('type', ['Keluar', 'Pemusnahan', 'Penjualan', 'Penyesuaian Keluar'])->count();
+        $kpiCounts = (clone $mutationQuery)
+            ->selectRaw("
+                SUM(CASE WHEN type IN ('Masuk', 'Penyesuaian Masuk', 'Retur') THEN 1 ELSE 0 END) as count_in,
+                SUM(CASE WHEN type IN ('Keluar', 'Pemusnahan', 'Penjualan', 'Penyesuaian Keluar') THEN 1 ELSE 0 END) as count_out
+            ")
+            ->first();
 
-        $logs = $query->latest()->paginate(25)->withQueryString();
-        
+        $logs = $mutationQuery->latest()->paginate(15, ['*'], 'mutations_page')->withQueryString();
+
+        // 2. Jejak Aktivitas Sistem (Audit Trail)
+        $audits = AuditTrail::with('user')
+            ->latest('performed_at')
+            ->when($request->filled('audit_search'), function ($q) use ($request) {
+                $s = $request->audit_search;
+                $q->where(fn($sub) =>
+                    $sub->where('description', 'like', "%{$s}%")
+                        ->orWhere('action', 'like', "%{$s}%")
+                        ->orWhereHas('user', fn($qu) => $qu->where('name', 'like', "%{$s}%"))
+                );
+            })
+            ->when($request->filled('role'), fn($q) => $q->whereHas('user', fn($qu) => $qu->where('role', $request->role)))
+            ->paginate(15, ['*'], 'audits_page')
+            ->withQueryString();
+
         return Inertia::render('Control/Admin/StockLogs', [
             'logs' => $logs,
+            'audits' => $audits,
             'kpi' => [
-                'in' => $kpi_in,
-                'out' => $kpi_out,
+                'in' => (int) ($kpiCounts->count_in ?? 0),
+                'out' => (int) ($kpiCounts->count_out ?? 0),
                 'total' => $logs->total()
             ],
-            'filters' => $request->only(['search', 'start_date', 'end_date', 'type'])
+            'filters' => $request->only(['search', 'start_date', 'end_date', 'type', 'role', 'audit_search', 'tab'])
         ]);
     }
 

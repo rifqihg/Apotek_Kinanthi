@@ -665,7 +665,7 @@ function submit() {
                             <!-- UNIT CONVERSION SECTION -->
                             <div class="mt-4 p-3 bg-muted/20 border border-border rounded-lg space-y-3">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                    <h5 class="text-xs font-semibold text-foreground uppercase tracking-wider">Konversi Multi-Satuan (Opsional)</h5>
+                                    <h5 class="text-xs font-semibold text-foreground uppercase tracking-wider">Konversi Multi-Satuan</h5>
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <!-- Checkbox 1: Tanpa Konversi Multi Satuan -->
                                         <label class="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer bg-card px-2.5 py-1 rounded-md border border-border hover:bg-muted transition-colors">
@@ -763,9 +763,9 @@ function submit() {
                                             <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Sekunder (Menengah)</label>
                                         </div>
                                         <div class="flex gap-1.5 relative items-center">
-                                            <div class="flex items-center gap-1 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
+                                            <div class="flex items-center gap-1.5 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
                                                 <span class="text-xs font-medium text-muted-foreground whitespace-nowrap">1 {{ item.satuan_input || 'Box' }} =</span>
-                                                <input v-model="item.mid_to_big_ratio" type="number" min="1" class="w-9 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                                <input v-model.number="item.mid_to_big_ratio" type="number" min="1" placeholder="1" class="w-14 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 transition-colors" required />
                                             </div>
                                             
                                             <div class="flex-1 min-w-0">
@@ -802,11 +802,11 @@ function submit() {
                                             <label class="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">{{ item.small_unit_skipped ? 'Sekunder' : 'Primer' }} (Terkecil)</label>
                                         </div>
                                         <div class="flex gap-1.5 relative items-center">
-                                            <div class="flex items-center gap-1 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
+                                            <div class="flex items-center gap-1.5 shrink-0 bg-muted/60 border border-border rounded-md px-2 h-9">
                                                 <span class="text-xs font-medium text-muted-foreground whitespace-nowrap">1 {{ !item.small_unit_skipped ? (item.mid_unit || 'Strip') : (item.satuan_input || 'Box') }} =</span>
                                                 
-                                                <input v-if="!item.small_unit_skipped" v-model="item.small_to_mid_ratio" type="number" min="1" class="w-9 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
-                                                <input v-else v-model="item.unit_conversion_factor" type="number" min="1" class="w-9 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                                <input v-if="!item.small_unit_skipped" v-model.number="item.small_to_mid_ratio" type="number" min="1" placeholder="1" class="w-14 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 transition-colors" required />
+                                                <input v-else v-model.number="item.unit_conversion_factor" type="number" min="1" placeholder="1" class="w-14 h-7 bg-background border border-input rounded text-sm font-bold text-center text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 transition-colors" required />
                                             </div>
                                             
                                             <div class="flex-1 min-w-0">

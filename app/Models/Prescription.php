@@ -28,12 +28,33 @@ class Prescription extends Model
         parent::boot();
 
         static::creating(function ($prescription) {
+            if (!empty($prescription->prescription_number)) {
+                return;
+            }
+
             $date = now()->format('Ymd');
-            // Count prescriptions created today to
-            // generate the 4-digit sequence
-            $count = static::whereDate('created_at', now())
-                           ->count() + 1;
-            $prescription->prescription_number = 'RX-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+            $prefix = 'RX-' . $date . '-';
+
+            // Kunci pesimistik pada record terakhir hari ini untuk mencegah tabrakan nomor resep
+            $lastRx = static::where('prescription_number', 'like', $prefix . '%')
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->first();
+
+            $nextSequence = 1;
+            if ($lastRx && preg_match('/-(\d+)$/', $lastRx->prescription_number, $matches)) {
+                $nextSequence = (int) $matches[1] + 1;
+            }
+
+            do {
+                $candidate = $prefix . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+                $exists = static::where('prescription_number', $candidate)->exists();
+                if ($exists) {
+                    $nextSequence++;
+                }
+            } while ($exists);
+
+            $prescription->prescription_number = $candidate;
         });
     }
 

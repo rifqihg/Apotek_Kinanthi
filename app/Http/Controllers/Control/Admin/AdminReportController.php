@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Control\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Control\Medicine;
+use App\Models\Control\CompoundedProduct;
 use App\Models\Control\IncomingStock;
 use App\Models\Sale;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use OpenSpout\Writer\XLSX\Writer;
@@ -22,15 +24,32 @@ use OpenSpout\Common\Entity\Cell;
 class AdminReportController extends Controller
 {
     /**
-     * Query dasar rekap penjualan produk berdasarkan rentang tanggal
+     * Query dasar rekap penjualan produk obat jadi berdasarkan rentang tanggal
      */
     private function getSalesQuery(string $startDate, string $endDate)
     {
+        $paidFilter = fn($q) => $q->where('item_type', 'obat_jadi')
+            ->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate));
+
         return Medicine::query()
             ->with('latestActiveIncomingStock')
-            ->withSum(['saleItems as terjual' => fn($q) => $q->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))], 'quantity')
-            ->withSum(['saleItems as total_penjualan' => fn($q) => $q->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate))], 'subtotal')
+            ->withSum(['saleItems as terjual' => $paidFilter], 'quantity')
+            ->withSum(['saleItems as total_penjualan' => $paidFilter], 'subtotal')
             ->orderBy('nama_obat');
+    }
+
+    /**
+     * Query dasar rekap penjualan produk racikan berdasarkan rentang tanggal
+     */
+    private function getCompoundedSalesQuery(string $startDate, string $endDate)
+    {
+        $paidFilter = fn($q) => $q->where('item_type', 'racikan')
+            ->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate));
+
+        return CompoundedProduct::query()
+            ->withSum(['saleItems as terjual' => $paidFilter], 'quantity')
+            ->withSum(['saleItems as total_penjualan' => $paidFilter], 'subtotal')
+            ->orderBy('nama_produk');
     }
 
     /**
@@ -40,17 +59,27 @@ class AdminReportController extends Controller
     {
         $stock = $latestStock ?? $med->latestActiveIncomingStock;
         $modal = $stock ? (float) $stock->calculateHppSatuan() : 0;
-        $terjual = (float) ($med->terjual ?? 0);
-        $totalPenjualan = (float) ($med->total_penjualan ?? 0);
-        $totalModal = $modal * $terjual;
-        $sisaStok = (float) $med->stok_total;
+        return $this->formatMetricRow($med->id, $med->nama_obat, $med->satuan_stok ?: $med->base_unit, $modal, (float) $med->selling_price, (float) $med->stok_total, (float) ($med->terjual ?? 0), (float) ($med->total_penjualan ?? 0));
+    }
 
+    /**
+     * Kalkulasi metrik penjualan produk racikan
+     */
+    private function calculateCompoundedMetric($cp): array
+    {
+        $modal = (float) ($cp->hpp_per_unit > 0 ? $cp->hpp_per_unit : $cp->base_cost);
+        return $this->formatMetricRow('cp-' . $cp->id, $cp->nama_produk . ' (Racikan)', $cp->satuan ?: 'Paket', $modal, (float) $cp->harga_jual, (float) $cp->qty_hasil, (float) ($cp->terjual ?? 0), (float) ($cp->total_penjualan ?? 0));
+    }
+
+    private function formatMetricRow($id, string $nama, ?string $satuan, float $modal, float $hargaJual, float $sisaStok, float $terjual, float $totalPenjualan): array
+    {
+        $totalModal = $modal * $terjual;
         return [
-            'id' => $med->id,
-            'nama_produk' => $med->nama_obat,
-            'satuan' => $med->satuan_stok ?: $med->base_unit,
+            'id' => $id,
+            'nama_produk' => $nama,
+            'satuan' => $satuan,
             'modal' => $modal,
-            'harga_jual' => (float) $med->selling_price,
+            'harga_jual' => $hargaJual,
             'qty_awal' => $sisaStok + $terjual,
             'terjual' => $terjual,
             'sisa_stok' => $sisaStok,
@@ -62,42 +91,47 @@ class AdminReportController extends Controller
     }
 
     /**
-     * Hitung ringkasan agregasi KPI penjualan secara tertunda (Inertia defer)
+     * Hitung ringkasan agregasi KPI penjualan (Obat Jadi + Racikan)
      */
     private function calculateSalesSummary(string $startDate, string $endDate): array
     {
-        $soldMedicines = Medicine::whereHas('saleItems.sale', fn($sq) => 
-                $sq->where('status', 'paid')
-                   ->whereDate('created_at', '>=', $startDate)
-                   ->whereDate('created_at', '<=', $endDate)
-            )
+        $dateFilter = fn($sq) => $sq->where('status', 'paid')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate);
+
+        // 1. Agregasi Obat Jadi
+        $soldMedicines = Medicine::whereHas('saleItems.sale', $dateFilter)
             ->with('latestActiveIncomingStock')
-            ->withSum(['saleItems as terjual' => fn($q) => 
-                $q->whereHas('sale', fn($sq) => 
-                    $sq->where('status', 'paid')
-                       ->whereDate('created_at', '>=', $startDate)
-                       ->whereDate('created_at', '<=', $endDate)
-                )
-            ], 'quantity')
-            ->withSum(['saleItems as total_penjualan' => fn($q) => 
-                $q->whereHas('sale', fn($sq) => 
-                    $sq->where('status', 'paid')
-                       ->whereDate('created_at', '>=', $startDate)
-                       ->whereDate('created_at', '<=', $endDate)
-                )
-            ], 'subtotal')
+            ->withSum(['saleItems as terjual' => fn($q) => $q->where('item_type', 'obat_jadi')->whereHas('sale', $dateFilter)], 'quantity')
+            ->withSum(['saleItems as total_penjualan' => fn($q) => $q->where('item_type', 'obat_jadi')->whereHas('sale', $dateFilter)], 'subtotal')
             ->get();
 
-        $totalItems = (float) $soldMedicines->sum('terjual');
-        $totalAmount = (float) $soldMedicines->sum('total_penjualan');
-        $totalModal = (float) $soldMedicines->sum(function($med) {
+        $medTerjual = (float) $soldMedicines->sum('terjual');
+        $medAmount = (float) $soldMedicines->sum('total_penjualan');
+        $medModal = (float) $soldMedicines->sum(function($med) {
             $latestStock = $med->latestActiveIncomingStock;
             $modal = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
             return $modal * (float) ($med->terjual ?? 0);
         });
 
+        // 2. Agregasi Produk Racikan
+        $soldCompounded = CompoundedProduct::whereHas('saleItems.sale', $dateFilter)
+            ->withSum(['saleItems as terjual' => fn($q) => $q->where('item_type', 'racikan')->whereHas('sale', $dateFilter)], 'quantity')
+            ->withSum(['saleItems as total_penjualan' => fn($q) => $q->where('item_type', 'racikan')->whereHas('sale', $dateFilter)], 'subtotal')
+            ->get();
+
+        $cpTerjual = (float) $soldCompounded->sum('terjual');
+        $cpAmount = (float) $soldCompounded->sum('total_penjualan');
+        $cpModal = (float) $soldCompounded->sum(function($cp) {
+            $modal = (float) ($cp->hpp_per_unit > 0 ? $cp->hpp_per_unit : $cp->base_cost);
+            return $modal * (float) ($cp->terjual ?? 0);
+        });
+
+        $totalAmount = $medAmount + $cpAmount;
+        $totalModal = $medModal + $cpModal;
+
         return [
-            'total_items' => $totalItems,
+            'total_items' => $medTerjual + $cpTerjual,
             'total_amount' => $totalAmount,
             'total_modal' => $totalModal,
             'total_laba' => $totalAmount - $totalModal,
@@ -111,13 +145,24 @@ class AdminReportController extends Controller
     {
         $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
+        $page = (int) $request->query('page', 1);
+        $perPage = 20;
 
-        $query = $this->getSalesQuery($startDate, $endDate);
-        $medicines = $query->paginate(20)->withQueryString();
-        $medicines->getCollection()->transform(fn($m) => $this->calculateMedicineMetric($m));
+        $medItems = $this->getSalesQuery($startDate, $endDate)->get()->map(fn($m) => $this->calculateMedicineMetric($m));
+        $cpItems = $this->getCompoundedSalesQuery($startDate, $endDate)->get()->map(fn($cp) => $this->calculateCompoundedMetric($cp));
+
+        $allItems = $medItems->concat($cpItems)->sortBy('nama_produk')->values();
+
+        $paginated = new LengthAwarePaginator(
+            $allItems->forPage($page, $perPage)->values(),
+            $allItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return Inertia::render('Control/Admin/SalesReport', [
-            'medicines' => $medicines,
+            'medicines' => $paginated,
             'filters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
@@ -218,7 +263,7 @@ class AdminReportController extends Controller
             ->unique('medicine_id')
             ->keyBy('medicine_id');
 
-        $totalRows = Medicine::count();
+        $totalRows = Medicine::count() + CompoundedProduct::count();
         $sheet->setAutoFilter(new AutoFilter(0, 9, 11, 9 + $totalRows));
 
         $no = 1;
@@ -226,12 +271,17 @@ class AdminReportController extends Controller
         $sumTerjual = 0;
         $sumSisaStok = 0;
 
-        // Streaming baris data dari database menggunakan Eloquent Cursor (Generator O(1) Memory)
-        /** @var Medicine $med */
-        foreach ($salesQuery->cursor() as $med) {
-            $latestStock = $latestStocks->get($med->id);
-            $row = $this->calculateMedicineMetric($med, $latestStock);
+        // Generator baris gabungan Obat Jadi & Racikan
+        $rowsGenerator = function () use ($salesQuery, $latestStocks, $startDate, $endDate) {
+            foreach ($salesQuery->cursor() as $med) {
+                yield $this->calculateMedicineMetric($med, $latestStocks->get($med->id));
+            }
+            foreach ($this->getCompoundedSalesQuery($startDate, $endDate)->cursor() as $cp) {
+                yield $this->calculateCompoundedMetric($cp);
+            }
+        };
 
+        foreach ($rowsGenerator() as $row) {
             $sumQtyAwal += $row['qty_awal'];
             $sumTerjual += $row['terjual'];
             $sumSisaStok += $row['sisa_stok'];
@@ -285,28 +335,9 @@ class AdminReportController extends Controller
         $totalSales = (float) ((clone $baseQuery)->sum('total_amount') ?? 0);
         $totalDiscount = (float) ((clone $baseQuery)->sum('discount_amount') ?? 0);
 
-        // Hitung total modal hanya dari obat yang terjual di periode ini
-        $soldMedicines = Medicine::whereHas('saleItems.sale', fn($sq) => 
-                $sq->where('status', 'paid')
-                   ->whereDate('created_at', '>=', $startDate)
-                   ->whereDate('created_at', '<=', $endDate)
-            )
-            ->with('latestActiveIncomingStock')
-            ->withSum(['saleItems as terjual' => fn($q) => 
-                $q->where('item_type', 'obat_jadi')
-                  ->whereHas('sale', fn($sq) => 
-                    $sq->where('status', 'paid')
-                       ->whereDate('created_at', '>=', $startDate)
-                       ->whereDate('created_at', '<=', $endDate)
-                )
-            ], 'quantity')
-            ->get();
-
-        $totalModal = (float) $soldMedicines->sum(function($med) {
-            $latestStock = $med->latestActiveIncomingStock;
-            $modal = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
-            return $modal * (float) ($med->terjual ?? 0);
-        });
+        // Ambil total modal dari summary terpadu tanpa duplikasi kueri
+        $summary = $this->calculateSalesSummary($startDate, $endDate);
+        $totalModal = $summary['total_modal'];
 
         return [
             'total_transactions' => $totalTransactions,
@@ -326,7 +357,8 @@ class AdminReportController extends Controller
             ->whereDate('created_at', '<=', $endDate)
             ->with([
                 'kasir',
-                'saleItems.medicine.latestActiveIncomingStock'
+                'saleItems.medicine.latestActiveIncomingStock',
+                'saleItems.compoundedProduct',
             ])
             ->orderBy('created_at', 'desc')
             ->paginate(25)
@@ -346,11 +378,17 @@ class AdminReportController extends Controller
                     $itemModal = ($hppSatuan * $item->quantity);
                     $modal += $itemModal;
                     $sisaStok = $item->medicine->stok_total;
+                } elseif ($item->item_type === 'racikan') {
+                    $cp = $item->compoundedProduct;
+                    $hppSatuan = $cp ? (float) ($cp->hpp_per_unit > 0 ? $cp->hpp_per_unit : $cp->base_cost) : 0;
+                    $itemModal = ($hppSatuan * $item->quantity);
+                    $modal += $itemModal;
+                    $sisaStok = $cp ? $cp->qty_hasil : 0;
                 }
                 
                 $items[] = [
                     'id' => $item->id,
-                    'item_name' => $item->item_name ?: ($item->medicine ? $item->medicine->nama_obat : 'Racikan'),
+                    'item_name' => $item->item_name ?: ($item->medicine ? $item->medicine->nama_obat : ($item->compoundedProduct ? $item->compoundedProduct->nama_produk : 'Racikan')),
                     'quantity' => (float) $item->quantity,
                     'unit' => $item->unit,
                     'unit_price' => (float) $item->unit_price,

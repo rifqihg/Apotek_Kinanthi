@@ -21,26 +21,19 @@ class AdminStockOpnameController extends Controller
      */
     public function stockOpnameIndex()
     {
-        $opnames = StockOpname::with('creator')
-            ->whereHas('creator', function ($query) {
-                $query->where('role', 'admin');
-            })
-            ->latest()
-            ->paginate(15);
-
-        $medicines = Medicine::where('status', 'active')
-            ->select(['id', 'nama_obat'])
-            ->orderBy('nama_obat')
-            ->get();
-        $rawMaterials = RawMaterial::where('status', 'active')
-            ->select(['id', 'nama_bahan'])
-            ->orderBy('nama_bahan')
-            ->get();
-
         return Inertia::render('Control/Admin/StockOpname', [
-            'opnames' => $opnames,
-            'medicines' => $medicines,
-            'rawMaterials' => $rawMaterials,
+            'opnames' => StockOpname::with('creator')
+                ->whereHas('creator', fn($q) => $q->where('role', 'admin'))
+                ->latest()
+                ->paginate(15),
+            'medicines' => Medicine::where('status', 'active')
+                ->select(['id', 'nama_obat'])
+                ->orderBy('nama_obat')
+                ->get(),
+            'rawMaterials' => RawMaterial::where('status', 'active')
+                ->select(['id', 'nama_bahan'])
+                ->orderBy('nama_bahan')
+                ->get(),
         ]);
     }
 
@@ -59,8 +52,9 @@ class AdminStockOpnameController extends Controller
         ]);
 
         return DB::transaction(function () use ($v, $request) {
+            $userId = (int) (auth()->id() ?? $request->user()?->id);
             $opname = StockOpname::create([
-                'created_by' => $request->user()->id,
+                'created_by' => $userId,
                 'opname_date' => $v['tanggal_opname'],
                 'catatan' => $v['keterangan'],
                 'is_blind_count' => false,
@@ -80,7 +74,7 @@ class AdminStockOpnameController extends Controller
                         ->sum('stock_on_hand');
                 }
 
-                $qtyFisik = $item['qty_fisik'];
+                $qtyFisik = (float) $item['qty_fisik'];
                 $difference = $qtyFisik - $systemStock;
 
                 StockOpnameItem::create([
@@ -95,7 +89,7 @@ class AdminStockOpnameController extends Controller
                 ]);
             }
 
-            AuditTrail::log($request->user()->id, 'CREATE_ADMIN_OPNAME', "Admin membuat stock opname baru", StockOpname::class, $opname->id);
+            AuditTrail::log($userId, 'CREATE_ADMIN_OPNAME', "Admin membuat stock opname baru", StockOpname::class, $opname->id);
 
             return redirect()->back()->with('success', 'Stock Opname berhasil disimpan.');
         });
@@ -106,15 +100,13 @@ class AdminStockOpnameController extends Controller
      */
     public function stockOpnameShow($id)
     {
-        $opname = StockOpname::with([
-            'creator',
-            'finalizer',
-            'items.medicine',
-            'items.rawMaterial'
-        ])->findOrFail($id);
-
         return Inertia::render('Control/Admin/StockOpnameDetail', [
-            'opname' => $opname,
+            'opname' => StockOpname::with([
+                'creator',
+                'finalizer',
+                'items.medicine',
+                'items.rawMaterial'
+            ])->findOrFail($id),
         ]);
     }
 
@@ -133,74 +125,116 @@ class AdminStockOpnameController extends Controller
             foreach ($opname->items as $item) {
                 if ($item->difference != 0) {
                     if ($item->medicine_id) {
-                        $wi = WarehouseInventory::where('medicine_id', $item->medicine_id)
-                            ->where('status', 'active')
-                            ->orderBy('expired_date', 'asc')
-                            ->first();
+                        $this->applyOpnameAdjustment(
+                            WarehouseInventory::class,
+                            'medicine_id',
+                            (int) $item->medicine_id,
+                            (float) $item->difference,
+                            (float) $item->physical_stock,
+                            $opname->id
+                        );
 
-                        if ($wi) {
-                            $wi->stock_on_hand += $item->difference;
-                            if ($wi->stock_on_hand < 0) {
-                                $wi->stock_on_hand = 0;
-                            }
-                            $wi->save();
-
-                            $wi->medicine->recalculateStock();
-                        } else {
-                            if ($item->physical_stock > 0) {
-                                $wi = WarehouseInventory::create([
-                                    'medicine_id' => $item->medicine_id,
-                                    'batch_no' => 'ADJ-' . now()->format('Ymd'),
-                                    'stock_on_hand' => $item->physical_stock,
-                                    'status' => 'active',
-                                ]);
-                                $wi->medicine->recalculateStock();
-                            }
+                        if ($item->medicine) {
+                            $item->medicine->recalculateStock();
                         }
                     } elseif ($item->raw_material_id) {
-                        $rs = RawMaterialStock::where('raw_material_id', $item->raw_material_id)
-                            ->where('status', 'active')
-                            ->orderBy('expired_date', 'asc')
-                            ->first();
+                        $this->applyOpnameAdjustment(
+                            RawMaterialStock::class,
+                            'raw_material_id',
+                            (int) $item->raw_material_id,
+                            (float) $item->difference,
+                            (float) $item->physical_stock,
+                            $opname->id
+                        );
 
-                        if ($rs) {
-                            $rs->stock_on_hand += $item->difference;
-                            if ($rs->stock_on_hand < 0) {
-                                $rs->stock_on_hand = 0;
-                            }
-                            $rs->save();
-
-                            $rs->rawMaterial->update([
+                        if ($item->rawMaterial) {
+                            $item->rawMaterial->update([
                                 'stok_total' => RawMaterialStock::where('raw_material_id', $item->raw_material_id)
                                     ->where('status', 'active')
                                     ->sum('stock_on_hand')
                             ]);
-                        } else {
-                            if ($item->physical_stock > 0) {
-                                $rs = RawMaterialStock::create([
-                                    'raw_material_id' => $item->raw_material_id,
-                                    'batch_no' => 'ADJ-' . now()->format('Ymd'),
-                                    'stock_on_hand' => $item->physical_stock,
-                                    'status' => 'active',
-                                ]);
-                                $rs->rawMaterial->update([
-                                    'stok_total' => $item->physical_stock
-                                ]);
-                            }
                         }
                     }
                 }
             }
 
+            $userId = (int) (auth()->id() ?? $request->user()?->id);
             $opname->update([
                 'status' => 'completed',
                 'finalized_at' => now(),
-                'finalized_by' => $request->user()->id,
+                'finalized_by' => $userId,
             ]);
 
-            AuditTrail::log($request->user()->id, 'FINALIZE_ADMIN_OPNAME', "Admin memfinalisasi stock opname", StockOpname::class, $opname->id);
+            AuditTrail::log($userId, 'FINALIZE_ADMIN_OPNAME', "Admin memfinalisasi stock opname", StockOpname::class, $opname->id);
 
             return redirect()->back()->with('success', 'Stock Opname berhasil difinalisasi dan stok telah disesuaikan.');
         });
+    }
+
+    /**
+     * Eksekusi penyesuaian stok opname secara polimorfik (FEFO chain deduction untuk minus, atau alokasi batch untuk surplus).
+     */
+    private function applyOpnameAdjustment(string $modelClass, string $foreignKey, int $foreignId, float $diff, float $physicalStock, int $opnameId): void
+    {
+        if ($diff < 0) {
+            $remainingToDeduct = abs($diff);
+            $batches = $modelClass::where($foreignKey, $foreignId)
+                ->where('status', 'active')
+                ->where('stock_on_hand', '>', 0)
+                ->orderBy('expired_date', 'asc')
+                ->orderBy('id', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($batches as $batch) {
+                if ($remainingToDeduct <= 0) break;
+
+                $currentStock = (float) $batch->stock_on_hand;
+                $deductQty = min($currentStock, $remainingToDeduct);
+                $remainingToDeduct -= $deductQty;
+
+                $batch->stock_on_hand = $currentStock - $deductQty;
+                $batch->mutationContext = [
+                    'type' => 'opname_adjustment',
+                    'reference_type' => StockOpname::class,
+                    'reference_id' => $opnameId,
+                    'note' => "Penyesuaian Opname: Selisih fisik minus (-{$deductQty})",
+                ];
+                $batch->save();
+            }
+        } else {
+            $latestBatch = $modelClass::where($foreignKey, $foreignId)
+                ->where('status', 'active')
+                ->orderBy('expired_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->lockForUpdate()
+                ->first();
+
+            if ($latestBatch) {
+                $latestBatch->stock_on_hand += $diff;
+                $latestBatch->mutationContext = [
+                    'type' => 'opname_adjustment',
+                    'reference_type' => StockOpname::class,
+                    'reference_id' => $opnameId,
+                    'note' => "Penyesuaian Opname: Selisih fisik plus (+{$diff})",
+                ];
+                $latestBatch->save();
+            } else {
+                $newBatch = $modelClass::create([
+                    $foreignKey => $foreignId,
+                    'batch_no' => 'ADJ-' . now()->format('Ymd'),
+                    'stock_on_hand' => $physicalStock,
+                    'expired_date' => now()->addYear(),
+                    'status' => 'active',
+                ]);
+                $newBatch->mutationContext = [
+                    'type' => 'opname_adjustment',
+                    'reference_type' => StockOpname::class,
+                    'reference_id' => $opnameId,
+                    'note' => "Penyesuaian Opname: Batch baru penyesuaian (+{$physicalStock})",
+                ];
+                $newBatch->save();
+            }
+        }
     }
 }

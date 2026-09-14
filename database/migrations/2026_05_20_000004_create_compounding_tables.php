@@ -141,10 +141,23 @@ return new class extends Migration
             $table->index('compounding_detail_id');
             $table->index(['stock_source_id', 'stock_source_type'], 'csd_stock_source_idx');
         });
+
+        // 7. Relasi balik item resep ke produk racikan & pengajuan
+        Schema::table('prescription_items', function (Blueprint $table) {
+            $table->foreignId('compounded_product_id')->nullable()->after('medicine_id')->constrained('compounded_products')->nullOnDelete();
+            $table->foreignId('compounding_id')->nullable()->after('compounded_product_id')->constrained('compounding_submissions')->nullOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::table('prescription_items', function (Blueprint $table) {
+            $table->dropForeign(['compounding_id']);
+            $table->dropColumn('compounding_id');
+            $table->dropForeign(['compounded_product_id']);
+            $table->dropColumn('compounded_product_id');
+        });
+
         Schema::dropIfExists('compounding_stock_deductions');
         Schema::dropIfExists('compounded_products');
         Schema::dropIfExists('compounding_labels');

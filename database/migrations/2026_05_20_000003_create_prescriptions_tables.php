@@ -41,14 +41,18 @@ return new class extends Migration
             $table->foreignId('prescription_id')->constrained('prescriptions')->cascadeOnDelete();
             $table->enum('item_type', ['obat_jadi', 'racikan']);
             $table->foreignId('medicine_id')->nullable()->constrained('medicines')->nullOnDelete();
-            $table->string('item_name');
+            $table->string('custom_formula_name')->nullable();
+            $table->string('item_name')->nullable();
             $table->decimal('quantity', 10, 2);
             $table->string('unit');
+            $table->string('usage_instructions')->nullable();
             $table->string('dosage_instruction')->nullable();
+            $table->enum('status', ['pending', 'dikerjakan', 'selesai'])->default('pending');
             $table->timestamps();
 
             $table->index('item_type');
             $table->index('medicine_id');
+            $table->index('status');
         });
     }
 

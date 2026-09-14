@@ -61,6 +61,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->date('date_of_birth')->nullable();
             $table->enum('gender', ['L', 'P'])->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }

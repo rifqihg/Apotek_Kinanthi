@@ -15,6 +15,7 @@ class RawMaterialStockObserver
         'return' => 'Retur',
         'destruction' => 'Pemusnahan',
         'OPNAME_ADJUSTMENT' => 'Penyesuaian Opname',
+        'opname_adjustment' => 'opname_adjustment',
     ];
 
     public function created(RawMaterialStock $stock): void
