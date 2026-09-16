@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Control\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Control\Category;
 use App\Models\Control\AuditTrail;
 use App\Models\Control\Medicine;
 use App\Models\Control\RawMaterial;
@@ -22,16 +23,29 @@ class AdminStockOpnameController extends Controller
     public function stockOpnameIndex()
     {
         return Inertia::render('Control/Admin/StockOpname', [
-            'opnames' => StockOpname::with('creator')
+            'opnames' => StockOpname::with('creator:id,name')
                 ->whereHas('creator', fn($q) => $q->where('role', 'admin'))
+                ->withCount('items')
                 ->latest()
                 ->paginate(15),
             'medicines' => Medicine::where('status', 'active')
-                ->select(['id', 'nama_obat'])
+                ->select(['id', 'nama_obat', 'satuan_stok', 'category_id'])
+                ->with([
+                    'warehouseInventories' => fn($q) => $q->where('status', 'active')
+                        ->where('stock_on_hand', '>', 0)
+                        ->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand']),
+                    'latestActiveIncomingStock'
+                ])
                 ->orderBy('nama_obat')
                 ->get(),
+            'categories' => Category::select(['id', 'name'])->orderBy('name')->get(),
             'rawMaterials' => RawMaterial::where('status', 'active')
-                ->select(['id', 'nama_bahan'])
+                ->select(['id', 'nama_bahan', 'satuan_ukur', 'base_unit', 'category_id'])
+                ->with([
+                    'stocks' => fn($q) => $q->where('status', 'active')
+                        ->where('stock_on_hand', '>', 0)
+                        ->select(['id', 'raw_material_id', 'batch_no', 'expired_date', 'stock_on_hand'])
+                ])
                 ->orderBy('nama_bahan')
                 ->get(),
         ]);
@@ -45,53 +59,135 @@ class AdminStockOpnameController extends Controller
         $v = $request->validate([
             'tanggal_opname' => 'required|date',
             'keterangan' => 'nullable|string|max:1000',
-            'items' => 'required|array|min:1',
+            'mode' => 'nullable|in:worksheet,manual',
+            'scope_type' => 'nullable|in:all,category,raw_materials',
+            'category_id' => 'nullable|exists:categories,id',
+            'items' => 'nullable|array',
+            'items.*.type' => 'nullable|in:medicine,raw_material',
             'items.*.medicine_id' => 'nullable|exists:medicines,id',
             'items.*.raw_material_id' => 'nullable|exists:raw_materials,id',
-            'items.*.qty_fisik' => 'required|numeric|min:0',
+            'items.*.warehouse_inventory_id' => 'nullable|exists:warehouse_inventories,id',
+            'items.*.raw_material_stock_id' => 'nullable|exists:raw_material_stocks,id',
+            'items.*.batch_no' => 'nullable|string|max:100',
+            'items.*.qty_fisik' => 'nullable|numeric|min:0',
         ]);
 
         return DB::transaction(function () use ($v, $request) {
             $userId = (int) (auth()->id() ?? $request->user()?->id);
+            $mode = $v['mode'] ?? (empty($v['items']) ? 'worksheet' : 'manual');
+
             $opname = StockOpname::create([
+                'category_id' => $v['category_id'] ?? null,
                 'created_by' => $userId,
                 'opname_date' => $v['tanggal_opname'],
-                'catatan' => $v['keterangan'],
+                'catatan' => $v['keterangan'] ?? null,
                 'is_blind_count' => false,
                 'status' => 'draft',
             ]);
 
-            foreach ($v['items'] as $item) {
-                $systemStock = 0;
+            if ($mode === 'worksheet') {
+                $scope = $v['scope_type'] ?? 'all';
 
-                if (!empty($item['medicine_id'])) {
-                    $systemStock = WarehouseInventory::where('medicine_id', $item['medicine_id'])
-                        ->where('status', 'active')
-                        ->sum('stock_on_hand');
-                } elseif (!empty($item['raw_material_id'])) {
-                    $systemStock = RawMaterialStock::where('raw_material_id', $item['raw_material_id'])
-                        ->where('status', 'active')
-                        ->sum('stock_on_hand');
+                if ($scope === 'raw_materials') {
+                    $batches = RawMaterialStock::where('status', 'active')
+                        ->where('stock_on_hand', '>', 0)
+                        ->orderBy('raw_material_id')
+                        ->get();
+
+                    foreach ($batches as $batch) {
+                        StockOpnameItem::create([
+                            'stock_opname_id' => $opname->id,
+                            'raw_material_id' => $batch->raw_material_id,
+                            'raw_material_stock_id' => $batch->id,
+                            'batch_no' => $batch->batch_no ?? '-',
+                            'system_stock' => (float) $batch->stock_on_hand,
+                            'physical_stock' => (float) $batch->stock_on_hand,
+                            'difference' => 0,
+                            'reason' => null,
+                        ]);
+                    }
+                } else {
+                    $inventoryQuery = WarehouseInventory::where('status', 'active')
+                        ->where('stock_on_hand', '>', 0);
+
+                    if ($scope === 'category' && !empty($v['category_id'])) {
+                        $catId = $v['category_id'];
+                        $inventoryQuery->whereHas('medicine', fn($q) => $q->where('category_id', $catId));
+                    }
+
+                    $batches = $inventoryQuery->orderBy('medicine_id')->get();
+
+                    foreach ($batches as $batch) {
+                        StockOpnameItem::create([
+                            'stock_opname_id' => $opname->id,
+                            'medicine_id' => $batch->medicine_id,
+                            'warehouse_inventory_id' => $batch->id,
+                            'batch_no' => $batch->batch_no ?? '-',
+                            'system_stock' => (float) $batch->stock_on_hand,
+                            'physical_stock' => (float) $batch->stock_on_hand,
+                            'difference' => 0,
+                            'reason' => null,
+                        ]);
+                    }
                 }
 
-                $qtyFisik = (float) $item['qty_fisik'];
+                AuditTrail::log($userId, 'CREATE_ADMIN_OPNAME', "Admin membuat lembar kerja stock opname otomatis ({$scope})", StockOpname::class, $opname->id);
+
+                return redirect()->route('control.admin.stock-opname.show', $opname->id)->with('success', 'Lembar kerja stock opname berhasil dibuat.');
+            }
+
+            // Mode Manual (Sampling)
+            $items = $v['items'] ?? [];
+            foreach ($items as $item) {
+                $systemStock = 0;
+                $batchNo = $item['batch_no'] ?? null;
+                $warehouseInventoryId = $item['warehouse_inventory_id'] ?? null;
+                $rawMaterialStockId = $item['raw_material_stock_id'] ?? null;
+
+                if (!empty($warehouseInventoryId)) {
+                    $inv = WarehouseInventory::find($warehouseInventoryId);
+                    if ($inv) {
+                        $systemStock = (float) $inv->stock_on_hand;
+                        $batchNo = $inv->batch_no;
+                    }
+                } elseif (!empty($rawMaterialStockId)) {
+                    $rms = RawMaterialStock::find($rawMaterialStockId);
+                    if ($rms) {
+                        $systemStock = (float) $rms->stock_on_hand;
+                        $batchNo = $rms->batch_no;
+                    }
+                } elseif (!empty($item['medicine_id'])) {
+                    $systemStock = (float) WarehouseInventory::where('medicine_id', $item['medicine_id'])
+                        ->where('status', 'active')
+                        ->sum('stock_on_hand');
+                    $batchNo = 'ALL_BATCHES';
+                } elseif (!empty($item['raw_material_id'])) {
+                    $systemStock = (float) RawMaterialStock::where('raw_material_id', $item['raw_material_id'])
+                        ->where('status', 'active')
+                        ->sum('stock_on_hand');
+                    $batchNo = 'ALL_BATCHES';
+                }
+
+                $qtyFisik = (float) ($item['qty_fisik'] ?? 0);
                 $difference = $qtyFisik - $systemStock;
 
                 StockOpnameItem::create([
                     'stock_opname_id' => $opname->id,
                     'medicine_id' => $item['medicine_id'] ?? null,
                     'raw_material_id' => $item['raw_material_id'] ?? null,
-                    'batch_no' => 'ALL_BATCHES',
+                    'warehouse_inventory_id' => $warehouseInventoryId,
+                    'raw_material_stock_id' => $rawMaterialStockId,
+                    'batch_no' => $batchNo ?? 'ALL_BATCHES',
                     'system_stock' => $systemStock,
                     'physical_stock' => $qtyFisik,
                     'difference' => $difference,
-                    'reason' => $difference != 0 ? 'Admin Adjustment' : null,
+                    'reason' => abs($difference) > 0.001 ? ($item['reason'] ?? 'Selisih Opname') : null,
                 ]);
             }
 
-            AuditTrail::log($userId, 'CREATE_ADMIN_OPNAME', "Admin membuat stock opname baru", StockOpname::class, $opname->id);
+            AuditTrail::log($userId, 'CREATE_ADMIN_OPNAME', "Admin membuat stock opname manual", StockOpname::class, $opname->id);
 
-            return redirect()->back()->with('success', 'Stock Opname berhasil disimpan.');
+            return redirect()->route('control.admin.stock-opname.show', $opname->id)->with('success', 'Stock Opname berhasil dibuat.');
         });
     }
 
@@ -102,10 +198,14 @@ class AdminStockOpnameController extends Controller
     {
         return Inertia::render('Control/Admin/StockOpnameDetail', [
             'opname' => StockOpname::with([
-                'creator',
-                'finalizer',
-                'items.medicine',
-                'items.rawMaterial'
+                'creator:id,name',
+                'finalizer:id,name',
+                'items' => fn($q) => $q->orderBy('id', 'asc'),
+                'items.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,rasio_konversi',
+                'items.medicine.latestActiveIncomingStock',
+                'items.rawMaterial:id,nama_bahan,satuan_ukur,base_unit',
+                'items.productBatch:id,batch_no,expired_date,stock_on_hand',
+                'items.rawMaterialBatch:id,batch_no,expired_date,stock_on_hand',
             ])->findOrFail($id),
         ]);
     }
@@ -121,10 +221,93 @@ class AdminStockOpnameController extends Controller
             return redirect()->back()->with('error', 'Opname ini sudah difinalisasi.');
         }
 
+        // 1. Simpan Draf (hanya simpan qty fisik & alasan tanpa mengubah stok gudang)
+        if ($request->input('action') === 'save_draft') {
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.id' => 'required|exists:stock_opname_items,id',
+                'items.*.physical_stock' => 'required|numeric|min:0',
+                'items.*.reason' => 'nullable|string|max:255',
+            ]);
+
+            return DB::transaction(function () use ($opname, $validated) {
+                foreach ($validated['items'] as $itemData) {
+                    $item = $opname->items->firstWhere('id', $itemData['id']);
+                    if ($item) {
+                        $diff = (float) $itemData['physical_stock'] - (float) $item->system_stock;
+                        $item->update([
+                            'physical_stock' => (float) $itemData['physical_stock'],
+                            'difference' => $diff,
+                            'reason' => abs($diff) > 0.001 ? ($itemData['reason'] ?? 'Selisih Fisik') : null,
+                        ]);
+                    }
+                }
+
+                return redirect()->back()->with('success', 'Draf perhitungan fisik berhasil disimpan.');
+            });
+        }
+
+        // 2. Finalisasi & Sesuaikan Stok
         return DB::transaction(function () use ($opname, $request) {
+            // Jika ada payload items terbaru yang disertakan, perbarui data item terlebih dahulu
+            if ($request->has('items') && is_array($request->input('items'))) {
+                foreach ($request->input('items') as $itemData) {
+                    if (isset($itemData['id'])) {
+                        $item = $opname->items->firstWhere('id', $itemData['id']);
+                        if ($item) {
+                            $phys = isset($itemData['physical_stock']) ? (float) $itemData['physical_stock'] : (float) $item->physical_stock;
+                            $diff = $phys - (float) $item->system_stock;
+                            $item->update([
+                                'physical_stock' => $phys,
+                                'difference' => $diff,
+                                'reason' => abs($diff) > 0.001 ? ($itemData['reason'] ?? $item->reason ?? 'Selisih Opname') : null,
+                            ]);
+                        }
+                    }
+                }
+                $opname->load('items');
+            }
+
+            $affectedMedicines = [];
+            $affectedRawMaterials = [];
+
             foreach ($opname->items as $item) {
-                if ($item->difference != 0) {
-                    if ($item->medicine_id) {
+                if (abs($item->difference) > 0.001) {
+                    if ($item->warehouse_inventory_id) {
+                        $inv = WarehouseInventory::where('id', $item->warehouse_inventory_id)
+                            ->lockForUpdate()
+                            ->first();
+                        if ($inv) {
+                            $inv->stock_on_hand = (float) $item->physical_stock;
+                            $inv->mutationContext = [
+                                'type' => 'opname_adjustment',
+                                'reference_type' => StockOpname::class,
+                                'reference_id' => $opname->id,
+                                'note' => "Penyesuaian Opname Batch {$inv->batch_no}: " . ($item->difference >= 0 ? "+{$item->difference}" : "{$item->difference}") . ($item->reason ? " ({$item->reason})" : ""),
+                            ];
+                            $inv->save();
+                        }
+                        if ($item->medicine_id) {
+                            $affectedMedicines[$item->medicine_id] = true;
+                        }
+                    } elseif ($item->raw_material_stock_id) {
+                        $rms = RawMaterialStock::where('id', $item->raw_material_stock_id)
+                            ->lockForUpdate()
+                            ->first();
+                        if ($rms) {
+                            $rms->stock_on_hand = (float) $item->physical_stock;
+                            $rms->mutationContext = [
+                                'type' => 'opname_adjustment',
+                                'reference_type' => StockOpname::class,
+                                'reference_id' => $opname->id,
+                                'note' => "Penyesuaian Opname Batch {$rms->batch_no}: " . ($item->difference >= 0 ? "+{$item->difference}" : "{$item->difference}") . ($item->reason ? " ({$item->reason})" : ""),
+                            ];
+                            $rms->save();
+                        }
+                        if ($item->raw_material_id) {
+                            $affectedRawMaterials[$item->raw_material_id] = true;
+                        }
+                    } elseif ($item->medicine_id) {
                         $this->applyOpnameAdjustment(
                             WarehouseInventory::class,
                             'medicine_id',
@@ -133,10 +316,7 @@ class AdminStockOpnameController extends Controller
                             (float) $item->physical_stock,
                             $opname->id
                         );
-
-                        if ($item->medicine) {
-                            $item->medicine->recalculateStock();
-                        }
+                        $affectedMedicines[$item->medicine_id] = true;
                     } elseif ($item->raw_material_id) {
                         $this->applyOpnameAdjustment(
                             RawMaterialStock::class,
@@ -146,16 +326,19 @@ class AdminStockOpnameController extends Controller
                             (float) $item->physical_stock,
                             $opname->id
                         );
-
-                        if ($item->rawMaterial) {
-                            $item->rawMaterial->update([
-                                'stok_total' => RawMaterialStock::where('raw_material_id', $item->raw_material_id)
-                                    ->where('status', 'active')
-                                    ->sum('stock_on_hand')
-                            ]);
-                        }
+                        $affectedRawMaterials[$item->raw_material_id] = true;
                     }
                 }
+            }
+
+            // Recalculate stock per obat / bahan baku secara kolektif
+            foreach (array_keys($affectedMedicines) as $medId) {
+                $med = Medicine::find($medId);
+                $med?->recalculateStock();
+            }
+            foreach (array_keys($affectedRawMaterials) as $rmId) {
+                $rm = RawMaterial::find($rmId);
+                $rm?->recalculateStock();
             }
 
             $userId = (int) (auth()->id() ?? $request->user()?->id);

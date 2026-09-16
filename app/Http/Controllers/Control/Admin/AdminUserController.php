@@ -28,8 +28,11 @@ class AdminUserController extends Controller
     {
         // 1. Mutasi Fisik Stok
         $mutationQuery = StockMutation::with([
-            'inventory.medicine', 
-            'rawMaterialStock.rawMaterial', 
+            'inventory:id,medicine_id,incoming_stock_id,batch_no', 
+            'inventory.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,base_unit,rasio_konversi', 
+            'inventory.incomingStock:id,satuan_input,mid_unit,unit_conversion_factor,mid_to_big_ratio,small_to_mid_ratio',
+            'rawMaterialStock:id,raw_material_id,batch_no', 
+            'rawMaterialStock.rawMaterial:id,nama_bahan,satuan', 
             'item'
         ])->where('quantity', '>', 0);
 

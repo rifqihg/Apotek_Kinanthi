@@ -4,6 +4,7 @@ import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useQuery } from '@tanstack/vue-query';
 import axios from 'axios';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -149,100 +150,99 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-
                 </a>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-muted/50 border-b border-border">
-                            <th class="w-12 px-4 py-3 text-center"></th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No Transaksi</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Modal (HPP)</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Subtotal</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Diskon</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Penjualan</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Laba</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
+                <Table>
+                    <TableHeader>
+                        <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                            <TableHead class="w-10 py-2 px-3 text-center"></TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No Transaksi</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Modal (HPP)</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Subtotal</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Diskon</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Penjualan</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Laba</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
                         <template v-for="data in activeTransactions" :key="data.id">
                             <!-- Main Row -->
-                            <tr @click="toggleRow(data.id)" class="hover:bg-muted/40 transition-colors cursor-pointer group">
-                                <td class="px-4 py-3 text-center">
-                                    <div class="w-6 h-6 rounded-md bg-muted group-hover:bg-muted/80 flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors mx-auto">
-                                        <svg :class="{'rotate-180': expandedRows[data.id]}" class="w-4 h-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <TableRow @click="toggleRow(data.id)" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer group">
+                                <TableCell class="py-2 px-3 align-middle text-center">
+                                    <div class="w-5 h-5 rounded bg-muted/60 group-hover:bg-muted flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors mx-auto">
+                                        <svg :class="{'rotate-180': expandedRows[data.id]}" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                         </svg>
                                     </div>
-                                </td>
-                                <td class="px-4 py-3 text-sm font-medium text-muted-foreground">{{ formatDate(data.created_at) }}</td>
-                                <td class="px-4 py-3">
-                                    <p class="font-semibold text-foreground text-sm">{{ data.sale_number }}</p>
-                                    <p class="text-xs font-medium text-muted-foreground mt-0.5">Kasir: {{ data.kasir_name }}</p>
-                                </td>
-                                <td class="px-4 py-3 text-right font-medium text-muted-foreground text-sm">{{ formatRupiah(data.modal) }}</td>
-                                <td class="px-4 py-3 text-right font-medium text-foreground text-sm">{{ formatRupiah(data.subtotal) }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <span v-if="data.discount_amount > 0" class="font-semibold text-destructive text-sm">
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-xs font-mono text-muted-foreground tabular-nums">{{ formatDate(data.created_at) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="font-mono text-xs font-semibold text-foreground leading-tight">{{ data.sale_number }}</span>
+                                        <span class="text-xs text-muted-foreground leading-tight mt-0.5">Kasir: {{ data.kasir_name }}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right font-medium text-muted-foreground text-xs tabular-nums">{{ formatRupiah(data.modal) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground text-sm tabular-nums">{{ formatRupiah(data.subtotal) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right tabular-nums">
+                                    <span v-if="data.discount_amount > 0" class="font-semibold text-destructive text-sm tabular-nums">
                                         {{ formatRupiah(data.discount_amount) }}
                                     </span>
                                     <span v-else class="text-xs text-muted-foreground">Rp0</span>
-                                </td>
-                                <td class="px-4 py-3 text-right font-semibold text-foreground text-sm">{{ formatRupiah(data.total_amount) }}</td>
-                                <td class="px-4 py-3 text-right font-bold text-emerald-600 text-sm">{{ formatRupiah(data.laba) }}</td>
-                            </tr>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right font-semibold text-foreground text-sm tabular-nums">{{ formatRupiah(data.total_amount) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">{{ formatRupiah(data.laba) }}</TableCell>
+                            </TableRow>
                             
                             <!-- Expanded Details Row -->
-                            <tr v-show="expandedRows[data.id]" class="bg-muted/20">
-                                <td colspan="8" class="p-0 border-t-0">
-                                    <div class="p-4 sm:p-6 border-y border-border">
-                                        <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Rincian Obat & Stok Keluar</h3>
+                            <TableRow v-show="expandedRows[data.id]" class="bg-muted/20 border-b border-border/40">
+                                <TableCell colspan="8" class="p-0 border-t-0">
+                                    <div class="p-3 sm:p-4 border-y border-border/60">
+                                        <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Rincian Obat & Stok Keluar</h3>
                                         
-                                        <div class="bg-card border border-border rounded-lg overflow-hidden">
-                                            <table class="w-full text-left text-sm">
-                                                <thead class="bg-muted/50 border-b border-border">
-                                                    <tr>
-                                                        <th class="px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase">Item Terjual</th>
-                                                        <th class="px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase text-center">Kategori</th>
-                                                        <th class="px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase text-center">Qty Keluar</th>
-                                                        <th class="px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase text-right">Modal/HPP Total</th>
-                                                        <th class="px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase text-right">Harga Jual Total</th>
-                                                        <th class="px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase text-center">Sisa Stok Real-time</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-border">
-                                                    <tr v-for="item in data.items" :key="item.id" class="hover:bg-muted/40 transition-colors">
-                                                        <td class="px-4 py-2.5 font-medium text-foreground">{{ item.item_name }}</td>
-                                                        <td class="px-4 py-2.5 text-center">
-                                                            <span class="px-2 py-0.5 text-xs font-semibold rounded-md" 
-                                                                :class="item.item_type === 'racikan' ? 'bg-purple-500/10 text-purple-600 border border-purple-500/20' : 'bg-primary/10 text-primary border border-primary/20'">
-                                                                {{ item.item_type === 'racikan' ? 'Racikan' : 'Obat Jadi' }}
+                                        <div class="bg-card border border-border rounded-md overflow-hidden">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow class="h-9 border-b border-border/60 hover:bg-transparent">
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Item Terjual</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">Kategori</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">Qty Keluar</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">Modal/HPP Total</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">Harga Jual Total</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">Sisa Stok Real-time</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    <TableRow v-for="item in data.items" :key="item.id" class="h-9 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                                                        <TableCell class="py-1.5 px-3 align-middle font-medium text-sm text-foreground">{{ item.item_name }}</TableCell>
+                                                        <TableCell class="py-1.5 px-3 align-middle text-center">
+                                                            <span class="text-xs text-muted-foreground">{{ item.item_type === 'racikan' ? 'Racikan' : 'Obat Jadi' }}</span>
+                                                        </TableCell>
+                                                        <TableCell class="py-1.5 px-3 align-middle text-center">
+                                                            <span class="font-semibold text-sm text-foreground tabular-nums">{{ item.quantity }}</span> <span class="text-xs text-muted-foreground">{{ item.unit }}</span>
+                                                        </TableCell>
+                                                        <TableCell class="py-1.5 px-3 align-middle text-right text-xs text-muted-foreground tabular-nums font-medium">{{ formatRupiah(item.modal) }}</TableCell>
+                                                        <TableCell class="py-1.5 px-3 align-middle text-right text-sm font-medium text-foreground tabular-nums">{{ formatRupiah(item.subtotal) }}</TableCell>
+                                                        <TableCell class="py-1.5 px-3 align-middle text-center">
+                                                            <span v-if="item.item_type === 'obat_jadi'" class="inline-flex items-center gap-1.5 text-xs tabular-nums font-medium" :class="item.sisa_stok <= 10 ? 'text-red-600 dark:text-red-400' : 'text-foreground'">
+                                                                <span class="w-1.5 h-1.5 rounded-full" :class="item.sisa_stok <= 10 ? 'bg-red-500' : 'bg-emerald-500'"></span>
+                                                                {{ item.sisa_stok }} {{ item.unit }}
                                                             </span>
-                                                        </td>
-                                                        <td class="px-4 py-2.5 text-center font-semibold text-foreground">
-                                                            {{ item.quantity }} <span class="text-xs text-muted-foreground font-normal ml-1">{{ item.unit }}</span>
-                                                        </td>
-                                                        <td class="px-4 py-2.5 text-right font-medium text-muted-foreground">{{ formatRupiah(item.modal) }}</td>
-                                                        <td class="px-4 py-2.5 text-right font-medium text-foreground">{{ formatRupiah(item.subtotal) }}</td>
-                                                        <td class="px-4 py-2.5 text-center">
-                                                            <div v-if="item.item_type === 'obat_jadi'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold" :class="item.sisa_stok <= 10 ? 'bg-destructive/10 text-destructive border border-destructive/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'">
-                                                                <span class="font-bold">{{ item.sisa_stok }}</span>
-                                                                <span>{{ item.unit }}</span>
-                                                            </div>
                                                             <span v-else class="text-xs text-muted-foreground">-</span>
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableBody>
+                                            </Table>
                                         </div>
                                     </div>
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         </template>
 
-                        <tr v-if="activeTransactions.length === 0">
-                            <td colspan="8" class="px-6 py-12 text-center text-muted-foreground font-medium text-sm">Belum ada aktivitas penjualan dalam rentang tanggal yang dipilih.</td>
-                        </tr>
-                    </tbody>
-                </table>
+                        <TableRow v-if="activeTransactions.length === 0">
+                            <TableCell colspan="8" class="py-8 px-3 text-center text-muted-foreground font-medium text-xs">Belum ada aktivitas penjualan dalam rentang tanggal yang dipilih.</TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
             </div>
 
             <!-- PAGINATION -->

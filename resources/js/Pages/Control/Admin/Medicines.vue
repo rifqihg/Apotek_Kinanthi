@@ -4,6 +4,7 @@ import { ref, computed } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 import axios from 'axios';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -287,116 +288,101 @@ const toggleRow = (id) => {
 
                     <!-- TABLE: KATALOG FAKTUR -->
                     <div v-if="activeTab === 'faktur'" class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
-                        <table class="w-full text-left">
-                            <thead>
-                                <tr class="bg-muted/40 border-b border-border">
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Exp Date</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty / Jumlah</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Harga Jual</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border">
-                                <tr v-if="!activeFakturStocks.data || activeFakturStocks.data.length === 0">
-                                    <td colspan="5" class="px-6 py-16 text-center">
-                                        <div class="flex flex-col items-center justify-center max-w-md mx-auto">
-                                            <div class="w-14 h-14 bg-slate-100 dark:bg-muted rounded-xl flex items-center justify-center text-slate-400 mb-4 border border-slate-200/60 dark:border-border shadow-2xs">
-                                                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                </svg>
-                                            </div>
-                                            <p class="text-base font-bold text-slate-800 dark:text-foreground">Belum Ada Data Obat Dari Faktur</p>
-                                            <p class="text-xs text-slate-500 dark:text-muted-foreground mt-1.5 leading-relaxed">
-                                                Katalog obat dari faktur masih kosong. Silakan tambahkan faktur pembelian masuk dari distributor untuk mengisi data obat dan stok.
-                                            </p>
-                                        </div>
-                                    </td>
-                                </tr>
+                        <Table>
+                            <TableHeader>
+                                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Nomor Batch</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Exp Date</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty / Jumlah</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Harga Jual</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="!activeFakturStocks.data || activeFakturStocks.data.length === 0">
+                                    <TableCell colspan="5" class="px-6 py-12 text-center text-muted-foreground text-sm">
+                                        Belum ada data obat dari faktur pembelian.
+                                    </TableCell>
+                                </TableRow>
                                 <template v-for="item in activeFakturStocks.data" :key="item.id">
-                                <tr class="transition-colors group" :class="expandedRows.includes(item.id) ? 'bg-muted/30' : 'hover:bg-muted/20'">
+                                <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors" :class="expandedRows.includes(item.id) ? 'bg-muted/20' : ''">
                                     <!-- IDENTITAS -->
-                                    <td class="px-6 py-3.5">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-9 h-9 bg-primary/10 rounded-md flex items-center justify-center text-primary font-bold text-xs border border-primary/20 flex-shrink-0">
-                                                {{ item.medicine?.nama_obat ? item.medicine.nama_obat.substring(0, 2).toUpperCase() : 'OB' }}
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span class="font-semibold text-foreground text-sm line-clamp-1" :title="item.medicine?.nama_obat">{{ item.medicine?.nama_obat || 'Obat Tidak Diketahui' }}</span>
-                                                <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">{{ item.medicine?.kategori || '-' }}</span>
-                                            </div>
+                                    <TableCell class="py-2 px-3 align-middle">
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-foreground text-sm leading-tight line-clamp-1" :title="item.medicine?.nama_obat">{{ item.medicine?.nama_obat || 'Obat Tidak Diketahui' }}</span>
+                                            <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.medicine?.kategori || '-' }}</span>
                                         </div>
-                                    </td>
+                                    </TableCell>
                                     <!-- BATCH NO -->
-                                    <td class="px-6 py-3.5">
-                                        <span class="px-2.5 py-0.5 bg-amber-50 text-amber-700 rounded-md text-xs font-medium border border-amber-200 uppercase tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap">
-                                            {{ item.batch_no || '-' }}
-                                        </span>
-                                    </td>
+                                    <TableCell class="py-2 px-3 text-center align-middle">
+                                        <span class="font-mono text-sm font-normal text-foreground tracking-tight whitespace-nowrap">{{ item.batch_no || '-' }}</span>
+                                    </TableCell>
                                     <!-- EXP DATE -->
-                                    <td class="px-6 py-3.5">
-                                        <span class="text-xs font-semibold whitespace-nowrap" :class="new Date(item.expired_date) < new Date() ? 'text-destructive' : 'text-foreground'">
+                                    <TableCell class="py-2 px-3 text-center align-middle">
+                                        <span 
+                                            v-if="new Date(item.expired_date) < new Date()"
+                                            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 whitespace-nowrap"
+                                        >
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                             {{ item.expired_date ? new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) : '-' }}
                                         </span>
-                                    </td>
+                                        <span v-else class="text-xs font-mono text-muted-foreground tabular-nums whitespace-nowrap">
+                                            {{ item.expired_date ? new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) : '-' }}
+                                        </span>
+                                    </TableCell>
                                     <!-- QTY -->
-                                    <td class="px-6 py-3.5 text-center">
-                                        <div class="flex items-center justify-center gap-1 flex-wrap">
-                                            <div v-for="(b, i) in getStockUnits(item)" :key="i"
-                                                 class="inline-flex items-center gap-1 px-2 py-0.5 border rounded-md shadow-2xs" :class="b.cls">
-                                                <span class="text-xs font-bold">{{ b.qty }}</span>
-                                                <span class="text-xs font-medium uppercase opacity-80">{{ b.unit }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <!-- HARGA & PROFIT -->
-                                    <td class="px-6 py-3.5 text-right align-top">
-                                        <div @click="toggleRow(item.id)" class="group inline-flex flex-col items-end cursor-pointer focus:outline-none w-full select-none justify-end">
-                                            <div class="flex items-center justify-end gap-1.5 w-full">
-                                                <span class="font-bold text-sm" :class="item.current_selling_price > 0 ? 'text-foreground' : 'text-muted-foreground'">
-                                                    {{ item.current_selling_price > 0 ? formatCurrency(item.current_selling_price) : 'Rp 0' }}
-                                                </span>
-                                                <div class="p-0.5 rounded text-muted-foreground transition-colors" :class="expandedRows.includes(item.id) ? 'bg-primary/10 text-primary' : 'group-hover:bg-muted'">
-                                                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="expandedRows.includes(item.id) ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                    <TableCell class="py-2 px-3 text-center align-middle">
+                                        <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                            <template v-for="(b, i) in getStockUnits(item)" :key="i">
+                                                <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
+                                                    <span class="font-semibold tabular-nums text-foreground">{{ b.qty }}</span>
+                                                    <span class="text-muted-foreground uppercase text-[11px] tracking-wide">{{ b.unit }}</span>
                                                 </div>
+                                            </template>
+                                            <div v-if="!getStockUnits(item)?.length" class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-destructive/30 bg-destructive/10 text-xs font-medium text-destructive">
+                                                <span class="font-semibold tabular-nums">0</span>
                                             </div>
-                                            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-0.5 mr-6 whitespace-nowrap">/ {{ item.prices?.kecil?.unit }}</span>
                                         </div>
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                    <!-- HARGA & PROFIT -->
+                                    <TableCell class="py-2 px-3 text-right align-middle">
+                                        <div @click="toggleRow(item.id)" class="group inline-flex items-center justify-end gap-1.5 cursor-pointer select-none">
+                                            <span class="text-sm font-medium tabular-nums text-foreground">
+                                                {{ item.current_selling_price > 0 ? formatCurrency(item.current_selling_price) : 'Rp 0' }}
+                                            </span>
+                                            <span class="text-xs text-muted-foreground">/{{ item.prices?.kecil?.unit }}</span>
+                                            <svg class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200" :class="expandedRows.includes(item.id) ? 'rotate-180 text-primary' : 'group-hover:text-foreground'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
 
                                 <!-- EXPANDED ACCORDION ROW -->
-                                <tr v-if="expandedRows.includes(item.id)" class="bg-muted/10">
-                                    <td colspan="5" class="p-0 border-b border-border">
-                                        <div class="px-6 py-4">
-                                            <div class="flex items-center justify-between mb-3">
-                                                <div class="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
-                                                    <svg class="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                    Detail Harga Per Satuan
-                                                </div>
+                                <TableRow v-if="expandedRows.includes(item.id)" class="bg-muted/10">
+                                    <TableCell colspan="5" class="p-0 border-b border-border">
+                                        <div class="px-5 py-3">
+                                            <div class="text-xs font-semibold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                Detail Harga Per Satuan
                                             </div>
                                             
-                                            <div class="overflow-hidden rounded-md border border-border bg-card shadow-2xs w-full">
-                                                <table class="w-full text-left">
-                                                    <thead class="bg-muted/40 border-b border-border">
-                                                        <tr>
-                                                            <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</th>
-                                                            <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Isi Konversi</th>
-                                                            <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">HPP</th>
-                                                            <th class="px-4 py-2.5 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap">Harga Jual</th>
-                                                            <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Margin</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-border">
+                                            <div class="overflow-hidden rounded-md border border-border bg-card w-full">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow class="h-8 bg-muted/40 hover:bg-muted/40 border-b border-border">
+                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</TableHead>
+                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Isi Konversi</TableHead>
+                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">HPP</TableHead>
+                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap text-right">Harga Jual</TableHead>
+                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Margin</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
                                                         <template v-for="(priceData, level) in item.prices" :key="level">
-                                                            <tr v-if="priceData" class="hover:bg-muted/20 transition-colors">
-                                                                <td class="px-4 py-2.5">
-                                                                    <div class="flex flex-col">
-                                                                        <span class="text-xs font-semibold text-foreground uppercase">{{ priceData.unit }}</span>
-                                                                        <span class="text-xs text-muted-foreground capitalize">{{ (priceData.unit || '').toLowerCase() }}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td class="px-4 py-2.5 text-xs font-medium text-muted-foreground whitespace-nowrap">
+                                                            <TableRow v-if="priceData" class="h-8 hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0">
+                                                                <TableCell class="py-1.5 px-3 text-xs align-middle">
+                                                                    <span class="font-medium text-foreground uppercase">{{ priceData.unit }}</span>
+                                                                </TableCell>
+                                                                <TableCell class="py-1.5 px-3 text-xs text-muted-foreground whitespace-nowrap align-middle">
                                                                     <template v-if="level === 'besar' && item.mid_unit">
                                                                         1 {{ priceData.unit }} = {{ item.mid_to_big_ratio }} {{ item.mid_unit }}
                                                                     </template>
@@ -409,46 +395,39 @@ const toggleRow = (id) => {
                                                                     <template v-else>
                                                                         -
                                                                     </template>
-                                                                </td>
-                                                                <td class="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{{ formatCurrency(priceData.hpp) }}</td>
-                                                                <td class="px-4 py-2.5 whitespace-nowrap">
-                                                                    <div class="flex flex-col">
-                                                                        <span class="text-sm font-bold text-foreground">
-                                                                            {{ priceData.selling > 0 ? formatCurrency(priceData.selling) : 'Rp 0' }}
-                                                                        </span>
-                                                                        <span v-if="level === 'kecil'" class="text-xs font-medium text-primary mt-0.5">(utama)</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                                                </TableCell>
+                                                                <TableCell class="py-1.5 px-3 text-xs text-muted-foreground text-right whitespace-nowrap tabular-nums align-middle">{{ formatCurrency(priceData.hpp) }}</TableCell>
+                                                                <TableCell class="py-1.5 px-3 text-right whitespace-nowrap align-middle">
+                                                                    <span class="text-sm font-medium text-foreground tabular-nums">
+                                                                        {{ priceData.selling > 0 ? formatCurrency(priceData.selling) : 'Rp 0' }}
+                                                                    </span>
+                                                                    <span v-if="level === 'kecil'" class="text-[10px] text-primary ml-1">(utama)</span>
+                                                                </TableCell>
+                                                                <TableCell class="py-1.5 px-3 text-right whitespace-nowrap align-middle">
                                                                     <span v-if="priceData.selling > 0" 
-                                                                          class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium rounded-md border whitespace-nowrap"
-                                                                          :class="priceData.profit >= 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-destructive bg-destructive/10 border-destructive/20'">
+                                                                          class="text-xs font-medium tabular-nums"
+                                                                          :class="priceData.profit >= 0 ? 'text-emerald-600' : 'text-destructive'">
                                                                         {{ priceData.profit > 0 ? '+' : '' }}{{ priceData.profit }}%
                                                                     </span>
-                                                                    <span v-else class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium text-muted-foreground bg-muted border border-border rounded-md uppercase">
+                                                                    <span v-else class="text-xs text-muted-foreground">
                                                                         Belum
                                                                     </span>
-                                                                </td>
-                                                            </tr>
+                                                                </TableCell>
+                                                            </TableRow>
                                                         </template>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            
-                                            <div class="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                <svg class="w-3.5 h-3.5 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                <span>Harga jual utama yang digunakan di kasir adalah per <strong class="capitalize text-foreground">{{ (item.prices?.kecil?.unit || '').toLowerCase() }}</strong>.</span>
+                                                    </TableBody>
+                                                </Table>
                                             </div>
                                         </div>
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                </TableRow>
                                 </template>
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                         
                         <!-- PAGINATION FAKTUR -->
-                        <div v-if="activeFakturStocks.data && activeFakturStocks.data.length > 0" class="px-6 py-3.5 bg-muted/20 border-t border-border flex items-center justify-between">
-                            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <div v-if="activeFakturStocks.data && activeFakturStocks.data.length > 0" class="px-4 py-2.5 bg-muted/20 border-t border-border flex items-center justify-between">
+                            <span class="text-xs font-medium text-muted-foreground">
                                 Menampilkan {{ activeFakturStocks.data.length }} Obat Faktur
                             </span>
                         </div>
@@ -456,85 +435,59 @@ const toggleRow = (id) => {
 
                     <!-- TABLE: KATALOG RACIKAN -->
                     <div v-if="activeTab === 'racikan'" class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
-                        <table class="w-full text-left">
-                            <thead>
-                                <tr class="bg-purple-50/30 border-b border-border">
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-purple-700 uppercase tracking-wider whitespace-nowrap">Identitas Racikan</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-purple-700 uppercase tracking-wider whitespace-nowrap">Tgl Buat & BUD</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-purple-700 uppercase tracking-wider text-center whitespace-nowrap">Qty Hasil</th>
-                                    <th class="px-6 py-3.5 text-xs font-semibold text-purple-700 uppercase tracking-wider text-right whitespace-nowrap">Harga Jual</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border">
-                                <tr v-if="!activeRacikanProducts.data || activeRacikanProducts.data.length === 0">
-                                    <td colspan="4" class="px-6 py-16 text-center">
-                                        <div class="flex flex-col items-center justify-center max-w-md mx-auto">
-                                            <div class="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100 dark:border-emerald-900 shadow-2xs">
-                                                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                                                </svg>
-                                            </div>
-                                            <p class="text-base font-bold text-slate-800 dark:text-foreground">Belum Ada Data Formula / Obat Racikan</p>
-                                            <p class="text-xs text-slate-500 dark:text-muted-foreground mt-1.5 leading-relaxed">
-                                                Katalog produk racikan apoteker masih kosong. Silakan buat sediaan racikan untuk menambahkan katalog.
-                                            </p>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr v-for="item in activeRacikanProducts.data" :key="item.id" class="hover:bg-purple-50/30 transition-colors group">
+                        <Table>
+                            <TableHeader>
+                                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Racikan</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Buat & BUD</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Hasil</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Harga Jual</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="!activeRacikanProducts.data || activeRacikanProducts.data.length === 0">
+                                    <TableCell colspan="4" class="px-6 py-12 text-center text-muted-foreground text-sm">
+                                        Belum ada data racikan terdaftar.
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-for="item in activeRacikanProducts.data" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                                     <!-- IDENTITAS -->
-                                    <td class="px-6 py-3.5">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-9 h-9 bg-purple-50 rounded-md flex items-center justify-center text-purple-600 font-bold text-xs border border-purple-100 flex-shrink-0">
-                                                RC
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span class="font-semibold text-foreground text-sm line-clamp-1" :title="item.nama_produk">{{ item.nama_produk }}</span>
-                                                <span class="text-xs font-medium text-purple-600 uppercase tracking-wider bg-purple-50 px-2 py-0.5 rounded-md w-fit border border-purple-100">{{ item.satuan || 'Puyer' }}</span>
-                                            </div>
+                                    <TableCell class="py-2 px-3 align-middle">
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-foreground text-sm leading-tight line-clamp-1" :title="item.nama_produk">{{ item.nama_produk }}</span>
+                                            <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.satuan || 'Puyer' }}</span>
                                         </div>
-                                    </td>
+                                    </TableCell>
                                     <!-- DATES -->
-                                    <td class="px-6 py-3.5">
-                                        <div class="flex flex-col gap-0.5">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-xs font-medium text-muted-foreground w-8">Buat</span>
-                                                <span class="text-xs font-semibold text-foreground">{{ new Date(item.tanggal_racik).toLocaleDateString('id-ID') }}</span>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-xs font-medium text-destructive w-8">BUD</span>
-                                                <span class="text-xs font-semibold text-destructive">{{ new Date(item.bud_date).toLocaleDateString('id-ID') }}</span>
-                                            </div>
+                                    <TableCell class="py-2 px-3 align-middle">
+                                        <div class="flex items-center gap-2 text-xs">
+                                            <span class="text-muted-foreground">Buat: <span class="font-mono text-foreground tabular-nums">{{ new Date(item.tanggal_racik).toLocaleDateString('id-ID') }}</span></span>
+                                            <span>·</span>
+                                            <span class="text-destructive font-medium">BUD: <span class="font-mono tabular-nums">{{ new Date(item.bud_date).toLocaleDateString('id-ID') }}</span></span>
                                         </div>
-                                    </td>
+                                    </TableCell>
                                     <!-- QTY -->
-                                    <td class="px-6 py-3.5 text-center">
-                                        <div class="inline-flex items-center justify-center min-w-[3rem] px-2.5 py-0.5 bg-muted border border-border rounded-md">
-                                            <span class="text-sm font-bold text-foreground">{{ Number(item.qty_hasil) }}</span>
-                                        </div>
-                                    </td>
+                                    <TableCell class="py-2 px-3 text-center align-middle">
+                                        <span class="text-sm font-semibold text-foreground tabular-nums">{{ Number(item.qty_hasil) }}</span>
+                                        <span class="text-xs text-muted-foreground ml-1">{{ item.satuan || 'Unit' }}</span>
+                                    </TableCell>
                                     <!-- HARGA & PROFIT -->
-                                    <td class="px-6 py-3.5 text-right">
-                                        <div class="flex flex-col items-end gap-0.5">
-                                            <!-- Harga Jual -->
-                                            <span class="font-bold text-foreground text-sm whitespace-nowrap">
+                                    <TableCell class="py-2 px-3 text-right align-middle">
+                                        <div class="flex items-center justify-end gap-2">
+                                            <span class="text-sm font-medium text-foreground tabular-nums">
                                                 {{ item.harga_jual > 0 ? formatCurrency(item.harga_jual) : 'Rp 0' }}
                                             </span>
-                                            <!-- Profit / Status -->
-                                            <div class="flex items-center justify-end gap-1.5">
-                                                <span class="text-xs font-medium text-muted-foreground whitespace-nowrap">HPP: {{ formatCurrency(item.hpp_per_unit) }}</span>
-                                                <span v-if="item.harga_jual > 0" class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider border border-emerald-200">
-                                                    Profit {{ getRacikanProfit(item.hpp_per_unit, item.harga_jual) }}%
-                                                </span>
-                                                <span v-else class="text-xs font-medium text-destructive bg-destructive/10 px-2 py-0.5 rounded-md uppercase tracking-wider border border-destructive/20">
-                                                    Belum Diset
-                                                </span>
-                                            </div>
+                                            <span v-if="item.harga_jual > 0" class="text-xs font-medium text-emerald-600 tabular-nums">
+                                                (+{{ getRacikanProfit(item.hpp_per_unit, item.harga_jual) }}%)
+                                            </span>
+                                            <span v-else class="text-xs text-muted-foreground">
+                                                (Belum set)
+                                            </span>
                                         </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
 
                         <!-- PAGINATION RACIKAN -->
                         <div v-if="activeRacikanProducts.data && activeRacikanProducts.data.length > 0" class="px-6 py-3.5 bg-muted/20 border-t border-border flex items-center justify-between">

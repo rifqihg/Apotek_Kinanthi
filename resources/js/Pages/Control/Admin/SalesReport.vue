@@ -4,6 +4,7 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useQuery } from '@tanstack/vue-query';
 import axios from 'axios';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -151,56 +152,58 @@ const formatCurrency = (amount) => {
     <!-- Table Data -->
     <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold border-b border-border">
-                    <tr>
-                        <th class="px-4 py-3 text-center">No</th>
-                        <th class="px-4 py-3">Nama Produk</th>
-                        <th class="px-4 py-3 text-center">Satuan</th>
-                        <th class="px-4 py-3 text-right">Modal</th>
-                        <th class="px-4 py-3 text-right">Harga Jual</th>
-                        <th class="px-4 py-3 text-center">Qty Awal</th>
-                        <th class="px-4 py-3 text-center">Terjual</th>
-                        <th class="px-4 py-3 text-center">Sisa Stok</th>
-                        <th class="px-4 py-3 text-right">Total Penjualan</th>
-                        <th class="px-4 py-3 text-right">Total Modal</th>
-                        <th class="px-4 py-3 text-right">Laba</th>
-                        <th class="px-4 py-3 text-center">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-if="!activeMedicines.data.length">
-                        <td colspan="12" class="px-6 py-12 text-center">
-                            <p class="text-muted-foreground font-medium">Tidak ada data obat.</p>
-                        </td>
-                    </tr>
+            <Table>
+                <TableHeader>
+                    <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-12">No</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk</TableHead>
+                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Satuan</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Modal</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Harga Jual</TableHead>
+                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty Awal</TableHead>
+                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Terjual</TableHead>
+                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sisa Stok</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Penjualan</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Modal</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Laba</TableHead>
+                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-if="!activeMedicines.data.length">
+                        <TableCell colspan="12" class="py-8 px-3 text-center">
+                            <p class="text-muted-foreground text-xs font-medium">Tidak ada data obat.</p>
+                        </TableCell>
+                    </TableRow>
                     <template v-for="(med, index) in activeMedicines.data" :key="med.id">
-                        <tr class="hover:bg-muted/40 transition-colors">
-                            <td class="px-4 py-3 text-center text-muted-foreground font-medium">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</td>
-                            <td class="px-4 py-3 text-foreground font-semibold">{{ med.nama_produk }}</td>
-                            <td class="px-4 py-3 text-center text-muted-foreground">{{ med.satuan }}</td>
-                            <td class="px-4 py-3 text-right text-muted-foreground">{{ formatCurrency(med.modal) }}</td>
-                            <td class="px-4 py-3 text-right text-foreground font-medium">{{ formatCurrency(med.harga_jual) }}</td>
+                        <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs font-mono">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-foreground font-medium text-sm">{{ med.nama_produk }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs">{{ med.satuan }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right text-muted-foreground tabular-nums text-xs">{{ formatCurrency(med.modal) }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right text-foreground font-medium tabular-nums text-sm">{{ formatCurrency(med.harga_jual) }}</TableCell>
                             
-                            <td class="px-4 py-3 text-center text-muted-foreground">{{ med.qty_awal }}</td>
-                            <td class="px-4 py-3 text-center font-bold text-foreground">{{ med.terjual }}</td>
-                            <td class="px-4 py-3 text-center text-muted-foreground">{{ med.sisa_stok }}</td>
+                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground tabular-nums text-xs">{{ med.qty_awal }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center font-semibold text-foreground tabular-nums text-sm">{{ med.terjual }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground tabular-nums text-xs">{{ med.sisa_stok }}</TableCell>
                             
-                            <td class="px-4 py-3 text-right font-semibold text-foreground">{{ formatCurrency(med.total_penjualan) }}</td>
-                            <td class="px-4 py-3 text-right text-muted-foreground">{{ formatCurrency(med.total_modal) }}</td>
-                            <td class="px-4 py-3 text-right font-semibold text-emerald-600">{{ formatCurrency(med.laba) }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <span v-if="med.status === 'Tersedia'" class="inline-flex items-center justify-center px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-md text-xs font-semibold">
+                            <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground tabular-nums text-sm">{{ formatCurrency(med.total_penjualan) }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right text-muted-foreground tabular-nums text-xs">{{ formatCurrency(med.total_modal) }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm">{{ formatCurrency(med.laba) }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center">
+                                <span v-if="med.status === 'Tersedia'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     Tersedia
                                 </span>
-                                <span v-else class="inline-flex items-center justify-center px-2 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-md text-xs font-semibold">
+                                <span v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                     Pesan
                                 </span>
-                            </td>
-                        </tr>
+                            </TableCell>
+                        </TableRow>
                     </template>
-                </tbody>
-            </table>
+                </TableBody>
+            </Table>
             
             <!-- PAGINATION -->
             <div v-if="activeMedicines.data && activeMedicines.data.length > 0" class="px-6 py-4 bg-muted/20 border-t border-border flex items-center justify-between">

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import Swal from 'sweetalert2';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -173,49 +174,54 @@ const calculateHargaJual = (product) => {
                 </div>
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-muted/50 border-b border-border">
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk / Batch</th>
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">HPP Bahan Baku</th>
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-32">Jasa Racik</th>
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-32">Kemasan</th>
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-24">Margin (%)</th>
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-40 text-right">Harga Jual Baru</th>
-                                <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-32 text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border">
-                            <tr v-if="pendingProducts.length === 0">
-                                <td colspan="7" class="px-6 py-12 text-center text-muted-foreground text-sm">Semua produk racikan sudah ditetapkan harganya.</td>
-                            </tr>
-                            <tr v-for="product in pendingProducts" :key="product.id" class="hover:bg-muted/40 transition-colors">
-                                <td class="px-5 py-3.5">
-                                    <div class="font-semibold text-foreground text-sm">{{ product.nama_produk }}</div>
-                                    <div class="text-xs text-muted-foreground tracking-wide">{{ product.batch_no }}</div>
-                                    <div class="text-xs text-muted-foreground">Qty: {{ Number(product.qty_hasil).toLocaleString('id-ID') }} {{ product.satuan }}</div>
-                                </td>
-                                <td class="px-5 py-3.5 text-right font-bold text-emerald-600 bg-emerald-500/5">
-                                    Rp {{ Number(product.calculated_hpp).toLocaleString('id-ID') }}
-                                </td>
-                                <td class="px-5 py-3.5 text-right">
-                                    <input type="number" v-model="product.jasa_racik" @input="calculateHargaJual(product)" class="w-full h-9 text-sm text-right border border-input bg-background rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-semibold px-2" placeholder="0">
-                                </td>
-                                <td class="px-5 py-3.5 text-right">
-                                    <input type="number" v-model="product.biaya_kemasan" @input="calculateHargaJual(product)" class="w-full h-9 text-sm text-right border border-input bg-background rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-semibold px-2" placeholder="0">
-                                </td>
-                                <td class="px-5 py-3.5 text-right">
-                                    <input type="number" v-model="product.margin_percentage" @input="calculateHargaJual(product)" class="w-full h-9 text-sm text-right border border-input bg-background rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-semibold px-2" placeholder="0">
-                                </td>
-                                <td class="px-5 py-3.5 text-right">
-                                    <input type="number" v-model="product.temp_harga_jual" class="w-full h-9 text-sm text-right border border-input bg-background rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-semibold px-2" placeholder="Input harga">
-                                </td>
-                                <td class="px-5 py-3.5 text-right">
-                                    <button @click="submitCompoundedPrice(product)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9 px-4 rounded-md text-xs transition-colors w-full shadow-sm">Tetapkan</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <Table>
+                        <TableHeader>
+                            <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk / Batch</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">HPP Bahan Baku</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-28">Jasa Racik</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-28">Kemasan</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-24">Margin (%)</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-36 text-right">Harga Jual Baru</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 text-right">Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="pendingProducts.length === 0">
+                                <TableCell colspan="7" class="py-8 px-3 text-center text-muted-foreground text-xs">Semua produk racikan sudah ditetapkan harganya.</TableCell>
+                            </TableRow>
+                            <TableRow v-for="product in pendingProducts" :key="product.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                                <TableCell class="py-2 px-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-foreground leading-tight">{{ product.nama_produk }}</span>
+                                        <div class="flex items-center gap-1.5 mt-0.5 text-xs">
+                                            <span class="font-mono text-foreground">{{ product.batch_no }}</span>
+                                            <span class="text-muted-foreground/40">·</span>
+                                            <span class="text-muted-foreground">Qty: {{ Number(product.qty_hasil).toLocaleString('id-ID') }} {{ product.satuan }}</span>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <span class="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 block">Rp {{ Number(product.calculated_hpp).toLocaleString('id-ID') }}</span>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <input type="number" v-model="product.jasa_racik" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <input type="number" v-model="product.biaya_kemasan" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <input type="number" v-model="product.margin_percentage" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <input type="number" v-model="product.temp_harga_jual" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="Input harga">
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <button @click="submitCompoundedPrice(product)" class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-7 px-3 rounded text-xs transition-colors w-full shadow-sm">Tetapkan</button>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
 
@@ -267,176 +273,158 @@ const calculateHargaJual = (product) => {
 
                     <!-- TABLE CONTENT -->
                     <div class="overflow-y-auto flex-1">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="sticky top-0 bg-muted/90 backdrop-blur z-10">
-                                <tr class="border-b border-border">
-                                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</th>
-                                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kemasan</th>
-                                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">HPP Modal (Netto)</th>
-                                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Jual Saat Ini</th>
-                                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Margin (%)</th>
-                                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-28 text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border">
-                                <tr v-if="filteredMedicines.length === 0">
-                                    <td colspan="6" class="px-6 py-12 text-center text-muted-foreground">
+                        <Table>
+                            <TableHeader class="sticky top-0 bg-muted/90 backdrop-blur z-10">
+                                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kemasan</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">HPP Modal (Netto)</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Jual Saat Ini</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Margin (%)</TableHead>
+                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 text-center">Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="filteredMedicines.length === 0">
+                                    <TableCell colspan="6" class="py-8 px-3 text-center text-muted-foreground">
                                         <div class="flex flex-col items-center justify-center gap-2">
                                             <svg class="w-8 h-8 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                             <span class="text-xs font-medium">Tidak ada data obat yang sesuai dengan filter atau pencarian.</span>
                                         </div>
-                                    </td>
-                                </tr>
-                                <tr v-for="med in filteredMedicines" :key="med.id" class="hover:bg-muted/40 transition-colors">
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-for="med in filteredMedicines" :key="med.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
                                     <!-- NAMA OBAT -->
-                                    <td class="px-5 py-3.5 align-top">
-                                        <div class="font-semibold text-foreground text-sm">{{ med.nama_obat }}</div>
-                                        <div class="flex flex-wrap gap-1.5 items-center mt-1">
-                                            <span v-if="med.kode_obat" class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md border border-border tracking-wide">{{ med.kode_obat }}</span>
-                                            <span v-if="med.latest_batch_no" class="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-xs font-semibold rounded-md uppercase tracking-wider border border-amber-500/20">
-                                                {{ med.latest_batch_no }}
-                                            </span>
-                                            <span v-if="isMedicineLoss(med)" class="px-2 py-0.5 bg-destructive/10 text-destructive text-xs font-semibold rounded-md border border-destructive/20 uppercase tracking-wider inline-flex items-center gap-1">
-                                                <span>⚠️ Jual Rugi</span>
-                                            </span>
+                                    <TableCell class="py-2 px-3 align-top">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium text-foreground leading-tight">{{ med.nama_obat }}</span>
+                                            <div class="flex flex-wrap gap-1.5 items-center mt-1">
+                                                <span v-if="med.kode_obat" class="font-mono text-xs text-foreground tracking-tight">{{ med.kode_obat }}</span>
+                                                <span v-if="med.kode_obat && med.latest_batch_no" class="text-muted-foreground/40">·</span>
+                                                <span v-if="med.latest_batch_no" class="font-mono text-xs text-foreground tracking-tight">{{ med.latest_batch_no }}</span>
+                                                <span v-if="isMedicineLoss(med)" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                    Jual Rugi
+                                                </span>
+                                            </div>
                                         </div>
-                                    </td>
+                                    </TableCell>
 
                                     <!-- KEMASAN -->
-                                    <td class="px-5 py-3.5 align-top text-xs font-medium text-foreground">
-                                        <div class="flex flex-col gap-2">
-                                            <!-- Tersier -->
-                                            <div v-if="med.satuan_besar" class="h-6 flex items-center">
-                                                <span class="bg-muted px-2 py-0.5 rounded-md text-xs font-semibold text-foreground border border-border">
-                                                    {{ med.satuan_besar }} <span class="font-normal text-muted-foreground">(Tersier)</span>
-                                                </span>
+                                    <TableCell class="py-2 px-3 align-top text-xs text-foreground">
+                                        <div class="flex flex-col gap-1">
+                                            <div v-if="med.satuan_besar" class="h-5 flex items-center gap-1 font-medium">
+                                                <span>{{ med.satuan_besar }}</span>
+                                                <span class="text-[11px] text-muted-foreground font-normal">(Tersier)</span>
                                             </div>
-                                            <!-- Sekunder -->
-                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center gap-1.5">
-                                                <span class="bg-muted px-2 py-0.5 rounded-md text-xs font-semibold text-foreground border border-border">
-                                                    {{ med.satuan_menengah }} <span class="font-normal text-muted-foreground">(Sekunder)</span>
-                                                </span>
-                                                <span v-if="med.mid_to_big_ratio" class="text-xs text-muted-foreground">
-                                                    (1={{ med.mid_to_big_ratio }})
-                                                </span>
+                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center gap-1 font-medium">
+                                                <span>{{ med.satuan_menengah }}</span>
+                                                <span class="text-[11px] text-muted-foreground font-normal">(Sekunder)</span>
+                                                <span v-if="med.mid_to_big_ratio" class="text-[11px] text-muted-foreground font-normal">(1={{ med.mid_to_big_ratio }})</span>
                                             </div>
-                                            <!-- Primer -->
-                                            <div v-if="med.base_unit" class="h-6 flex items-center gap-1.5">
-                                                <span class="bg-muted px-2 py-0.5 rounded-md text-xs font-semibold text-foreground border border-border">
-                                                    {{ med.base_unit }} <span class="font-normal text-muted-foreground">(Primer)</span>
-                                                </span>
-                                                <span v-if="med.small_to_mid_ratio && med.satuan_menengah" class="text-xs text-muted-foreground">
-                                                    (1={{ med.small_to_mid_ratio }})
-                                                </span>
-                                                <span v-else-if="med.small_to_mid_ratio && !med.satuan_menengah && med.satuan_besar" class="text-xs text-muted-foreground">
-                                                    (1={{ med.small_to_mid_ratio }})
-                                                </span>
+                                            <div v-if="med.base_unit" class="h-5 flex items-center gap-1 font-medium">
+                                                <span>{{ med.base_unit }}</span>
+                                                <span class="text-[11px] text-muted-foreground font-normal">(Primer)</span>
+                                                <span v-if="med.small_to_mid_ratio && med.satuan_menengah" class="text-[11px] text-muted-foreground font-normal">(1={{ med.small_to_mid_ratio }})</span>
+                                                <span v-else-if="med.small_to_mid_ratio && !med.satuan_menengah && med.satuan_besar" class="text-[11px] text-muted-foreground font-normal">(1={{ med.small_to_mid_ratio }})</span>
                                             </div>
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center text-muted-foreground text-xs italic">
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center text-muted-foreground text-xs italic">
                                                 Belum diset
                                             </div>
                                         </div>
-                                    </td>
+                                    </TableCell>
 
                                     <!-- HPP MODAL (NETTO) -->
-                                    <td class="px-5 py-3.5 align-top text-right">
-                                        <div class="flex flex-col gap-2">
-                                            <div v-if="med.satuan_besar" class="h-6 flex items-center justify-end text-xs text-muted-foreground font-medium">
+                                    <TableCell class="py-2 px-3 align-top text-right">
+                                        <div class="flex flex-col gap-1">
+                                            <div v-if="med.satuan_besar" class="h-5 flex items-center justify-end text-xs text-muted-foreground font-medium tabular-nums">
                                                 <span v-if="med.hpp_besar > 0">{{ formatCurrency(med.hpp_besar) }}</span>
-                                                <span v-else class="text-xs text-muted-foreground/50 italic">-</span>
+                                                <span v-else class="text-muted-foreground/40">-</span>
                                             </div>
-                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-end text-xs text-muted-foreground font-medium">
+                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center justify-end text-xs text-muted-foreground font-medium tabular-nums">
                                                 <span v-if="med.hpp_menengah > 0">{{ formatCurrency(med.hpp_menengah) }}</span>
-                                                <span v-else class="text-xs text-muted-foreground/50 italic">-</span>
+                                                <span v-else class="text-muted-foreground/40">-</span>
                                             </div>
-                                            <div v-if="med.base_unit" class="h-6 flex items-center justify-end text-xs text-muted-foreground font-medium">
+                                            <div v-if="med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground font-medium tabular-nums">
                                                 <span v-if="med.hpp_kecil > 0">{{ formatCurrency(med.hpp_kecil) }}</span>
-                                                <span v-else class="text-xs text-muted-foreground/50 italic">-</span>
+                                                <span v-else class="text-muted-foreground/40">-</span>
                                             </div>
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center justify-end text-xs text-muted-foreground/50 italic">
-                                                -
-                                            </div>
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
                                         </div>
-                                    </td>
+                                    </TableCell>
 
                                     <!-- HARGA JUAL SAAT INI -->
-                                    <td class="px-5 py-3.5 align-top text-right font-semibold">
-                                        <div class="flex flex-col gap-2">
-                                            <div v-if="med.satuan_besar" class="h-6 flex items-center justify-end text-xs">
+                                    <TableCell class="py-2 px-3 align-top text-right font-medium">
+                                        <div class="flex flex-col gap-1">
+                                            <div v-if="med.satuan_besar" class="h-5 flex items-center justify-end text-xs tabular-nums">
                                                 <span v-if="med.selling_price_large > 0" class="text-foreground">{{ formatCurrency(med.selling_price_large) }}</span>
-                                                <span v-else class="text-xs text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-medium italic">Belum diset</span>
+                                                <span v-else class="text-[11px] text-amber-600 dark:text-amber-400 italic">Belum diset</span>
                                             </div>
-                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-end text-xs">
+                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center justify-end text-xs tabular-nums">
                                                 <span v-if="med.selling_price_mid > 0" class="text-foreground">{{ formatCurrency(med.selling_price_mid) }}</span>
-                                                <span v-else class="text-xs text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-medium italic">Belum diset</span>
+                                                <span v-else class="text-[11px] text-amber-600 dark:text-amber-400 italic">Belum diset</span>
                                             </div>
-                                            <div v-if="med.base_unit" class="h-6 flex items-center justify-end text-xs">
+                                            <div v-if="med.base_unit" class="h-5 flex items-center justify-end text-xs tabular-nums">
                                                 <span v-if="med.selling_price > 0" class="text-foreground">{{ formatCurrency(med.selling_price) }}</span>
-                                                <span v-else class="text-xs text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 font-medium italic">Belum diset</span>
+                                                <span v-else class="text-[11px] text-amber-600 dark:text-amber-400 italic">Belum diset</span>
                                             </div>
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center justify-end text-xs text-muted-foreground italic">
-                                                -
-                                            </div>
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
                                         </div>
-                                    </td>
+                                    </TableCell>
 
                                     <!-- MARGIN (%) -->
-                                    <td class="px-5 py-3.5 align-top text-right font-semibold">
-                                        <div class="flex flex-col gap-2">
+                                    <TableCell class="py-2 px-3 align-top text-right">
+                                        <div class="flex flex-col gap-1">
                                             <!-- Margin Tersier -->
-                                            <div v-if="med.satuan_besar" class="h-6 flex items-center justify-end">
+                                            <div v-if="med.satuan_besar" class="h-5 flex items-center justify-end">
                                                 <span v-if="getMarginBadge(med.selling_price_large, med.hpp_besar)"
-                                                      class="text-xs font-semibold px-2 py-0.5 rounded-md border inline-flex items-center gap-1"
+                                                      class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
                                                       :class="getMarginBadge(med.selling_price_large, med.hpp_besar).cls">
                                                     <span>{{ getMarginBadge(med.selling_price_large, med.hpp_besar).text }}</span>
-                                                    <span v-if="getMarginBadge(med.selling_price_large, med.hpp_besar).isLoss" class="text-xs font-bold text-destructive">RUGI</span>
+                                                    <span v-if="getMarginBadge(med.selling_price_large, med.hpp_besar).isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
                                                 </span>
-                                                <span v-else class="text-xs text-muted-foreground/50 font-medium italic">-</span>
+                                                <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>
 
                                             <!-- Margin Sekunder -->
-                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-end">
+                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center justify-end">
                                                 <span v-if="getMarginBadge(med.selling_price_mid, med.hpp_menengah)"
-                                                      class="text-xs font-semibold px-2 py-0.5 rounded-md border inline-flex items-center gap-1"
+                                                      class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
                                                       :class="getMarginBadge(med.selling_price_mid, med.hpp_menengah).cls">
                                                     <span>{{ getMarginBadge(med.selling_price_mid, med.hpp_menengah).text }}</span>
-                                                    <span v-if="getMarginBadge(med.selling_price_mid, med.hpp_menengah).isLoss" class="text-xs font-bold text-destructive">RUGI</span>
+                                                    <span v-if="getMarginBadge(med.selling_price_mid, med.hpp_menengah).isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
                                                 </span>
-                                                <span v-else class="text-xs text-muted-foreground/50 font-medium italic">-</span>
+                                                <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>
 
                                             <!-- Margin Primer -->
-                                            <div v-if="med.base_unit" class="h-6 flex items-center justify-end">
+                                            <div v-if="med.base_unit" class="h-5 flex items-center justify-end">
                                                 <span v-if="getMarginBadge(med.selling_price, med.hpp_kecil)"
-                                                      class="text-xs font-semibold px-2 py-0.5 rounded-md border inline-flex items-center gap-1"
+                                                      class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
                                                       :class="getMarginBadge(med.selling_price, med.hpp_kecil).cls">
                                                     <span>{{ getMarginBadge(med.selling_price, med.hpp_kecil).text }}</span>
-                                                    <span v-if="getMarginBadge(med.selling_price, med.hpp_kecil).isLoss" class="text-xs font-bold text-destructive">RUGI</span>
+                                                    <span v-if="getMarginBadge(med.selling_price, med.hpp_kecil).isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
                                                 </span>
-                                                <span v-else class="text-xs text-muted-foreground/50 font-medium italic">-</span>
+                                                <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>
 
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center justify-end text-xs text-muted-foreground/50 italic">
-                                                -
-                                            </div>
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
                                         </div>
-                                    </td>
+                                    </TableCell>
 
                                     <!-- AKSI -->
-                                    <td class="px-5 py-3.5 align-top text-center">
+                                    <TableCell class="py-2 px-3 align-middle text-center">
                                         <button @click="openPriceModal(med)" 
-                                                class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-8 px-3 rounded-md text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5 w-full">
-                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                            <span>Atur</span>
+                                                class="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-medium h-7 px-2.5 rounded text-xs transition-colors flex items-center justify-center gap-1 w-full">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                            Atur
                                         </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
                     </div>
                 </div>
             </div>

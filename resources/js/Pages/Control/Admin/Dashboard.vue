@@ -84,25 +84,29 @@ const applyFilter = (filterName) => {
     activeFilter.value = filterName;
 };
 
-// Helpers for dynamic stock display based on qty_converted (Source of Truth)
-const getLevel1Qty = (item) => {
-    if (!item.qty_converted || item.qty_converted <= 0) return 0;
-    
-    // Default factor if mid unit doesn't exist
-    let totalSmallInBig = item.unit_conversion_factor || 1;
-    
-    // If mid unit exists, total small in big = small_to_mid * mid_to_big
-    if (item.mid_to_big_ratio > 0 && item.small_to_mid_ratio > 0) {
-        totalSmallInBig = item.mid_to_big_ratio * item.small_to_mid_ratio;
-    }
-    
-    return Math.floor(item.qty_converted / totalSmallInBig);
-};
+// Kemasan & Multi-unit breakdown helper (modulo berjenjang, selaras dengan Ambang Batas & Katalog Faktur)
+const getStockUnits = (item) => {
+    let rem = Number(item?.stok_fisik ?? item?.qty_converted) || 0;
+    const unit = item?.satuan_stok || 'Unit';
+    if (rem <= 0) return [{ qty: 0, unit, isZero: true }];
 
-const getLevel2Qty = (item) => {
-    if (!item.qty_converted || item.qty_converted <= 0 || !item.small_to_mid_ratio) return 0;
-    
-    return Math.floor(item.qty_converted / item.small_to_mid_ratio);
+    const totalBig = (item.mid_to_big_ratio > 0 && item.small_to_mid_ratio > 0)
+        ? item.mid_to_big_ratio * item.small_to_mid_ratio
+        : (item.unit_conversion_factor || 1);
+
+    const res = [];
+    if (item.satuan_input && totalBig > 1 && rem >= totalBig) {
+        res.push({ qty: Math.floor(rem / totalBig), unit: item.satuan_input });
+        rem %= totalBig;
+    }
+    if (item.mid_unit && item.small_to_mid_ratio > 1 && rem >= item.small_to_mid_ratio) {
+        res.push({ qty: Math.floor(rem / item.small_to_mid_ratio), unit: item.mid_unit });
+        rem %= item.small_to_mid_ratio;
+    }
+    if (rem > 0) {
+        res.push({ qty: Number(rem.toFixed(2)), unit });
+    }
+    return res.length ? res : [{ qty: 0, unit, isZero: true }];
 };
 </script>
 
@@ -374,69 +378,52 @@ const getLevel2Qty = (item) => {
 
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead class="w-[300px] text-sm font-semibold text-foreground">Nama Obat & Kategori</TableHead>
-                            <TableHead class="text-center text-sm font-semibold text-foreground">Nomor Batch</TableHead>
-                            <TableHead class="text-center text-sm font-semibold text-foreground">Stok Fisik</TableHead>
-                            <TableHead class="text-center text-sm font-semibold text-foreground">Batas Aman</TableHead>
-                            <TableHead class="text-center text-sm font-semibold text-foreground">Tgl Kedaluwarsa</TableHead>
+                        <TableRow class="hover:bg-transparent border-b border-border/60">
+                            <TableHead class="w-[280px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat & Kategori</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nomor Batch</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stok Fisik</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batas Aman</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tgl Kedaluwarsa</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="item in activeTableStocks.data" :key="item.id">
-                            <TableCell>
-                                <div class="font-semibold text-foreground text-base leading-tight">{{ item.nama_obat }}</div>
-                                <div class="text-sm text-muted-foreground mt-0.5">{{ item.kategori }}</div>
+                        <TableRow v-for="item in activeTableStocks.data" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <TableCell class="py-2 px-3 align-middle">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-foreground leading-tight">{{ item.nama_obat }}</span>
+                                    <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.kategori }}</span>
+                                </div>
                             </TableCell>
-                            <TableCell class="text-center">
-                                <span class="inline-flex items-center text-sm px-2.5 py-1 rounded border border-border bg-muted/40 text-muted-foreground tracking-wide">
-                                    {{ item.nomor_batch || 'NO-BATCH' }}
-                                </span>
+                            <TableCell class="py-2 px-3 text-center align-middle">
+                                <span class="font-mono text-sm font-normal text-foreground tracking-tight">{{ item.nomor_batch || 'NO-BATCH' }}</span>
                             </TableCell>
-                            <TableCell class="text-center">
-                                <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                                    <!-- LEVEL 1 -->
-                                    <template v-if="getLevel1Qty(item) > 0 && item.satuan_input">
-                                        <span class="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border border-border bg-muted/30 text-foreground tracking-wide">
-                                            <span class="font-bold">{{ getLevel1Qty(item) }}</span>
-                                            <span class="text-xs text-muted-foreground font-medium uppercase">{{ item.satuan_input }}</span>
-                                        </span>
-                                    </template>
-
-                                    <!-- LEVEL 2 -->
-                                    <template v-if="item.mid_to_big_ratio > 0 && item.mid_unit && getLevel2Qty(item) > 0">
-                                        <span class="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border border-border bg-muted/30 text-foreground tracking-wide">
-                                            <span class="font-bold">{{ getLevel2Qty(item) }}</span>
-                                            <span class="text-xs text-muted-foreground font-medium uppercase">{{ item.mid_unit }}</span>
-                                        </span>
-                                    </template>
-
-                                    <!-- LEVEL 3 (Base Unit) -->
-                                    <template v-if="item.qty_converted > 0 && item.satuan_stok">
-                                        <span class="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border border-border bg-primary/5 text-foreground tracking-wide">
-                                            <span class="font-bold">{{ item.qty_converted }}</span>
-                                            <span class="text-xs text-muted-foreground font-medium uppercase">{{ item.satuan_stok }}</span>
-                                        </span>
-                                    </template>
-                                    
-                                    <!-- ZERO STOCK -->
-                                    <template v-if="!item.qty_converted || item.qty_converted <= 0">
-                                        <span class="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border border-destructive/30 bg-destructive/10 text-destructive font-bold tracking-wide">
-                                            0.00 {{ item.satuan_stok }}
-                                        </span>
+                            <TableCell class="py-2 px-3 text-center align-middle">
+                                <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                    <template v-for="(b, i) in getStockUnits(item)" :key="i">
+                                        <div 
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+                                            :class="b.isZero ? 'border border-destructive/30 bg-destructive/10 text-destructive' : 'border border-border/80 bg-muted/40 text-foreground'"
+                                        >
+                                            <span class="font-semibold tabular-nums" :class="b.isZero ? '' : 'text-foreground'">{{ b.qty }}</span>
+                                            <span :class="b.isZero ? 'uppercase text-[11px] tracking-wide' : 'text-muted-foreground uppercase text-[11px] tracking-wide'">{{ b.unit }}</span>
+                                        </div>
                                     </template>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-center text-sm font-medium text-foreground tracking-wide">
-                                {{ formatInventoryThreshold(item.batas_aman, item.small_to_mid_ratio, item.mid_to_big_ratio, { tersier: item.satuan_input, sekunder: item.mid_unit, primer: item.satuan_stok }) }}
+                            <TableCell class="py-2 px-3 text-center align-middle">
+                                <span class="text-sm font-normal text-foreground tabular-nums">
+                                    {{ formatInventoryThreshold(item.batas_aman, item.small_to_mid_ratio, item.mid_to_big_ratio, { tersier: item.satuan_input, sekunder: item.mid_unit, primer: item.satuan_stok }) }}
+                                </span>
                             </TableCell>
-                            <TableCell class="text-center">
+                            <TableCell class="py-2 px-3 text-center align-middle">
                                 <span 
-                                    class="inline-flex items-center text-sm px-3 py-1 rounded border tracking-wide"
-                                    :class="item.is_expiring_soon 
-                                        ? 'border-destructive/30 bg-destructive/10 text-destructive font-semibold' 
-                                        : 'border-border bg-background text-foreground font-medium'"
+                                    v-if="item.is_expiring_soon"
+                                    class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
                                 >
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                    {{ item.expired_date }}
+                                </span>
+                                <span v-else class="text-xs font-mono text-muted-foreground tabular-nums">
                                     {{ item.expired_date }}
                                 </span>
                             </TableCell>
@@ -444,7 +431,7 @@ const getLevel2Qty = (item) => {
 
                         <!-- Empty State -->
                         <TableRow v-if="!activeTableStocks.data || activeTableStocks.data.length === 0">
-                            <TableCell colspan="5" class="h-32 text-center text-muted-foreground text-sm">
+                            <TableCell colspan="5" class="h-24 text-center text-muted-foreground text-sm">
                                 Seluruh persediaan obat dalam kondisi aman. Tidak ada stok kritis saat ini.
                             </TableCell>
                         </TableRow>

@@ -2,6 +2,7 @@
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -116,55 +117,52 @@ const budLabel = (bud) => {
     </div>
 
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <table class="w-full text-sm text-left border-collapse">
-            <thead>
-                <tr class="bg-muted/50 border-b border-border">
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk</th>
-                    <th class="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</th>
-                    <th class="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tgl Racik</th>
-                    <th class="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">BUD Date</th>
-                    <th class="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty</th>
-                    <th class="text-center px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status BUD</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
+        <Table>
+            <TableHeader>
+                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk</TableHead>
+                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</TableHead>
+                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tgl Racik</TableHead>
+                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">BUD Date</TableHead>
+                    <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty</TableHead>
+                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status BUD</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
                 <template v-for="p in products.data" :key="p.id">
-                    <tr class="hover:bg-muted/40 transition-colors group cursor-pointer" @click="toggle(p.id)">
-                        <td class="px-5 py-3.5">
-                            <div class="flex items-center gap-3">
-                                <div class="w-7 h-7 rounded-md bg-muted border border-border flex items-center justify-center text-muted-foreground group-hover:text-foreground">
-                                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="expandedId===p.id?'rotate-90 text-primary':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                </div>
-                                <p class="font-semibold text-foreground text-sm">{{ p.nama_produk }}</p>
+                    <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors group cursor-pointer" @click="toggle(p.id)">
+                        <TableCell class="py-2 px-3 align-middle">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200" :class="expandedId===p.id?'rotate-90 text-primary':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                <span class="font-medium text-foreground text-sm leading-tight">{{ p.nama_produk }}</span>
                             </div>
-                        </td>
-                        <td class="px-4 py-3.5 text-center">
-                            <span class="px-2 py-0.5 bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider rounded-md border border-border">
-                                {{ p.batch_no }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3.5 text-center text-xs font-medium text-muted-foreground">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</td>
-                        <td class="px-4 py-3.5 text-center font-semibold text-foreground text-xs">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</td>
-                        <td class="px-4 py-3.5 text-right font-semibold text-foreground text-sm">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} {{ p.satuan }}</td>
-                        <td class="px-5 py-3.5 text-center">
-                            <span :class="budClass(p.bud_date)" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-block">
+                        </TableCell>
+                        <TableCell class="py-2 px-3 text-center align-middle font-mono text-sm font-normal text-foreground tracking-tight">
+                            {{ p.batch_no }}
+                        </TableCell>
+                        <TableCell class="py-2 px-3 text-center text-xs font-mono text-muted-foreground tabular-nums align-middle">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</TableCell>
+                        <TableCell class="py-2 px-3 text-center font-mono text-foreground text-xs tabular-nums align-middle">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</TableCell>
+                        <TableCell class="py-2 px-3 text-right font-medium text-foreground text-sm tabular-nums align-middle">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} <span class="text-xs text-muted-foreground">{{ p.satuan }}</span></TableCell>
+                        <TableCell class="py-2 px-3 text-center align-middle">
+                            <span :class="getDiff(p.bud_date) < 30 ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="getDiff(p.bud_date) < 30 ? 'bg-destructive' : 'bg-emerald-500'"></span>
                                 {{ budLabel(p.bud_date) }}
                             </span>
-                        </td>
-                    </tr>
-                    <tr v-if="expandedId===p.id" class="bg-muted/20">
-                        <td colspan="6" class="p-4 sm:p-6 border-b border-border">
-                            <div class="bg-card p-4 rounded-lg border border-border shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Apoteker</p><p class="font-semibold text-foreground text-sm">{{ p.submission?.user?.name || '-' }}</p></div>
-                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Racikan Asal</p><p class="font-semibold text-foreground text-sm">{{ p.submission?.nama_racikan || '-' }}</p></div>
-                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Harga Jual</p><p class="font-semibold text-emerald-600 text-sm">Rp {{ Number(p.harga_jual).toLocaleString('id-ID') }}</p></div>
-                                <div><p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Dibuat Oleh</p><p class="font-semibold text-foreground text-sm">{{ p.creator?.name || '-' }}</p></div>
+                        </TableCell>
+                    </TableRow>
+                    <TableRow v-if="expandedId===p.id" class="bg-muted/20">
+                        <TableCell colspan="6" class="p-3 sm:p-4 border-b border-border">
+                            <div class="bg-card p-3 rounded-md border border-border shadow-2xs grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Apoteker</p><p class="font-medium text-foreground text-xs">{{ p.submission?.user?.name || '-' }}</p></div>
+                                <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Racikan Asal</p><p class="font-medium text-foreground text-xs">{{ p.submission?.nama_racikan || '-' }}</p></div>
+                                <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Harga Jual</p><p class="font-semibold text-emerald-600 text-xs tabular-nums">Rp {{ Number(p.harga_jual).toLocaleString('id-ID') }}</p></div>
+                                <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Dibuat Oleh</p><p class="font-medium text-foreground text-xs">{{ p.creator?.name || '-' }}</p></div>
                             </div>
-                        </td>
-                    </tr>
+                        </TableCell>
+                    </TableRow>
                 </template>
-            </tbody>
-        </table>
+            </TableBody>
+        </Table>
 
         <!-- Empty State -->
         <div v-if="!products.data?.length" class="p-12 flex flex-col items-center justify-center text-center space-y-4">

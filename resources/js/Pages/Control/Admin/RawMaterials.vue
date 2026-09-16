@@ -2,6 +2,7 @@
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -190,69 +191,62 @@ const deleteMaterial = (m) => {
 
     <!-- Table -->
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <table class="w-full text-sm text-left border-collapse">
-            <thead class="bg-muted/50 border-b border-border">
-                <tr>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Bahan</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Kode</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Satuan</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Harga Beli</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Stok Total</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Threshold</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status Stok</th>
-                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-                <tr v-if="filtered.length === 0">
-                    <td colspan="8" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada bahan baku terdaftar.</td>
-                </tr>
-                <tr v-for="m in filtered" :key="m.id" class="hover:bg-muted/40 transition-colors">
-                    <td class="px-5 py-3.5 whitespace-nowrap">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center text-xs font-bold uppercase border border-border">
-                                {{ m.nama_bahan?.substring(0, 2).toUpperCase() }}
-                            </div>
-                            <div>
-                                <p class="font-semibold text-foreground text-sm">{{ m.nama_bahan }}</p>
-                                <p class="text-xs text-muted-foreground mt-0.5">{{ m.bentuk_sediaan || '-' }}</p>
-                            </div>
+        <Table>
+            <TableHeader>
+                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Bahan</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Kode</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Satuan</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Beli</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Stok Total</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Threshold</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status Stok</TableHead>
+                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                <TableRow v-if="filtered.length === 0">
+                    <TableCell colspan="8" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada bahan baku terdaftar.</TableCell>
+                </TableRow>
+                <TableRow v-for="m in filtered" :key="m.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                    <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
+                        <div class="flex flex-col">
+                            <span class="font-medium text-foreground text-sm leading-tight">{{ m.nama_bahan }}</span>
+                            <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ m.bentuk_sediaan || '-' }}</span>
                         </div>
-                    </td>
-                    <td class="px-5 py-3.5 text-center text-xs font-medium text-muted-foreground tracking-wide">{{ m.kode_bahan || '-' }}</td>
-                    <td class="px-5 py-3.5 text-center">
-                        <span class="px-2.5 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground border border-border">
-                            {{ m.satuan_ukur }}
-                        </span>
-                    </td>
-                    <td class="px-5 py-3.5 text-center font-medium text-foreground text-xs">
+                    </TableCell>
+                    <TableCell class="py-2 px-3 text-center text-xs font-mono text-muted-foreground align-middle">{{ m.kode_bahan || '-' }}</TableCell>
+                    <TableCell class="py-2 px-3 text-center text-xs text-muted-foreground uppercase align-middle">
+                        {{ m.satuan_ukur }}
+                    </TableCell>
+                    <TableCell class="py-2 px-3 text-right font-medium text-foreground text-xs tabular-nums align-middle">
                         Rp {{ Number(m.harga_beli_satuan || 0).toLocaleString('id-ID') }}
-                    </td>
-                    <td class="px-5 py-3.5 text-center">
-                        <span :class="m.stok_total < m.threshold_min ? 'text-destructive' : 'text-foreground'" class="font-semibold text-sm">
+                    </TableCell>
+                    <TableCell class="py-2 px-3 text-right align-middle">
+                        <span :class="m.stok_total < m.threshold_min ? 'text-destructive font-semibold' : 'text-foreground font-medium'" class="text-sm tabular-nums">
                             {{ Number(m.stok_total).toLocaleString('id-ID') }}
                         </span>
-                    </td>
-                    <td class="px-5 py-3.5 text-center text-xs font-medium text-muted-foreground">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</td>
-                    <td class="px-5 py-3.5 text-center">
-                        <span :class="m.stok_total < m.threshold_min ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'" class="text-xs px-2.5 py-0.5 rounded-md font-semibold border uppercase tracking-wider inline-flex items-center gap-1.5">
+                    </TableCell>
+                    <TableCell class="py-2 px-3 text-right text-xs text-muted-foreground tabular-nums align-middle">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</TableCell>
+                    <TableCell class="py-2 px-3 text-center align-middle">
+                        <span :class="m.stok_total < m.threshold_min ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full" :class="m.stok_total < m.threshold_min ? 'bg-destructive' : 'bg-emerald-500'"></span>
                             {{ m.stok_total < m.threshold_min ? 'Kritis' : 'Aman' }}
                         </span>
-                    </td>
-                    <td class="px-5 py-3.5 text-center">
-                        <div class="flex items-center justify-center gap-1.5">
-                            <button @click="openEdit(m)" class="w-8 h-8 rounded-md bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Edit">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </TableCell>
+                    <TableCell class="py-2 px-3 text-center align-middle">
+                        <div class="flex items-center justify-center gap-1">
+                            <button @click="openEdit(m)" class="h-7 w-7 rounded-md bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Edit">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                             </button>
-                            <button @click="deleteMaterial(m)" class="w-8 h-8 rounded-md bg-background border border-input hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center" title="Hapus">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <button @click="deleteMaterial(m)" class="h-7 w-7 rounded-md bg-background border border-input hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center" title="Hapus">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                    </TableCell>
+                </TableRow>
+            </TableBody>
+        </Table>
     </div>
 </div>
 

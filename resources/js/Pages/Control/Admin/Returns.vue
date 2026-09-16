@@ -2,6 +2,7 @@
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -224,58 +225,66 @@ const submitReturn = () => {
 
             <!-- TABLE: RIWAYAT RETUR -->
             <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-                <table class="w-full text-left">
-                    <thead>
-                        <tr class="bg-muted/50 border-b border-border">
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Retur</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Supplier</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Faktur & Obat</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Ekuivalen Stok Dasar</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alasan (Fisik Retur)</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        <tr v-if="!returns.data || returns.data.length === 0">
-                            <td colspan="6" class="px-6 py-12 text-center">
+                <Table>
+                    <TableHeader>
+                        <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Retur</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Supplier</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Faktur & Obat</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Ekuivalen Stok Dasar</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alasan (Fisik Retur)</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-if="!returns.data || returns.data.length === 0">
+                            <TableCell colspan="6" class="py-8 px-3 text-center">
                                 <div class="flex flex-col items-center">
-                                    <div class="w-12 h-12 bg-muted border border-border rounded-md flex items-center justify-center text-xl mb-3 grayscale">↩️</div>
+                                    <div class="w-10 h-10 bg-muted border border-border rounded-md flex items-center justify-center text-lg mb-2 grayscale">↩️</div>
                                     <p class="text-sm font-medium text-foreground">Belum ada riwayat retur</p>
-                                    <p class="text-xs text-muted-foreground mt-1">Klik Buat Retur untuk mengembalikan obat.</p>
+                                    <p class="text-xs text-muted-foreground mt-0.5">Klik Buat Retur untuk mengembalikan obat.</p>
                                 </div>
-                            </td>
-                        </tr>
-                        <tr v-for="item in returns.data" :key="item.id" class="group hover:bg-muted/30 transition-colors">
-                            <td class="px-4 py-3">
-                                <div class="text-sm font-medium text-foreground">{{ formatDate(item.created_at) }}</div>
-                                <div class="text-xs text-muted-foreground">Oleh: {{ item.creator?.name || 'Sistem' }}</div>
-                            </td>
-                            <td class="px-4 py-3">
+                            </TableCell>
+                        </TableRow>
+                        <TableRow v-for="item in returns.data" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <TableCell class="py-2 px-3 align-middle">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-foreground leading-tight">{{ formatDate(item.created_at) }}</span>
+                                    <span class="text-xs text-muted-foreground leading-tight mt-0.5">Oleh: {{ item.creator?.name || 'Sistem' }}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 align-middle">
                                 <span class="text-sm font-medium text-foreground">{{ item.supplier?.nama_pbf || '-' }}</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="text-xs font-semibold text-foreground">{{ item.incoming_stock?.faktur_no || '-' }}</div>
-                                <div class="text-sm font-medium text-emerald-600 dark:text-emerald-400">{{ item.incoming_stock?.medicine?.nama_obat || '-' }}</div>
-                                <div class="text-xs text-muted-foreground">Batch: {{ item.incoming_stock?.batch_no || '-' }}</div>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="inline-flex items-center px-2 py-0.5 bg-red-500/10 text-red-600 dark:text-red-400 rounded-md text-xs font-semibold border border-red-500/20">
-                                    -{{ item.qty_retur }} <span class="text-xs ml-1 uppercase">{{ item.incoming_stock?.medicine?.satuan_stok }}</span>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 align-middle">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-foreground leading-tight">{{ item.incoming_stock?.medicine?.nama_obat || '-' }}</span>
+                                    <div class="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                                        <span class="font-mono">{{ item.incoming_stock?.faktur_no || '-' }}</span>
+                                        <span>·</span>
+                                        <span class="font-mono">Batch: {{ item.incoming_stock?.batch_no || '-' }}</span>
+                                    </div>
+                                </div>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center">
+                                <span class="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
+                                    -{{ item.qty_retur }} <span class="text-xs font-normal uppercase">{{ item.incoming_stock?.medicine?.satuan_stok }}</span>
                                 </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <p class="text-xs text-muted-foreground max-w-[250px]" :title="item.alasan_retur">
+                            </TableCell>
+                            <TableCell class="py-2 px-3 align-middle">
+                                <p class="text-xs text-muted-foreground max-w-[250px] truncate" :title="item.alasan_retur">
                                     {{ item.alasan_retur }}
                                 </p>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <span class="inline-flex items-center px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-xs font-semibold border border-emerald-500/20">
+                            </TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right">
+                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     SELESAI
                                 </span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
                 
                 <!-- PAGINATION -->
                 <div v-if="returns.data && returns.data.length > 0" class="px-4 py-3 bg-muted/20 border-t border-border flex items-center justify-between">

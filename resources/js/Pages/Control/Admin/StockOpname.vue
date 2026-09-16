@@ -1,7 +1,8 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { ref, computed } from 'vue';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -9,6 +10,7 @@ const props = defineProps({
     opnames: Object,
     medicines: Array,
     rawMaterials: Array,
+    categories: Array,
 });
 
 const stats = computed(() => {
@@ -24,13 +26,154 @@ const showModal = ref(false);
 const form = useForm({
     tanggal_opname: new Date().toISOString().split('T')[0],
     keterangan: '',
+    mode: 'worksheet',
+    scope_type: 'all',
+    category_id: '',
     items: [
-        { type: 'medicine', medicine_id: '', raw_material_id: '', qty_fisik: '' }
+        {
+            type: 'medicine',
+            medicine_id: '',
+            raw_material_id: '',
+            warehouse_inventory_id: '',
+            raw_material_stock_id: '',
+            batch_no: '',
+            system_stock: 0,
+            qty_besar: 0,
+            qty_menengah: 0,
+            qty_kecil: 0,
+            qty_fisik: 0,
+        }
     ]
 });
 
+const getMedicinePackaging = (medicineId) => {
+    const med = props.medicines?.find(m => m.id === medicineId);
+    if (!med) return null;
+    const inc = med.latest_active_incoming_stock || med.latestActiveIncomingStock;
+    const rSmall = Math.max(1, Number(inc?.small_to_mid_ratio) || 1);
+    const rMid = Math.max(1, Number(inc?.mid_to_big_ratio) || 1);
+    const rBig = (rMid > 1 && rSmall > 1) ? (rMid * rSmall) : (Number(inc?.unit_conversion_factor) || (rMid * rSmall));
+    const satuanPrimer = med.satuan_stok || 'Unit';
+
+    return {
+        satuan_input: inc?.satuan_input || null,
+        mid_unit: inc?.mid_unit || null,
+        satuan_stok: satuanPrimer,
+        rBig,
+        rSmall,
+        hasBig: Boolean(inc?.satuan_input && rBig > 1 && inc?.satuan_input !== satuanPrimer),
+        hasMid: Boolean(inc?.mid_unit && rSmall > 1 && inc?.mid_unit !== inc?.satuan_input && inc?.mid_unit !== satuanPrimer),
+    };
+};
+
+const calculateItemTotal = (item) => {
+    if (item.type === 'raw_material') {
+        item.qty_fisik = Number(item.qty_kecil) || 0;
+        return;
+    }
+    const pkg = getMedicinePackaging(item.medicine_id);
+    if (!pkg) {
+        item.qty_fisik = Number(item.qty_kecil) || 0;
+        return;
+    }
+    const qBig = (pkg.hasBig ? Number(item.qty_besar) || 0 : 0) * pkg.rBig;
+    const qMid = (pkg.hasMid ? Number(item.qty_menengah) || 0 : 0) * pkg.rSmall;
+    const qSmall = Number(item.qty_kecil) || 0;
+    item.qty_fisik = Number((qBig + qMid + qSmall).toFixed(2));
+};
+
+const onMedicineChange = (item) => {
+    item.warehouse_inventory_id = '';
+    item.batch_no = '';
+    item.system_stock = 0;
+    item.qty_besar = 0;
+    item.qty_menengah = 0;
+    item.qty_kecil = 0;
+    item.qty_fisik = 0;
+    const med = props.medicines?.find(m => m.id === item.medicine_id);
+    const batches = med?.warehouse_inventories || med?.warehouseInventories || [];
+    if (med && batches.length === 1) {
+        const b = batches[0];
+        item.warehouse_inventory_id = b.id;
+        item.batch_no = b.batch_no;
+        item.system_stock = Number(b.stock_on_hand) || 0;
+    }
+};
+
+const onRawMaterialChange = (item) => {
+    item.raw_material_stock_id = '';
+    item.batch_no = '';
+    item.system_stock = 0;
+    item.qty_kecil = 0;
+    item.qty_fisik = 0;
+    const rm = props.rawMaterials?.find(r => r.id === item.raw_material_id);
+    if (rm && rm.stocks?.length === 1) {
+        const b = rm.stocks[0];
+        item.raw_material_stock_id = b.id;
+        item.batch_no = b.batch_no;
+        item.system_stock = Number(b.stock_on_hand) || 0;
+    }
+};
+
+const onBatchChange = (item) => {
+    if (item.type === 'medicine') {
+        const med = props.medicines?.find(m => m.id === item.medicine_id);
+        const batches = med?.warehouse_inventories || med?.warehouseInventories || [];
+        const b = batches.find(b => b.id === item.warehouse_inventory_id);
+        if (b) {
+            item.batch_no = b.batch_no;
+            item.system_stock = Number(b.stock_on_hand) || 0;
+        }
+    } else if (item.type === 'raw_material') {
+        const rm = props.rawMaterials?.find(r => r.id === item.raw_material_id);
+        const b = rm?.stocks?.find(b => b.id === item.raw_material_stock_id);
+        if (b) {
+            item.batch_no = b.batch_no;
+            item.system_stock = Number(b.stock_on_hand) || 0;
+        }
+    }
+};
+
+const formatDate = (d) => {
+    if (!d) return '-';
+    try {
+        return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d));
+    } catch {
+        return String(d).split('T')[0] || '-';
+    }
+};
+
+const formatBatchOption = (b) => {
+    if (!b) return '';
+    const ed = b.expired_date ? formatDate(b.expired_date) : '-';
+    const stock = Number(b.stock_on_hand || 0);
+    return `${b.batch_no} (ED: ${ed}) - Stok: ${stock}`;
+};
+
+const getBatchesForMedicine = (medicineId) => {
+    const med = props.medicines?.find(m => m.id === medicineId);
+    return med?.warehouse_inventories || med?.warehouseInventories || [];
+};
+
+const getBatchesForRawMaterial = (rawMaterialId) => {
+    const rm = props.rawMaterials?.find(r => r.id === rawMaterialId);
+    return rm?.stocks || [];
+};
+
 const addItem = () => {
-    form.items.push({ type: 'medicine', medicine_id: '', raw_material_id: '', qty_fisik: '' });
+    form.items.push({
+        type: 'medicine',
+        medicine_id: '',
+        raw_material_id: '',
+        warehouse_inventory_id: '',
+        raw_material_stock_id: '',
+        batch_no: '',
+        system_stock: 0,
+        qty_besar: 0,
+        qty_menengah: 0,
+        qty_kecil: 0,
+        qty_fisik: 0,
+    });
 };
 
 const removeItem = (index) => {
@@ -44,7 +187,6 @@ const submit = () => {
         onSuccess: () => {
             showModal.value = false;
             form.reset();
-            form.items = [{ type: 'medicine', medicine_id: '', raw_material_id: '', qty_fisik: '' }];
         }
     });
 };
@@ -158,40 +300,46 @@ const submit = () => {
 
         <!-- Table -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="bg-muted/50 border-b border-border">
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tanggal</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Keterangan</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Item</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-if="opnames.data.length === 0">
-                        <td colspan="5" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada riwayat stock opname dari Admin.</td>
-                    </tr>
-                    <tr v-for="op in opnames.data" :key="op.id" class="hover:bg-muted/40 transition-colors">
-                        <td class="px-5 py-3.5 font-semibold text-foreground text-sm">
+            <Table>
+                <TableHeader>
+                    <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tanggal</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Keterangan</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Item</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-if="opnames.data.length === 0">
+                        <TableCell colspan="5" class="py-8 px-3 text-center text-muted-foreground text-xs font-medium">Belum ada riwayat stock opname dari Admin.</TableCell>
+                    </TableRow>
+                    <TableRow v-for="op in opnames.data" :key="op.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                        <TableCell class="py-2 px-3 align-middle font-medium text-foreground text-sm">
                             {{ new Date(op.opname_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                        </td>
-                        <td class="px-5 py-3.5 text-sm font-medium text-muted-foreground">
+                        </TableCell>
+                        <TableCell class="py-2 px-3 align-middle text-xs text-muted-foreground">
                             {{ op.catatan || '-' }}
-                        </td>
-                        <td class="px-5 py-3.5 text-center">
-                            <span class="bg-muted border border-border text-foreground px-2.5 py-0.5 rounded-md text-xs font-medium">{{ op.items_count || 0 }} item(s)</span>
-                        </td>
-                        <td class="px-5 py-3.5 text-center">
-                            <span v-if="op.status === 'completed'" class="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2.5 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wider">Selesai / Disesuaikan</span>
-                            <span v-else class="bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2.5 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wider">Draft</span>
-                        </td>
-                        <td class="px-5 py-3.5 text-right">
-                            <Link :href="route('control.admin.stock-opname.show', op.id)" class="inline-flex items-center justify-center text-foreground bg-background border border-input hover:bg-accent h-8 px-3 rounded-md text-xs font-medium transition-colors">Lihat Detail</Link>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                        </TableCell>
+                        <TableCell class="py-2 px-3 align-middle text-center">
+                            <span class="text-xs font-mono text-muted-foreground tabular-nums">{{ op.items_count || 0 }} item</span>
+                        </TableCell>
+                        <TableCell class="py-2 px-3 align-middle text-center">
+                            <span v-if="op.status === 'completed'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Selesai
+                            </span>
+                            <span v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                Draft
+                            </span>
+                        </TableCell>
+                        <TableCell class="py-2 px-3 align-middle text-right">
+                            <Link :href="route('control.admin.stock-opname.show', op.id)" class="inline-flex items-center justify-center text-foreground bg-background border border-input hover:bg-accent h-7 px-2.5 rounded text-xs font-medium transition-colors">Lihat Detail</Link>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
             <div v-if="opnames.links?.length > 3" class="px-5 py-3 border-t border-border flex items-center justify-center gap-1.5 bg-muted/30">
                 <template v-for="l in opnames.links" :key="l.label">
                     <button v-if="l.url" @click="router.get(l.url)" :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label"></button>
@@ -219,49 +367,177 @@ const submit = () => {
 
                     <div class="p-6 overflow-y-auto flex-1">
                         <form @submit.prevent="submit" class="space-y-6">
-                            <div class="grid grid-cols-2 gap-4">
+                            <!-- Top Form Details -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Tanggal Opname</label>
                                     <input type="date" v-model="form.tanggal_opname" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required>
                                 </div>
                                 <div class="space-y-1.5">
                                     <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Keterangan (Opsional)</label>
-                                    <input type="text" v-model="form.keterangan" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" placeholder="Contoh: Audit mendadak Q3">
+                                    <input type="text" v-model="form.keterangan" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" placeholder="Contoh: Audit Rutin Akhir Bulan">
                                 </div>
                             </div>
 
-                            <div class="border-t border-border pt-6">
+                            <!-- Mode Switcher -->
+                            <div class="space-y-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Metode Opname</label>
+                                <div class="flex items-center gap-2 p-1 bg-muted/60 rounded-lg border border-border w-fit">
+                                    <button type="button" @click="form.mode = 'worksheet'" :class="form.mode === 'worksheet' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'" class="px-3.5 py-1.5 rounded-md text-xs transition-colors">
+                                        Lembar Kerja Otomatis (Worksheet)
+                                    </button>
+                                    <button type="button" @click="form.mode = 'manual'" :class="form.mode === 'manual' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'" class="px-3.5 py-1.5 rounded-md text-xs transition-colors">
+                                        Input Manual (Sampling / Audit Acak)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- WORKSHEET MODE OPTIONS -->
+                            <div v-if="form.mode === 'worksheet'" class="space-y-4 bg-muted/20 p-4 rounded-lg border border-border">
+                                <div class="space-y-1.5">
+                                    <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Cakupan Lembar Kerja</label>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <label class="flex items-center gap-2.5 p-3 rounded-md border cursor-pointer transition-colors" :class="form.scope_type === 'all' ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-input bg-background text-muted-foreground hover:bg-muted/30'">
+                                            <input type="radio" v-model="form.scope_type" value="all" class="text-primary focus:ring-primary h-4 w-4" />
+                                            <span class="text-xs">Semua Obat Reguler</span>
+                                        </label>
+                                        <label class="flex items-center gap-2.5 p-3 rounded-md border cursor-pointer transition-colors" :class="form.scope_type === 'category' ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-input bg-background text-muted-foreground hover:bg-muted/30'">
+                                            <input type="radio" v-model="form.scope_type" value="category" class="text-primary focus:ring-primary h-4 w-4" />
+                                            <span class="text-xs">Kategori Tertentu</span>
+                                        </label>
+                                        <label class="flex items-center gap-2.5 p-3 rounded-md border cursor-pointer transition-colors" :class="form.scope_type === 'raw_materials' ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-input bg-background text-muted-foreground hover:bg-muted/30'">
+                                            <input type="radio" v-model="form.scope_type" value="raw_materials" class="text-primary focus:ring-primary h-4 w-4" />
+                                            <span class="text-xs">Khusus Bahan Baku</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div v-if="form.scope_type === 'category'" class="space-y-1.5">
+                                    <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Pilih Kategori (misal: Narkotika / Psikotropika)</label>
+                                    <select v-model="form.category_id" class="w-full h-9 px-3 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
+                                        <option value="" disabled>Pilih Kategori...</option>
+                                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                    </select>
+                                </div>
+
+                                <div class="flex items-start gap-2.5 p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs leading-relaxed">
+                                    <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p>
+                                        Sistem akan langsung menyiapkan lembar kerja yang memuat seluruh batch aktif dan tanggal kadaluwarsa (ED). Petugas dapat langsung menghitung fisik di rak apotek tanpa perlu menambah baris satu per satu.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- MANUAL SAMPLING MODE -->
+                            <div v-if="form.mode === 'manual'" class="border-t border-border pt-6">
                                 <div class="flex justify-between items-center mb-4">
-                                    <h4 class="text-xs font-semibold text-foreground uppercase tracking-wider">Item yang Diopname</h4>
+                                    <div>
+                                        <h4 class="text-xs font-semibold text-foreground uppercase tracking-wider">Item Sampling yang Diopname</h4>
+                                        <p class="text-[11px] text-muted-foreground mt-0.5">Pilih obat dan batch fisik yang dihitung di rak apotek.</p>
+                                    </div>
                                     <button type="button" @click="addItem" class="text-xs bg-muted text-foreground hover:bg-accent font-medium px-3 py-1.5 rounded-md transition-colors border border-border">
                                         + Tambah Baris
                                     </button>
                                 </div>
 
                                 <div class="space-y-3">
-                                    <div v-for="(item, idx) in form.items" :key="idx" class="flex items-center gap-3 bg-muted/20 p-3 rounded-md border border-border">
-                                        <div class="w-44">
-                                            <select v-model="item.type" @change="item.medicine_id = ''; item.raw_material_id = ''" class="w-full h-9 px-3 text-sm border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium">
-                                                <option value="medicine">Obat Jadi</option>
-                                                <option value="raw_material">Bahan Baku</option>
-                                            </select>
+                                    <div v-for="(item, idx) in form.items" :key="idx" class="p-3.5 rounded-lg border border-border bg-muted/10 space-y-3">
+                                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                            <div class="w-full sm:w-36">
+                                                <select v-model="item.type" @change="item.medicine_id = ''; item.raw_material_id = ''; onMedicineChange(item)" class="w-full h-9 px-3 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium">
+                                                    <option value="medicine">Obat Jadi</option>
+                                                    <option value="raw_material">Bahan Baku</option>
+                                                </select>
+                                            </div>
+                                            <div class="flex-1 w-full">
+                                                <select v-if="item.type === 'medicine'" v-model="item.medicine_id" @change="onMedicineChange(item)" class="w-full h-9 px-3 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
+                                                    <option value="" disabled>Pilih Obat Jadi...</option>
+                                                    <option v-for="m in medicines" :key="m.id" :value="m.id">{{ m.nama_obat }}</option>
+                                                </select>
+                                                <select v-if="item.type === 'raw_material'" v-model="item.raw_material_id" @change="onRawMaterialChange(item)" class="w-full h-9 px-3 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
+                                                    <option value="" disabled>Pilih Bahan Baku...</option>
+                                                    <option v-for="rm in rawMaterials" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }}</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" @click="removeItem(idx)" :disabled="form.items.length === 1" class="w-9 h-9 shrink-0 flex items-center justify-center rounded-md bg-background border border-input text-muted-foreground hover:text-destructive hover:border-destructive transition-colors disabled:opacity-50">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
                                         </div>
-                                        <div class="flex-1">
-                                            <select v-if="item.type === 'medicine'" v-model="item.medicine_id" class="w-full h-9 px-3 text-sm border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
-                                                <option value="" disabled>Pilih Obat Jadi...</option>
-                                                <option v-for="m in medicines" :key="m.id" :value="m.id">{{ m.nama_obat }}</option>
-                                            </select>
-                                            <select v-if="item.type === 'raw_material'" v-model="item.raw_material_id" class="w-full h-9 px-3 text-sm border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
-                                                <option value="" disabled>Pilih Bahan Baku...</option>
-                                                <option v-for="rm in rawMaterials" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }}</option>
-                                            </select>
+
+                                        <!-- Batch Selection Row -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center pt-2 border-t border-border/60">
+                                            <!-- Batch Selector (sm:col-span-5) -->
+                                            <div class="sm:col-span-5">
+                                                <label class="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Pilih Batch Fisik</label>
+                                                <select v-if="item.type === 'medicine'" v-model="item.warehouse_inventory_id" @change="onBatchChange(item)" class="w-full h-8 px-2.5 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" :disabled="!item.medicine_id">
+                                                    <option value="" disabled>Pilih Batch Gudang...</option>
+                                                    <option v-for="b in getBatchesForMedicine(item.medicine_id)" :key="b.id" :value="b.id">
+                                                        {{ formatBatchOption(b) }}
+                                                    </option>
+                                                </select>
+                                                <select v-if="item.type === 'raw_material'" v-model="item.raw_material_stock_id" @change="onBatchChange(item)" class="w-full h-8 px-2.5 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" :disabled="!item.raw_material_id">
+                                                    <option value="" disabled>Pilih Batch Bahan Baku...</option>
+                                                    <option v-for="b in getBatchesForRawMaterial(item.raw_material_id)" :key="b.id" :value="b.id">
+                                                        {{ formatBatchOption(b) }}
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <!-- Multi-Packaging Parallel Inputs (sm:col-span-7) -->
+                                            <div class="sm:col-span-7">
+                                                <label class="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                                                    Hitungan Fisik di Rak
+                                                    <span v-if="item.system_stock > 0" class="text-muted-foreground font-normal lowercase">(stok sistem: {{ item.system_stock }})</span>
+                                                </label>
+                                                
+                                                <!-- If Medicine with Multi Packaging -->
+                                                <div v-if="item.type === 'medicine' && getMedicinePackaging(item.medicine_id)" class="flex items-center gap-2">
+                                                    <!-- Big Unit Input (if available) -->
+                                                    <div v-if="getMedicinePackaging(item.medicine_id).hasBig" class="flex-1 flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs">
+                                                        <input type="number" v-model.number="item.qty_besar" @input="calculateItemTotal(item)" min="0" class="w-full h-8 px-2.5 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                                        <span class="pr-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                                            {{ getMedicinePackaging(item.medicine_id).satuan_input }}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <!-- Mid Unit Input (if available) -->
+                                                    <div v-if="getMedicinePackaging(item.medicine_id).hasMid" class="flex-1 flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs">
+                                                        <input type="number" v-model.number="item.qty_menengah" @input="calculateItemTotal(item)" min="0" class="w-full h-8 px-2.5 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                                        <span class="pr-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                                            {{ getMedicinePackaging(item.medicine_id).mid_unit }}
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- Small Unit Input -->
+                                                    <div class="flex-1 flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs">
+                                                        <input type="number" v-model.number="item.qty_kecil" @input="calculateItemTotal(item)" min="0" class="w-full h-8 px-2.5 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                                        <span class="pr-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                                            {{ getMedicinePackaging(item.medicine_id).satuan_stok }}
+                                                        </span>
+                                                    </div>
+
+                                                    <!-- Total Base Unit Badge -->
+                                                    <div class="shrink-0 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-md text-emerald-700 dark:text-emerald-400 font-bold text-xs tabular-nums whitespace-nowrap shadow-2xs">
+                                                        = {{ item.qty_fisik }} {{ getMedicinePackaging(item.medicine_id).satuan_stok }}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Fallback Single Input -->
+                                                <div v-else class="flex items-center gap-2">
+                                                    <div class="flex-1 flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs">
+                                                        <input type="number" v-model.number="item.qty_kecil" @input="calculateItemTotal(item)" min="0" step="0.01" class="w-full h-8 px-3 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                                        <span class="pr-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                                            {{ item.type === 'raw_material' ? (rawMaterials?.find(r => r.id === item.raw_material_id)?.satuan || 'Satuan') : 'Satuan' }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="shrink-0 px-2.5 py-1 bg-muted/60 border border-border rounded-md text-foreground font-semibold text-xs tabular-nums shadow-2xs">
+                                                        = {{ item.qty_fisik }}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="w-32">
-                                            <input type="number" v-model="item.qty_fisik" class="w-full h-9 px-3 text-sm text-right border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-semibold placeholder:text-muted-foreground" placeholder="Qty Fisik" required min="0" step="0.01">
-                                        </div>
-                                        <button type="button" @click="removeItem(idx)" :disabled="form.items.length === 1" class="w-9 h-9 flex items-center justify-center rounded-md bg-background border border-input text-muted-foreground hover:text-destructive hover:border-destructive transition-colors disabled:opacity-50">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -271,7 +547,7 @@ const submit = () => {
                     <div class="px-6 py-4 border-t border-border flex justify-end gap-3 bg-muted/30">
                         <button type="button" @click="showModal = false" class="px-4 h-9 text-sm font-medium text-foreground bg-background border border-input hover:bg-accent rounded-md transition-colors">Batal</button>
                         <button type="button" @click="submit" :disabled="form.processing" class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50 shadow-sm">
-                            Simpan Opname
+                            {{ form.mode === 'worksheet' ? 'Generate Lembar Opname' : 'Simpan Opname' }}
                         </button>
                     </div>
                 </div>

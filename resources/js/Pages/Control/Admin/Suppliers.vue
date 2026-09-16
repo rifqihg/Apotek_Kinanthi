@@ -2,6 +2,7 @@
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
@@ -178,74 +179,58 @@ function destroy(supplier) {
 
             <!-- TABLE CONTAINER -->
             <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-                <table class="w-full text-sm text-left">
-                    <thead>
-                        <tr class="bg-muted/50 border-b border-border">
-                            <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Informasi PBF / Nama Perusahaan</th>
-                            <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kontak Distributor</th>
-                            <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Alamat / Lokasi</th>
-                            <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
-                            <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi Kendali</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        <tr v-if="filteredSuppliers.length === 0">
-                            <td colspan="5" class="px-6 py-12 text-center">
-                                <div class="flex flex-col items-center">
-                                    <div class="w-12 h-12 bg-muted border border-border rounded-md flex items-center justify-center text-xl mb-3 text-muted-foreground">🏢</div>
-                                    <p class="text-muted-foreground font-medium text-sm">Data Supplier Belum Tersedia</p>
+                <Table>
+                    <TableHeader>
+                        <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Informasi PBF / Nama Perusahaan</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kontak Distributor</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Alamat / Lokasi</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-if="filteredSuppliers.length === 0">
+                            <TableCell colspan="5" class="px-6 py-12 text-center text-muted-foreground text-sm">
+                                Data Supplier Belum Tersedia.
+                            </TableCell>
+                        </TableRow>
+                        <TableRow v-for="s in filteredSuppliers" :key="s.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
+                                <div class="flex flex-col">
+                                    <span class="text-foreground font-medium text-sm leading-tight">{{ s.nama_pbf }}</span>
+                                    <span class="text-xs text-muted-foreground leading-tight mt-0.5">Distributor Farmasi</span>
                                 </div>
-                            </td>
-                        </tr>
-                        <tr v-for="s in filteredSuppliers" :key="s.id" class="hover:bg-muted/40 transition-colors">
-                            <td class="px-5 py-3.5 whitespace-nowrap">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center font-bold text-xs uppercase border border-border">
-                                        {{ s.nama_pbf.substring(0, 2) }}
-                                    </div>
-                                    <div>
-                                        <p class="text-foreground font-semibold tracking-tight text-sm mb-0.5">{{ s.nama_pbf }}</p>
-                                        <p class="text-xs text-muted-foreground">Registered Partner</p>
-                                    </div>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
+                                <div class="flex items-center gap-2 text-xs">
+                                    <span class="font-mono text-foreground">{{ s.telepon || '-' }}</span>
+                                    <span v-if="s.email" class="text-muted-foreground">·</span>
+                                    <span v-if="s.email" class="text-muted-foreground">{{ s.email }}</span>
                                 </div>
-                            </td>
-                            <td class="px-5 py-3.5 whitespace-nowrap">
-                                <div class="flex flex-col gap-1">
-                                    <span class="flex items-center gap-1.5 text-xs font-semibold text-foreground tracking-wide">
-                                        <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                                        {{ s.telepon || '-' }}
-                                    </span>
-                                    <span class="flex items-center gap-1.5 text-xs text-muted-foreground lowercase">
-                                        <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                        {{ s.email || '-' }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="px-5 py-3.5">
-                                <div class="flex items-start gap-1.5 max-w-[260px]">
-                                    <svg class="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                    <p class="text-xs text-muted-foreground leading-relaxed">{{ s.alamat || '-' }}</p>
-                                </div>
-                            </td>
-                            <td class="px-5 py-3.5 whitespace-nowrap text-center">
-                                <span :class="s.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-flex items-center gap-1.5">
-                                    <span class="w-1.5 h-1.5 rounded-full" :class="s.is_active ? 'bg-emerald-500' : 'bg-destructive'"></span>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 align-middle">
+                                <p class="text-xs text-muted-foreground max-w-[280px] truncate" :title="s.alamat">{{ s.alamat || '-' }}</p>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 whitespace-nowrap text-center align-middle">
+                                <span :class="s.is_active ? 'text-emerald-600' : 'text-muted-foreground'" class="text-xs font-medium inline-flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full" :class="s.is_active ? 'bg-emerald-500' : 'bg-muted-foreground'"></span>
                                     {{ s.is_active ? 'Aktif' : 'Non-Aktif' }}
                                 </span>
-                            </td>
-                            <td class="px-5 py-3.5 whitespace-nowrap text-center">
-                                <div class="flex items-center justify-center gap-1.5">
-                                    <button @click="openEdit(s)" class="w-8 h-8 flex items-center justify-center bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground rounded-md transition-colors" title="Edit Data">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            </TableCell>
+                            <TableCell class="py-2 px-3 whitespace-nowrap text-center align-middle">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button @click="openEdit(s)" class="h-7 w-7 flex items-center justify-center bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground rounded-md transition-colors" title="Edit Data">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                     </button>
-                                    <button @click="destroy(s)" class="w-8 h-8 flex items-center justify-center bg-background border border-input hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-md transition-colors" title="Hapus Data">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    <button @click="destroy(s)" class="h-7 w-7 flex items-center justify-center bg-background border border-input hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-md transition-colors" title="Hapus Data">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
                 
                 <!-- Pagination Footer -->
                 <div class="px-5 py-3 bg-muted/30 border-t border-border flex items-center justify-between">

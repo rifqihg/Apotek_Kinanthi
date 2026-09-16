@@ -7,6 +7,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 import axios from 'axios';
 import { formatInventoryThreshold } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/Components/ui/table';
 
 const props = defineProps({ stocks: Object, suppliers: Array, medicines: Array, settings: Object, filters: Object });
 const showModal = ref(false);
@@ -452,73 +453,66 @@ function submit() {
             <!-- Accordion Body (Table) -->
             <div v-show="openAccordions[group.faktur_no]" class="border-t border-border bg-muted/20">
                 <div class="w-full overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-muted/40 border-b border-border">
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Barang</th>
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</th>
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Exp Date</th>
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Barang (Qty)</th>
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Beli</th>
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Disc (%)</th>
-                                <th class="px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Jumlah Harga</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border">
-                            <tr v-for="item in group.items" :key="item.id" class="hover:bg-muted/30 transition-colors">
-                                <td class="px-4 py-3">
-                                    <p class="text-sm font-semibold text-foreground">{{ item.medicine?.nama_obat }}</p>
-                                    <div class="flex items-center gap-2 mt-1 flex-wrap">
-                                        <span class="text-xs text-muted-foreground">{{ item.satuan_input }}</span>
-                                        <span class="text-muted-foreground/60 text-xs">&bull;</span>
-                                        <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border font-medium">
-                                            Ambang Batas: {{ item.medicine?.threshold_min ?? 10 }} {{ item.medicine?.satuan_stok || 'Unit' }}
-                                        </span>
-                                        <span 
-                                            v-if="item.medicine"
-                                            class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded font-semibold border"
-                                            :class="Number(item.medicine.stok_total) <= Number(item.medicine.threshold_min) 
-                                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
-                                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'"
-                                        >
-                                            {{ Number(item.medicine.stok_total) <= Number(item.medicine.threshold_min) ? 'Perlu Restock' : 'Stok Aman' }}
-                                        </span>
+                    <Table>
+                        <TableHeader>
+                            <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Barang</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Exp Date</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Barang (Qty)</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Beli</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Disc (%)</TableHead>
+                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Jumlah Harga</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="item in group.items" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                                <TableCell class="py-2 px-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-foreground leading-tight">{{ item.medicine?.nama_obat }}</span>
+                                        <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.satuan_input }}</span>
                                     </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex items-center text-xs px-2 py-0.5 rounded border border-border bg-muted/40 text-muted-foreground tracking-wide">
-                                        {{ item.batch_no }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-muted-foreground">
-                                    {{ new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) }}
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <span class="font-bold text-sm text-foreground">{{ item.qty_masuk }}</span>
-                                    <span class="block text-[11px] text-muted-foreground mt-0.5">
-                                        &asymp; {{ item.qty_converted || (item.qty_masuk * (item.unit_conversion_factor || 1)) }} {{ item.medicine?.satuan_stok || 'Unit' }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-right text-sm text-muted-foreground">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</td>
-                                <td class="px-4 py-3 text-center text-sm text-muted-foreground">{{ Number(item.diskon_persen) }}%</td>
-                                <td class="px-4 py-3 text-right font-bold text-sm text-emerald-600 dark:text-emerald-400">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</td>
-                            </tr>
-                        </tbody>
-                        <tfoot class="bg-card border-t border-border">
-                            <tr>
-                                <td colspan="6" class="px-4 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub Nota</td>
-                                <td class="px-4 py-2 text-right font-semibold text-sm text-foreground">Rp {{ group.subtotal.toLocaleString('id-ID') }}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="6" class="px-4 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">PPN ({{ group.ppn_persen }}%)</td>
-                                <td class="px-4 py-2 text-right font-semibold text-sm text-rose-600 dark:text-rose-400">+ Rp {{ (group.subtotal * (group.ppn_persen/100)).toLocaleString('id-ID') }}</td>
-                            </tr>
-                            <tr class="bg-muted/30">
-                                <td colspan="6" class="px-4 py-3 text-right text-sm font-bold text-foreground uppercase tracking-wider">Total</td>
-                                <td class="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 text-base">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle">
+                                    <span class="font-mono text-sm font-normal text-foreground tracking-tight">{{ item.batch_no }}</span>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle">
+                                    <span class="text-xs font-mono text-muted-foreground tabular-nums">{{ new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) }}</span>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-center">
+                                    <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
+                                            <span class="font-semibold tabular-nums text-foreground">{{ item.qty_masuk }}</span>
+                                            <span class="text-muted-foreground uppercase text-[11px] tracking-wide">{{ item.satuan_input }}</span>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <span class="text-sm font-medium tabular-nums text-foreground text-right block">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</span>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-center">
+                                    <span class="text-xs font-medium tabular-nums text-muted-foreground text-center block">{{ Number(item.diskon_persen) }}%</span>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <span class="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 text-right block">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</span>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                        <TableFooter class="bg-card border-t border-border">
+                            <TableRow class="h-9 border-b border-border/40">
+                                <TableCell colspan="6" class="py-1.5 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub Nota</TableCell>
+                                <TableCell class="py-1.5 px-3 text-right font-medium text-sm text-foreground tabular-nums">Rp {{ group.subtotal.toLocaleString('id-ID') }}</TableCell>
+                            </TableRow>
+                            <TableRow class="h-9 border-b border-border/40">
+                                <TableCell colspan="6" class="py-1.5 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">PPN ({{ group.ppn_persen }}%)</TableCell>
+                                <TableCell class="py-1.5 px-3 text-right font-medium text-sm text-rose-600 dark:text-rose-400 tabular-nums">+ Rp {{ (group.subtotal * (group.ppn_persen/100)).toLocaleString('id-ID') }}</TableCell>
+                            </TableRow>
+                            <TableRow class="h-10 bg-muted/30">
+                                <TableCell colspan="6" class="py-2 px-3 text-right text-xs font-bold text-foreground uppercase tracking-wider">Total</TableCell>
+                                <TableCell class="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
                 </div>
             </div>
         </div>
