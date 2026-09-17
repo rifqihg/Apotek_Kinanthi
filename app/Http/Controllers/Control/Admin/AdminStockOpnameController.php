@@ -108,7 +108,8 @@ class AdminStockOpnameController extends Controller
                     }
                 } else {
                     $inventoryQuery = WarehouseInventory::where('status', 'active')
-                        ->where('stock_on_hand', '>', 0);
+                        ->where('stock_on_hand', '>', 0)
+                        ->where(fn($q) => $q->where('location_type', '!=', 'kasir')->orWhereNull('location_type'));
 
                     if ($scope === 'category' && !empty($v['category_id'])) {
                         $catId = $v['category_id'];

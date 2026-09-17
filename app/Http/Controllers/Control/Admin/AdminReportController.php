@@ -11,15 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
-use OpenSpout\Writer\XLSX\Writer;
-use OpenSpout\Writer\XLSX\Options;
-use OpenSpout\Writer\AutoFilter;
-use OpenSpout\Writer\XLSX\Entity\SheetView;
-use OpenSpout\Common\Entity\Style\Style;
-use OpenSpout\Common\Entity\Style\Color;
-use OpenSpout\Common\Entity\Style\CellAlignment;
-use OpenSpout\Common\Entity\Row;
-use OpenSpout\Common\Entity\Cell;
 
 class AdminReportController extends Controller
 {
@@ -32,7 +23,7 @@ class AdminReportController extends Controller
             ->whereHas('sale', fn($sq) => $sq->where('status', 'paid')->whereDate('created_at', '>=', $startDate)->whereDate('created_at', '<=', $endDate));
 
         return Medicine::query()
-            ->with('latestActiveIncomingStock')
+            ->with(['latestActiveIncomingStock', 'warehouseInventories:id,medicine_id,batch_no'])
             ->withSum(['saleItems as terjual' => $paidFilter], 'quantity')
             ->withSum(['saleItems as total_penjualan' => $paidFilter], 'subtotal')
             ->orderBy('nama_obat');
@@ -59,7 +50,29 @@ class AdminReportController extends Controller
     {
         $stock = $latestStock ?? $med->latestActiveIncomingStock;
         $modal = $stock ? (float) $stock->calculateHppSatuan() : 0;
-        return $this->formatMetricRow($med->id, $med->nama_obat, $med->satuan_stok ?: $med->base_unit, $modal, (float) $med->selling_price, (float) $med->stok_total, (float) ($med->terjual ?? 0), (float) ($med->total_penjualan ?? 0));
+        $threshold = (int) ($med->threshold_min ?? 10);
+
+        // Resolusi nomor batch / kode obat: eliminasi strip '-' jika data batch fisik tersedia
+        $kodeOrBatch = $med->kode_obat;
+        if (empty($kodeOrBatch) || $kodeOrBatch === '-') {
+            $kodeOrBatch = $stock?->batch_no
+                ?: $med->warehouseInventories?->first()?->batch_no
+                ?: ('MED-' . str_pad($med->id, 4, '0', STR_PAD_LEFT));
+        }
+
+        return $this->formatMetricRow(
+            $med->id,
+            $kodeOrBatch,
+            $med->nama_obat,
+            'Obat Jadi',
+            $med->satuan_stok ?: $med->base_unit,
+            $modal,
+            (float) $med->selling_price,
+            (float) $med->stok_total,
+            (float) ($med->terjual ?? 0),
+            (float) ($med->total_penjualan ?? 0),
+            $threshold
+        );
     }
 
     /**
@@ -68,25 +81,63 @@ class AdminReportController extends Controller
     private function calculateCompoundedMetric($cp): array
     {
         $modal = (float) ($cp->hpp_per_unit > 0 ? $cp->hpp_per_unit : $cp->base_cost);
-        return $this->formatMetricRow('cp-' . $cp->id, $cp->nama_produk . ' (Racikan)', $cp->satuan ?: 'Paket', $modal, (float) $cp->harga_jual, (float) $cp->qty_hasil, (float) ($cp->terjual ?? 0), (float) ($cp->total_penjualan ?? 0));
+        return $this->formatMetricRow(
+            'cp-' . $cp->id,
+            $cp->batch_no ?: ('RAC-' . str_pad($cp->id, 4, '0', STR_PAD_LEFT)),
+            $cp->nama_produk,
+            'Racikan',
+            $cp->satuan ?: 'Paket',
+            $modal,
+            (float) $cp->harga_jual,
+            (float) $cp->qty_hasil,
+            (float) ($cp->terjual ?? 0),
+            (float) ($cp->total_penjualan ?? 0),
+            5
+        );
     }
 
-    private function formatMetricRow($id, string $nama, ?string $satuan, float $modal, float $hargaJual, float $sisaStok, float $terjual, float $totalPenjualan): array
-    {
+    private function formatMetricRow(
+        $id,
+        string $kode,
+        string $nama,
+        string $kategori,
+        ?string $satuan,
+        float $modal,
+        float $hargaJual,
+        float $sisaStok,
+        float $terjual,
+        float $totalPenjualan,
+        int $thresholdMin = 10
+    ): array {
         $totalModal = $modal * $terjual;
+        $laba = $totalPenjualan - $totalModal;
+        $marginPercentage = $totalPenjualan > 0 ? round(($laba / $totalPenjualan) * 100, 1) : 0.0;
+
+        if ($sisaStok <= 0) {
+            $status = 'Habis';
+        } elseif ($sisaStok <= $thresholdMin) {
+            $status = 'Menipis';
+        } else {
+            $status = 'Aman';
+        }
+
         return [
             'id' => $id,
+            'kode_obat' => $kode,
             'nama_produk' => $nama,
+            'kategori' => $kategori,
             'satuan' => $satuan,
             'modal' => $modal,
             'harga_jual' => $hargaJual,
             'qty_awal' => $sisaStok + $terjual,
             'terjual' => $terjual,
             'sisa_stok' => $sisaStok,
+            'threshold_min' => $thresholdMin,
             'total_penjualan' => $totalPenjualan,
             'total_modal' => $totalModal,
-            'laba' => $totalPenjualan - $totalModal,
-            'status' => $sisaStok > 0 ? 'Tersedia' : 'Pesan',
+            'laba' => $laba,
+            'margin_percentage' => $marginPercentage,
+            'status' => $status,
         ];
     }
 
@@ -172,178 +223,34 @@ class AdminReportController extends Controller
     }
 
     /**
-     * Export Rekapitulasi Penjualan ke format .xlsx (Excel) menggunakan OpenSpout
-     */
-    public function exportSales(Request $request)
-    {
-        $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
-
-        $salesQuery = $this->getSalesQuery($startDate, $endDate);
-        if (!$salesQuery->exists()) {
-            return back()->with('error', 'Tidak ada data produk.');
-        }
-
-        $fileName = 'rekap-penjualan-' . $startDate . '-sd-' . $endDate . '.xlsx';
-
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="' . $fileName . '"');
-        header('Cache-Control: max-age=0');
-
-        $options = new Options();
-        $writer = new Writer($options);
-        $writer->openToFile('php://output');
-
-        // Styles
-        $headerStyle = (new Style())->setFontBold()->setFontColor(Color::WHITE)->setBackgroundColor('002060')->setCellAlignment(CellAlignment::CENTER);
-        $titleStyle = (new Style())->setFontBold()->setCellAlignment(CellAlignment::CENTER);
-        $titleStyle14 = (clone $titleStyle)->setFontSize(14);
-        $currencyStyle = (new Style())->setFormat('Rp #,##0');
-        $boldCurrencyStyle = (new Style())->setFontBold()->setFormat('Rp #,##0');
-        $boldStyle = (new Style())->setFontBold();
-        $centerStyle = (new Style())->setCellAlignment(CellAlignment::CENTER);
-        $statusPesanStyle = (new Style())->setBackgroundColor('FFC7CE')->setFontColor('9C0006')->setCellAlignment(CellAlignment::CENTER);
-        $statusTersediaStyle = (new Style())->setBackgroundColor('C6EFCE')->setFontColor('006100')->setCellAlignment(CellAlignment::CENTER);
-
-        $options->mergeCells(0, 1, 11, 1, 0);
-        $options->mergeCells(0, 2, 11, 2, 0);
-        $options->mergeCells(0, 3, 11, 3, 0);
-
-        $sheet = $writer->getCurrentSheet();
-        $sheet->setName('Rekap Penjualan');
-        
-        $colWidths = [1 => 6, 2 => 30, 3 => 10, 4 => 15, 5 => 15, 6 => 12, 7 => 12, 8 => 12, 9 => 20, 10 => 20, 11 => 20, 12 => 12];
-        foreach ($colWidths as $col => $w) {
-            $options->setColumnWidth($w, $col);
-        }
-
-        $writer->addRow(new Row([Cell::fromValue('APOTEK KINANTHI', $titleStyle14)]));
-        $writer->addRow(new Row([Cell::fromValue('Jl. Dieng No.24, Wonosobo Timur, Kec. Wonosobo', $titleStyle)]));
-        
-        $startDateFormatted = Carbon::parse($startDate)->format('d F Y');
-        $endDateFormatted = Carbon::parse($endDate)->format('d F Y');
-        $writer->addRow(new Row([Cell::fromValue("REKAP PENJUALAN TGL $startDateFormatted - $endDateFormatted", $titleStyle)]));
-        $writer->addRow(new Row([]));
-
-        // Ringkasan Agregasi KPI Penjualan
-        $summary = $this->calculateSalesSummary($startDate, $endDate);
-        $totalPenjualanKeseluruhan = $summary['total_amount'];
-        $totalModalKeseluruhan = $summary['total_modal'];
-        $totalLabaKeseluruhan = $summary['total_laba'];
-
-        // Summary Atas
-        $writer->addRow(new Row([Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue('Total Penjualan', $boldStyle), Cell::fromValue($totalPenjualanKeseluruhan, $boldCurrencyStyle)]));
-        $writer->addRow(new Row([Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue('Total Modal', $boldStyle), Cell::fromValue($totalModalKeseluruhan, $boldCurrencyStyle)]));
-        $writer->addRow(new Row([Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue(''), Cell::fromValue('Total Laba', $boldStyle), Cell::fromValue($totalLabaKeseluruhan, $boldCurrencyStyle)]));
-        $writer->addRow(new Row([]));
-
-        $sheetView = new SheetView();
-        $sheetView->setFreezeRow(9);
-        $sheet->setSheetView($sheetView);
-        
-        $writer->addRow(new Row([
-            Cell::fromValue('NO', $headerStyle),
-            Cell::fromValue('NAMA PRODUK', $headerStyle),
-            Cell::fromValue('SATUAN', $headerStyle),
-            Cell::fromValue('MODAL', $headerStyle),
-            Cell::fromValue('HARGA JUAL', $headerStyle),
-            Cell::fromValue('QTY AWAL', $headerStyle),
-            Cell::fromValue('TERJUAL', $headerStyle),
-            Cell::fromValue('SISA STOK', $headerStyle),
-            Cell::fromValue('TOTAL PENJUALAN', $headerStyle),
-            Cell::fromValue('MODAL', $headerStyle),
-            Cell::fromValue('LABA', $headerStyle),
-            Cell::fromValue('STATUS', $headerStyle),
-        ]));
-        
-        // Preload active incoming stocks map untuk mencegah N+1 saat cursor stream
-        $latestStocks = IncomingStock::where('status_gate', 'active')
-            ->orderBy('id', 'desc')
-            ->get()
-            ->unique('medicine_id')
-            ->keyBy('medicine_id');
-
-        $totalRows = Medicine::count() + CompoundedProduct::count();
-        $sheet->setAutoFilter(new AutoFilter(0, 9, 11, 9 + $totalRows));
-
-        $no = 1;
-        $sumQtyAwal = 0;
-        $sumTerjual = 0;
-        $sumSisaStok = 0;
-
-        // Generator baris gabungan Obat Jadi & Racikan
-        $rowsGenerator = function () use ($salesQuery, $latestStocks, $startDate, $endDate) {
-            foreach ($salesQuery->cursor() as $med) {
-                yield $this->calculateMedicineMetric($med, $latestStocks->get($med->id));
-            }
-            foreach ($this->getCompoundedSalesQuery($startDate, $endDate)->cursor() as $cp) {
-                yield $this->calculateCompoundedMetric($cp);
-            }
-        };
-
-        foreach ($rowsGenerator() as $row) {
-            $sumQtyAwal += $row['qty_awal'];
-            $sumTerjual += $row['terjual'];
-            $sumSisaStok += $row['sisa_stok'];
-            $activeStatusStyle = $row['sisa_stok'] > 0 ? $statusTersediaStyle : $statusPesanStyle;
-
-            $writer->addRow(new Row([
-                Cell::fromValue($no++, $centerStyle),
-                Cell::fromValue($row['nama_produk']),
-                Cell::fromValue($row['satuan'], $centerStyle),
-                Cell::fromValue($row['modal'], $currencyStyle),
-                Cell::fromValue($row['harga_jual'], $currencyStyle),
-                Cell::fromValue($row['qty_awal'], $centerStyle),
-                Cell::fromValue($row['terjual'], $centerStyle),
-                Cell::fromValue($row['sisa_stok'], $centerStyle),
-                Cell::fromValue($row['total_penjualan'], $currencyStyle),
-                Cell::fromValue($row['total_modal'], $currencyStyle),
-                Cell::fromValue($row['laba'], $currencyStyle),
-                Cell::fromValue($row['status'], $activeStatusStyle),
-            ]));
-        }
-        
-        $writer->addRow(new Row([
-            Cell::fromValue(''),
-            Cell::fromValue('TOTAL', (new Style())->setFontBold()->setCellAlignment(CellAlignment::CENTER)),
-            Cell::fromValue(''),
-            Cell::fromValue(''),
-            Cell::fromValue(''),
-            Cell::fromValue((float) $sumQtyAwal, (new Style())->setFontBold()->setCellAlignment(CellAlignment::CENTER)),
-            Cell::fromValue((float) $sumTerjual, (new Style())->setFontBold()->setCellAlignment(CellAlignment::CENTER)),
-            Cell::fromValue((float) $sumSisaStok, (new Style())->setFontBold()->setCellAlignment(CellAlignment::CENTER)),
-            Cell::fromValue((float) $totalPenjualanKeseluruhan, $boldCurrencyStyle),
-            Cell::fromValue((float) $totalModalKeseluruhan, $boldCurrencyStyle),
-            Cell::fromValue((float) $totalLabaKeseluruhan, $boldCurrencyStyle),
-            Cell::fromValue(''),
-        ]));
-
-        $writer->close();
-        exit;
-    }
-
-    /**
-     * Hitung KPI ringkasan monitoring kasir secara tertunda (Inertia defer)
+     * Hitung KPI ringkasan monitoring kasir dengan agregasi cepat dan rincian tunai vs non-tunai.
      */
     private function calculateCashierKpis(string $startDate, string $endDate): array
     {
-        $baseQuery = Sale::where('status', 'paid')
-            ->whereDate('created_at', '>=', $startDate)
-            ->whereDate('created_at', '<=', $endDate);
+        $aggregates = Sale::whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->selectRaw("
+                COUNT(CASE WHEN status = 'paid' THEN 1 END) as total_transactions,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END), 0) as total_sales,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN discount_amount ELSE 0 END), 0) as total_discount,
+                COALESCE(SUM(CASE WHEN status = 'paid' AND payment_method = 'tunai' THEN total_amount ELSE 0 END), 0) as total_tunai,
+                COALESCE(SUM(CASE WHEN status = 'paid' AND payment_method != 'tunai' THEN total_amount ELSE 0 END), 0) as total_non_tunai,
+                COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as total_void,
+                COALESCE(SUM(CASE WHEN status = 'cancelled' THEN total_amount ELSE 0 END), 0) as total_void_amount
+            ")
+            ->first();
 
-        $totalTransactions = (clone $baseQuery)->count();
-        $totalSales = (float) ((clone $baseQuery)->sum('total_amount') ?? 0);
-        $totalDiscount = (float) ((clone $baseQuery)->sum('discount_amount') ?? 0);
-
-        // Ambil total modal dari summary terpadu tanpa duplikasi kueri
-        $summary = $this->calculateSalesSummary($startDate, $endDate);
-        $totalModal = $summary['total_modal'];
+        $totalSales = (float) ($aggregates->total_sales ?? 0);
 
         return [
-            'total_transactions' => $totalTransactions,
-            'total_sales' => $totalSales,
-            'total_discount' => $totalDiscount,
-            'total_laba' => $totalSales - $totalModal,
+            'total_transactions' => (int) ($aggregates->total_transactions ?? 0),
+            'total_sales'        => $totalSales,
+            'total_omset'        => $totalSales,
+            'total_discount'     => (float) ($aggregates->total_discount ?? 0),
+            'total_tunai'        => (float) ($aggregates->total_tunai ?? 0),
+            'total_non_tunai'    => (float) ($aggregates->total_non_tunai ?? 0),
+            'total_void'         => (int) ($aggregates->total_void ?? 0),
+            'total_void_amount'  => (float) ($aggregates->total_void_amount ?? 0),
         ];
     }
 
@@ -352,63 +259,42 @@ class AdminReportController extends Controller
         $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
 
-        $sales = Sale::where('status', 'paid')
-            ->whereDate('created_at', '>=', $startDate)
+        $sales = Sale::whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
+            ->whereIn('status', ['paid', 'cancelled'])
             ->with([
-                'kasir',
-                'saleItems.medicine.latestActiveIncomingStock',
-                'saleItems.compoundedProduct',
+                'kasir:id,name',
+                'saleItems:id,sale_id,item_type,item_name,quantity,unit,unit_price,subtotal',
             ])
             ->orderBy('created_at', 'desc')
             ->paginate(25)
             ->withQueryString();
 
         $sales->getCollection()->transform(function ($sale) {
-            $modal = 0;
-            $items = [];
+            $items = $sale->saleItems->map(fn($item) => [
+                'id' => $item->id,
+                'item_name' => $item->item_name,
+                'item_type' => $item->item_type,
+                'quantity' => (float) $item->quantity,
+                'unit' => $item->unit,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
+            ]);
 
-            foreach ($sale->saleItems as $item) {
-                $itemModal = 0;
-                $sisaStok = 0;
-                
-                if ($item->item_type === 'obat_jadi' && $item->medicine) {
-                    $latestStock = $item->medicine->latestActiveIncomingStock;
-                    $hppSatuan = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
-                    $itemModal = ($hppSatuan * $item->quantity);
-                    $modal += $itemModal;
-                    $sisaStok = $item->medicine->stok_total;
-                } elseif ($item->item_type === 'racikan') {
-                    $cp = $item->compoundedProduct;
-                    $hppSatuan = $cp ? (float) ($cp->hpp_per_unit > 0 ? $cp->hpp_per_unit : $cp->base_cost) : 0;
-                    $itemModal = ($hppSatuan * $item->quantity);
-                    $modal += $itemModal;
-                    $sisaStok = $cp ? $cp->qty_hasil : 0;
-                }
-                
-                $items[] = [
-                    'id' => $item->id,
-                    'item_name' => $item->item_name ?: ($item->medicine ? $item->medicine->nama_obat : ($item->compoundedProduct ? $item->compoundedProduct->nama_produk : 'Racikan')),
-                    'quantity' => (float) $item->quantity,
-                    'unit' => $item->unit,
-                    'unit_price' => (float) $item->unit_price,
-                    'subtotal' => (float) $item->subtotal,
-                    'item_type' => $item->item_type,
-                    'modal' => $itemModal,
-                    'sisa_stok' => $sisaStok,
-                ];
-            }
-            
             return [
                 'id' => $sale->id,
                 'sale_number' => $sale->sale_number ?? '-',
                 'created_at' => $sale->created_at,
                 'kasir_name' => $sale->kasir ? $sale->kasir->name : 'Unknown',
-                'subtotal' => $sale->total_amount + $sale->discount_amount,
-                'discount_amount' => $sale->discount_amount,
-                'total_amount' => $sale->total_amount,
-                'modal' => $modal,
-                'laba' => $sale->total_amount - $modal,
+                'sale_type' => $sale->sale_type ?? 'otc',
+                'payment_method' => $sale->payment_method ?? 'tunai',
+                'subtotal' => (float) ($sale->total_amount + $sale->discount_amount),
+                'discount_amount' => (float) $sale->discount_amount,
+                'total_amount' => (float) $sale->total_amount,
+                'paid_amount' => (float) $sale->paid_amount,
+                'change_amount' => (float) $sale->change_amount,
+                'status' => $sale->status,
+                'notes' => $sale->notes,
                 'items' => $items,
             ];
         });
@@ -423,3 +309,4 @@ class AdminReportController extends Controller
         ]);
     }
 }
+

@@ -14,8 +14,10 @@ use App\Models\Control\Category;
 use App\Models\Control\CompoundedProduct;
 use App\Models\Control\AuditTrail;
 use App\Models\Control\StockMutation;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -27,7 +29,11 @@ class KasirSaleController extends Controller
 
         return Inertia::render('Control/Kasir/Queue', [
             'prescriptions' => Prescription::with(['patient', 'prescriptionItems'])->where('status', 'siap_ambil')->orderBy('updated_at', 'asc')->get(),
-            'sales' => Sale::with(['prescription.patient'])->where('kasir_id', auth()->id())->whereDate('created_at', $selectedDate)->latest()->get(),
+            'sales' => Sale::with(['prescription:id,patient_id', 'prescription.patient:id,name'])
+                ->where('kasir_id', auth()->id())
+                ->whereDate('created_at', $selectedDate)
+                ->latest()
+                ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']),
             'filters' => ['date' => $selectedDate]
         ]);
     }
@@ -148,8 +154,9 @@ class KasirSaleController extends Controller
                     ->where('stock_on_hand', '>', 0)
                     ->where('status', 'active')
                     ->where('is_frozen', false)
+                    ->whereDate('expired_date', '>', now())
             ])
-            ->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false))
+            ->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false)->whereDate('expired_date', '>', now()))
             ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('nama_obat', 'like', "%{$search}%")->orWhere('kode_obat', 'like', "%{$search}%")))
             ->when($category && $category !== 'all', fn($q) => $q->whereHas('category', fn($cq) => $cq->where('nama_kategori', $category)))
             ->orderBy('nama_obat')
@@ -368,6 +375,7 @@ class KasirSaleController extends Controller
             ->where('stock_on_hand', '>', 0)
             ->where('status', 'active')
             ->where('is_frozen', false)
+            ->whereDate('expired_date', '>', now())
             ->orderBy('expired_date', 'asc')
             ->lockForUpdate()
             ->get();
@@ -381,6 +389,7 @@ class KasirSaleController extends Controller
             if ($remaining <= 0) break;
 
             $qtyToDeduct = min($inv->stock_on_hand, $remaining);
+            $inv->setMutationContext('sale', $sale, "Penjualan Faktur {$sale->sale_number}");
             $inv->stock_on_hand -= $qtyToDeduct;
             $inv->save();
 
@@ -413,7 +422,128 @@ class KasirSaleController extends Controller
 
         if ($remaining > 0) {
             $medName = Medicine::find($medicineId)?->nama_obat ?? "ID {$medicineId}";
-            throw new \Exception("Stok tidak mencukupi untuk obat: {$medName}");
+            abort(422, "Stok aktif/tidak kedaluwarsa tidak mencukupi untuk obat: {$medName}");
+        }
+    }
+
+    /**
+     * Membatalkan transaksi kasir (Void) dengan otorisasi Admin, mengembalikan stok fisik dan racikan.
+     */
+    public function voidSale(Request $request, $saleId)
+    {
+        $v = $request->validate([
+            'admin_username' => 'required|string',
+            'admin_password' => 'required|string',
+            'reason'         => 'nullable|string|max:500',
+        ]);
+
+        $adminUser = User::where('role', 'admin')
+            ->where(function ($q) use ($v) {
+                $q->where('email', $v['admin_username'])
+                  ->orWhere('name', $v['admin_username']);
+            })
+            ->first();
+
+        if (!$adminUser || !Hash::check($v['admin_password'], $adminUser->password)) {
+            return back()->withErrors(['admin_password' => 'Otorisasi gagal: Kredensial Admin tidak valid.'])->with('error', 'Otorisasi gagal: Username atau password Admin salah.');
+        }
+
+        try {
+            DB::transaction(function () use ($saleId, $adminUser, $v) {
+                $sale = Sale::with(['saleItems'])->lockForUpdate()->findOrFail($saleId);
+
+                if (!in_array($sale->status, ['paid', 'completed'])) {
+                    throw new \Exception("Transaksi tidak dapat dibatalkan karena berstatus {$sale->status}.");
+                }
+
+                $kasirId = (int) auth()->id();
+
+                foreach ($sale->saleItems as $item) {
+                    if ($item->item_type === 'obat_jadi' && $item->medicine_id) {
+                        $inv = WarehouseInventory::with('incomingStock')
+                            ->where('medicine_id', $item->medicine_id)
+                            ->kasir($sale->kasir_id)
+                            ->where('status', 'active')
+                            ->orderBy('expired_date', 'asc')
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (!$inv) {
+                            $inv = WarehouseInventory::where('medicine_id', $item->medicine_id)
+                                ->kasir($sale->kasir_id)
+                                ->lockForUpdate()
+                                ->first();
+                        }
+
+                        if ($inv) {
+                            $inv->stock_on_hand += $item->quantity;
+                            $inv->setMutationContext('sale_void', $sale, "Void Transaksi {$sale->sale_number} (Admin: {$adminUser->name})");
+                            $inv->save();
+
+                            if ($inv->incomingStock) {
+                                $incoming = $inv->incomingStock;
+                                $incoming->qty_converted += $item->quantity;
+                                $incoming->saveQuietly();
+                            }
+                        } else {
+                            $fallbackInv = WarehouseInventory::where('medicine_id', $item->medicine_id)
+                                ->where('status', 'active')
+                                ->lockForUpdate()
+                                ->first();
+                            if ($fallbackInv) {
+                                $newKasirInv = WarehouseInventory::create([
+                                    'incoming_stock_id' => $fallbackInv->incoming_stock_id,
+                                    'medicine_id'       => $item->medicine_id,
+                                    'batch_no'          => $fallbackInv->batch_no,
+                                    'expired_date'      => $fallbackInv->expired_date,
+                                    'stock_on_hand'     => $item->quantity,
+                                    'status'            => 'active',
+                                    'is_frozen'         => false,
+                                    'location_type'     => 'kasir',
+                                    'location_id'       => $sale->kasir_id,
+                                ]);
+                                $newKasirInv->setMutationContext('sale_void', $sale, "Void Transaksi {$sale->sale_number} (Admin: {$adminUser->name})");
+                                $newKasirInv->save();
+                            }
+                        }
+                    } elseif ($item->item_type === 'racikan' && $item->compounded_product_id) {
+                        $cp = CompoundedProduct::lockForUpdate()->find($item->compounded_product_id);
+                        if ($cp) {
+                            $cp->increment('qty_hasil', $item->quantity);
+                            StockMutation::create([
+                                'item_id'        => $cp->id,
+                                'item_type'      => CompoundedProduct::class,
+                                'type'           => 'Penyesuaian Masuk',
+                                'quantity'       => $item->quantity,
+                                'balance_after'  => $cp->qty_hasil,
+                                'reference_type' => Sale::class,
+                                'reference_id'   => $sale->id,
+                                'note'           => "Void Transaksi {$sale->sale_number} (Admin: {$adminUser->name})",
+                            ]);
+                        }
+                    }
+                }
+
+                if ($sale->prescription_id) {
+                    Prescription::where('id', $sale->prescription_id)->update(['status' => 'siap_ambil']);
+                    PrescriptionItem::where('prescription_id', $sale->prescription_id)->update(['status' => 'siap_ambil']);
+                }
+
+                $sale->update(['status' => 'cancelled']);
+
+                $reasonText = !empty($v['reason']) ? " - Alasan: {$v['reason']}" : '';
+                AuditTrail::log(
+                    $kasirId,
+                    'sale.void',
+                    "Void Transaksi {$sale->sale_number} senilai " . number_format($sale->total_amount, 0, ',', '.') . " disetujui oleh Admin {$adminUser->name} (ID: {$adminUser->id}){$reasonText}",
+                    Sale::class,
+                    $sale->id
+                );
+            });
+
+            return redirect()->back()->with('success', 'Transaksi berhasil dibatalkan (Void) dan stok fisik telah dikembalikan.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()])->with('error', $e->getMessage());
         }
     }
 }

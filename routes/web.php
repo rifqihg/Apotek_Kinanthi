@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Control\Admin\{AdminController, AdminInventoryController, AdminMedicineController, AdminPricingController, AdminProcurementController, AdminReportController, AdminStockOpnameController, AdminUserController};
+use App\Http\Controllers\Control\Admin\{AdminCashierExportController, AdminController, AdminInventoryController, AdminMedicineController, AdminPricingController, AdminProcurementController, AdminReportController, AdminSalesExportController, AdminStockOpnameController, AdminUserController};
 use App\Http\Controllers\Control\Apoteker\{ApotekerController, ApotekerCompoundingController, ApotekerFormulaController, ApotekerInventoryController, ApotekerPrescriptionController};
 use App\Http\Controllers\Control\Kasir\KasirSaleController;
 use Illuminate\Foundation\Application;
@@ -88,8 +88,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
 
     // ─── LAPORAN & MONITORING ─────────────────────────────────
     Route::get('/reports/sales', [AdminReportController::class, 'salesReport'])->name('reports.sales');
-    Route::get('/reports/sales/export', [AdminReportController::class, 'exportSales'])->name('reports.sales.export');
+    Route::get('/reports/sales/export', [AdminSalesExportController::class, 'exportSales'])->name('reports.sales.export');
+    Route::get('/reports/sales/export-pdf', [AdminSalesExportController::class, 'exportSalesPdf'])->name('reports.sales.export-pdf');
     Route::get('/reports/cashier-monitoring', [AdminReportController::class, 'cashierMonitoring'])->name('reports.cashier-monitoring');
+    Route::get('/reports/cashier-monitoring/export', [AdminCashierExportController::class, 'exportCashierMonitoring'])->name('reports.cashier-monitoring.export');
+    Route::get('/reports/cashier-monitoring/export-pdf', [AdminCashierExportController::class, 'exportCashierMonitoringPdf'])->name('reports.cashier-monitoring.export-pdf');
+});
+
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/control/reports/sales/export', [AdminSalesExportController::class, 'exportSales'])->name('control.reports.sales.export');
+    Route::get('/control/reports/sales/export-pdf', [AdminSalesExportController::class, 'exportSalesPdf'])->name('control.reports.sales.export-pdf');
+    Route::get('/control/reports/cashier-monitoring/export', [AdminCashierExportController::class, 'exportCashierMonitoring'])->name('control.reports.cashier-monitoring.export');
+    Route::get('/control/reports/cashier-monitoring/export-pdf', [AdminCashierExportController::class, 'exportCashierMonitoringPdf'])->name('control.reports.cashier-monitoring.export-pdf');
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -143,6 +153,7 @@ Route::middleware(['auth', 'role:kasir'])->prefix('control/kasir')->name('contro
     Route::get('/checkout/{prescription}', [KasirSaleController::class, 'show'])->name('checkout');
     Route::post('/sales', [KasirSaleController::class, 'store'])->name('sales.store');
     Route::get('/sales/{sale}/receipt', [KasirSaleController::class, 'receipt'])->name('sales.receipt');
+    Route::post('/sales/{sale}/void', [KasirSaleController::class, 'voidSale'])->name('sales.void');
 
     Route::get('/otc', [KasirSaleController::class, 'otcIndex'])->name('otc.index');
     Route::post('/otc', [KasirSaleController::class, 'otcStore'])->name('otc.store');

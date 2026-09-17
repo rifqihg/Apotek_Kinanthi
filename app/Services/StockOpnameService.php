@@ -29,8 +29,10 @@ class StockOpnameService
 
             $itemsToInsert = [];
 
-            // 1. Process Medicines (Bulk Insert & Mass Update)
-            $medicinesQuery = WarehouseInventory::where('stock_on_hand', '>', 0)->where('status', 'active');
+            // 1. Process Medicines (Bulk Insert & Mass Update) - Hanya opname stok gudang agar tidak membekukan kasir
+            $medicinesQuery = WarehouseInventory::where('stock_on_hand', '>', 0)
+                ->where('status', 'active')
+                ->where(fn($q) => $q->where('location_type', '!=', 'kasir')->orWhereNull('location_type'));
             if ($categoryId) {
                 $medicinesQuery->whereHas('medicine', fn($q) => $q->where('category_id', $categoryId));
             }

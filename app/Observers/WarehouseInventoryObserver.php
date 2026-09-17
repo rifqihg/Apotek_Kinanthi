@@ -16,6 +16,8 @@ class WarehouseInventoryObserver
         'destruction' => 'Pemusnahan',
         'OPNAME_ADJUSTMENT' => 'Penyesuaian Opname',
         'opname_adjustment' => 'opname_adjustment',
+        'sale' => 'Keluar',
+        'sale_void' => 'Penyesuaian Masuk',
     ];
 
     public function created(WarehouseInventory $warehouseInventory): void
@@ -39,7 +41,7 @@ class WarehouseInventoryObserver
         $finalType = $context['type'] ?? $defaultType;
 
         if ($finalType === 'internal_transfer') {
-            return;
+            $finalType = in_array($defaultType, ['Masuk', 'in']) ? 'Masuk' : 'Keluar';
         }
 
         $totalBalanceAfter = (float) WarehouseInventory::where('medicine_id', $inventory->medicine_id)

@@ -243,6 +243,14 @@ class AdminInventoryController extends Controller
                         
                         $qtyNeeded -= $deductAmount;
                     }
+
+                    AuditTrail::log(
+                        $request->user()->id,
+                        'inventory.distribution',
+                        "Distribusi stok obat ID {$medicineId} sebanyak {$item['quantity']} dari gudang ke kasir ID {$kasirId}",
+                        WarehouseInventory::class,
+                        $destInv?->id ?? null
+                    );
                     
                 } else {
                     // Return: Kasir -> Gudang
@@ -259,6 +267,7 @@ class AdminInventoryController extends Controller
                         throw new Exception("Stok kasir tidak mencukupi untuk obat ID {$medicineId}.");
                     }
                     
+                    $destInv = null;
                     foreach ($kasirInventories as $sourceInv) {
                         if ($qtyNeeded <= 0) break;
                         
@@ -287,6 +296,14 @@ class AdminInventoryController extends Controller
                         
                         $qtyNeeded -= $deductAmount;
                     }
+
+                    AuditTrail::log(
+                        $request->user()->id,
+                        'inventory.return_distribution',
+                        "Return stok obat ID {$medicineId} sebanyak {$item['quantity']} dari kasir ID {$kasirId} ke gudang",
+                        WarehouseInventory::class,
+                        $destInv?->id ?? null
+                    );
                 }
             }
             

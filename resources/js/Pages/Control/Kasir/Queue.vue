@@ -54,6 +54,80 @@ const activeSales = computed(() => queryQueue.value?.sales || props.sales || [])
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
 const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000);
+
+// Kalkulasi Rekap Shift Kasir (X-Report)
+const shiftSummary = computed(() => {
+    const list = activeSales.value || [];
+    const validSales = list.filter(s => s.status !== 'cancelled');
+    const cancelledSales = list.filter(s => s.status === 'cancelled');
+    const totalTunai = validSales.filter(s => s.payment_method === 'tunai').reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    const totalNonTunai = validSales.filter(s => s.payment_method !== 'tunai').reduce((acc, s) => acc + Number(s.total_amount || 0), 0);
+    const totalOmzet = totalTunai + totalNonTunai;
+    return {
+        totalTunai,
+        totalNonTunai,
+        totalOmzet,
+        count: validSales.length,
+        cancelledCount: cancelledSales.length,
+    };
+});
+
+const printShiftReport = () => {
+    window.print();
+};
+
+// Modal State Otorisasi Void Admin
+const showVoidModal = ref(false);
+const voidTargetSale = ref(null);
+const voidForm = ref({
+    admin_username: '',
+    admin_password: '',
+    reason: '',
+});
+const isSubmittingVoid = ref(false);
+const voidErrorMessage = ref('');
+
+const openVoidModal = (sale) => {
+    voidTargetSale.value = sale;
+    voidForm.value = {
+        admin_username: '',
+        admin_password: '',
+        reason: '',
+    };
+    voidErrorMessage.value = '';
+    showVoidModal.value = true;
+};
+
+const closeVoidModal = () => {
+    if (isSubmittingVoid.value) return;
+    showVoidModal.value = false;
+    voidTargetSale.value = null;
+    voidErrorMessage.value = '';
+};
+
+const submitVoid = () => {
+    if (!voidTargetSale.value) return;
+    if (!voidForm.value.admin_username || !voidForm.value.admin_password) {
+        voidErrorMessage.value = 'Username dan password Admin wajib diisi.';
+        return;
+    }
+
+    isSubmittingVoid.value = true;
+    voidErrorMessage.value = '';
+
+    router.post(route('control.kasir.sales.void', voidTargetSale.value.id), voidForm.value, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeVoidModal();
+        },
+        onError: (errs) => {
+            voidErrorMessage.value = errs.admin_password || errs.error || Object.values(errs)[0] || 'Terjadi kesalahan saat membatalkan transaksi.';
+        },
+        onFinish: () => {
+            isSubmittingVoid.value = false;
+        }
+    });
+};
 </script>
 
 <template>
@@ -61,7 +135,7 @@ const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - n
 
     <div class="space-y-6">
         <!-- Antrian Pembayaran -->
-        <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+        <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden no-print">
             <div class="p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-bold tracking-tight text-foreground">Antrian Resep Siap Bayar</h2>
@@ -124,6 +198,55 @@ const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - n
             </div>
         </section>
 
+        <!-- Ringkasan Shift Kasir (X-Report) -->
+        <section id="shift-report-print" class="bg-card rounded-lg border border-border shadow-sm p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                        Rp
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-foreground">Ringkasan Kas Shift Berjalan</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi transaksi kasir aktif pada tanggal {{ formatDate(form.date) }}.</p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    @click="printShiftReport"
+                    class="no-print inline-flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold h-9 px-3.5 rounded-md border border-border transition-colors shadow-sm self-start sm:self-auto"
+                >
+                    <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                    Cetak Slip Shift
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
+                <div class="p-3.5 rounded-md bg-muted/40 border border-border/60">
+                    <span class="text-xs text-muted-foreground font-medium block">Total Omzet Shift</span>
+                    <span class="text-base font-bold text-foreground mt-1 block">{{ formatRupiah(shiftSummary.totalOmzet) }}</span>
+                    <span class="text-[11px] text-muted-foreground mt-0.5 block">{{ shiftSummary.count }} transaksi lunas</span>
+                </div>
+                <div class="p-3.5 rounded-md bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40">
+                    <span class="text-xs text-emerald-700 dark:text-emerald-400 font-medium block">Penerimaan Tunai (Cash)</span>
+                    <span class="text-base font-bold text-emerald-700 dark:text-emerald-300 mt-1 block">{{ formatRupiah(shiftSummary.totalTunai) }}</span>
+                    <span class="text-[11px] text-emerald-600/80 dark:text-emerald-400/70 mt-0.5 block">Uang fisik laci kasir</span>
+                </div>
+                <div class="p-3.5 rounded-md bg-sky-50/50 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-800/40">
+                    <span class="text-xs text-sky-700 dark:text-sky-400 font-medium block">Non-Tunai (QRIS / Transfer)</span>
+                    <span class="text-base font-bold text-sky-700 dark:text-sky-300 mt-1 block">{{ formatRupiah(shiftSummary.totalNonTunai) }}</span>
+                    <span class="text-[11px] text-sky-600/80 dark:text-sky-400/70 mt-0.5 block">Settlement digital</span>
+                </div>
+                <div class="p-3.5 rounded-md bg-muted/40 border border-border/60">
+                    <span class="text-xs text-muted-foreground font-medium block">Transaksi Batal (Void)</span>
+                    <span class="text-base font-bold text-foreground mt-1 block">{{ shiftSummary.cancelledCount }} Nota</span>
+                    <span class="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5 block font-medium" v-if="shiftSummary.cancelledCount > 0">Stok telah diretur</span>
+                    <span class="text-[11px] text-muted-foreground mt-0.5 block" v-else>Tidak ada pembatalan</span>
+                </div>
+            </div>
+        </section>
+
         <!-- Riwayat Transaksi -->
         <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
             <div class="p-6 border-b border-border flex flex-col md:flex-row items-center justify-between gap-4">
@@ -131,7 +254,7 @@ const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - n
                     <h2 class="text-lg font-bold tracking-tight text-foreground">Riwayat Transaksi</h2>
                     <p class="text-xs text-muted-foreground mt-0.5">Daftar transaksi yang sudah Anda selesaikan berdasarkan tanggal.</p>
                 </div>
-                <div class="shrink-0 flex items-center gap-2 bg-background rounded-md border border-input px-2 h-9">
+                <div class="no-print shrink-0 flex items-center gap-2 bg-background rounded-md border border-input px-2 h-9">
                     <svg v-if="isFetching" class="animate-spin h-4 w-4 text-primary ml-1" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -152,8 +275,9 @@ const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - n
                             <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pasien</th>
                             <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
                             <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Metode</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
                             <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
+                            <th class="no-print px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -165,23 +289,139 @@ const getUsiaResep = (d) => Math.floor(Math.abs(new Date().setHours(0,0,0,0) - n
                                 <span class="font-medium text-foreground text-sm">{{ sale.prescription?.patient?.name || 'OTC' }}</span>
                             </td>
                             <td class="px-4 py-3">
-                                <span class="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">{{ formatRupiah(sale.total_amount) }}</span>
+                                <span :class="sale.status === 'cancelled' ? 'line-through text-muted-foreground' : 'text-emerald-600 dark:text-emerald-400'" class="font-semibold text-sm">
+                                    {{ formatRupiah(sale.total_amount) }}
+                                </span>
                             </td>
                             <td class="px-4 py-3">
                                 <span class="uppercase font-medium text-xs bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded-md">
                                     {{ sale.payment_method }}
                                 </span>
                             </td>
+                            <td class="px-4 py-3 text-center">
+                                <span v-if="sale.status === 'cancelled'" class="inline-flex items-center text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-md">
+                                    Batal (Void)
+                                </span>
+                                <span v-else class="inline-flex items-center text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
+                                    Lunas
+                                </span>
+                            </td>
                             <td class="px-4 py-3">
                                 <span class="text-xs text-muted-foreground">{{ formatTime(sale.created_at) }}</span>
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                <Link :href="route('control.kasir.sales.receipt', sale.id)" class="text-primary hover:underline font-medium text-xs">Lihat Struk</Link>
+                            <td class="no-print px-4 py-3 text-right">
+                                <div class="inline-flex items-center gap-3">
+                                    <Link :href="route('control.kasir.sales.receipt', sale.id)" class="text-primary hover:underline font-medium text-xs">
+                                        Lihat Struk
+                                    </Link>
+                                    <button
+                                        v-if="sale.status !== 'cancelled'"
+                                        type="button"
+                                        @click="openVoidModal(sale)"
+                                        class="text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline font-medium text-xs"
+                                    >
+                                        Void
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </section>
+
+        <!-- Modal Otorisasi Void Admin -->
+        <div v-if="showVoidModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div class="bg-card w-full max-w-md rounded-lg border border-border shadow-lg p-6 space-y-4">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-foreground">Otorisasi Pembatalan (Void)</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">Wajib diverifikasi oleh Admin/Supervisor.</p>
+                    </div>
+                    <button @click="closeVoidModal" :disabled="isSubmittingVoid" class="text-muted-foreground hover:text-foreground text-sm font-medium">✕</button>
+                </div>
+
+                <div class="bg-muted/40 rounded-md p-3 text-xs space-y-1 border border-border/60">
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Faktur Penjualan:</span>
+                        <span class="font-bold text-foreground">{{ voidTargetSale?.sale_number }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Total Transaksi:</span>
+                        <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ formatRupiah(voidTargetSale?.total_amount) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Metode Bayar:</span>
+                        <span class="uppercase font-medium text-foreground">{{ voidTargetSale?.payment_method }}</span>
+                    </div>
+                </div>
+
+                <div v-if="voidErrorMessage" class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-3 py-2 rounded-md text-xs font-medium">
+                    {{ voidErrorMessage }}
+                </div>
+
+                <form @submit.prevent="submitVoid" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Username / Email Admin</label>
+                        <input
+                            type="text"
+                            v-model="voidForm.admin_username"
+                            required
+                            placeholder="Masukkan username atau email admin"
+                            class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Password Admin</label>
+                        <input
+                            type="password"
+                            v-model="voidForm.admin_password"
+                            required
+                            placeholder="Masukkan password admin"
+                            class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Alasan Pembatalan (Opsional)</label>
+                        <textarea
+                            v-model="voidForm.reason"
+                            rows="2"
+                            placeholder="Misal: Salah input obat / Pasien membatalkan pembelian"
+                            class="w-full px-3 py-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                        ></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-2">
+                        <button
+                            type="button"
+                            @click="closeVoidModal"
+                            :disabled="isSubmittingVoid"
+                            class="h-9 px-4 rounded-md border border-input bg-background hover:bg-muted text-foreground text-xs font-medium transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="isSubmittingVoid"
+                            class="h-9 px-4 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                        >
+                            <svg v-if="isSubmittingVoid" class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>{{ isSubmittingVoid ? 'Memproses...' : 'Konfirmasi & Batalkan Nota' }}</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </template>
+
+<style scoped>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}
+</style>

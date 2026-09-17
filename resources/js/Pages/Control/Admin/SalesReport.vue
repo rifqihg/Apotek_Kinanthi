@@ -78,6 +78,13 @@ const exportToExcel = () => {
     window.location.href = url.toString();
 };
 
+const exportToPdf = () => {
+    const url = new URL(route('control.admin.reports.sales.export-pdf'));
+    if (form.value.start_date) url.searchParams.append('start_date', form.value.start_date);
+    if (form.value.end_date) url.searchParams.append('end_date', form.value.end_date);
+    window.location.href = url.toString();
+};
+
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -101,6 +108,12 @@ const formatCurrency = (amount) => {
         </div>
 
         <div class="flex items-center gap-3">
+            <button @click="exportToPdf" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Export PDF
+            </button>
             <button @click="exportToExcel" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -156,16 +169,16 @@ const formatCurrency = (amount) => {
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                         <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-12">No</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produk & Kategori</TableHead>
                         <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Satuan</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Modal</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">HPP Modal</TableHead>
                         <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Harga Jual</TableHead>
                         <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty Awal</TableHead>
                         <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Terjual</TableHead>
                         <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sisa Stok</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Penjualan</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Modal</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Laba</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Omzet</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Laba Kotor</TableHead>
+                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margin %</TableHead>
                         <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -178,7 +191,17 @@ const formatCurrency = (amount) => {
                     <template v-for="(med, index) in activeMedicines.data" :key="med.id">
                         <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs font-mono">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-foreground font-medium text-sm">{{ med.nama_produk }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle">
+                                <div class="flex flex-col">
+                                    <span class="font-medium text-sm text-foreground leading-tight">{{ med.nama_produk }}</span>
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span class="font-mono text-xs text-muted-foreground">{{ med.kode_obat || '-' }}</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/60">
+                                            {{ med.kategori || 'Obat Jadi' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </TableCell>
                             <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs">{{ med.satuan }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle text-right text-muted-foreground tabular-nums text-xs">{{ formatCurrency(med.modal) }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle text-right text-foreground font-medium tabular-nums text-sm">{{ formatCurrency(med.harga_jual) }}</TableCell>
@@ -188,16 +211,22 @@ const formatCurrency = (amount) => {
                             <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground tabular-nums text-xs">{{ med.sisa_stok }}</TableCell>
                             
                             <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground tabular-nums text-sm">{{ formatCurrency(med.total_penjualan) }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right text-muted-foreground tabular-nums text-xs">{{ formatCurrency(med.total_modal) }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm">{{ formatCurrency(med.laba) }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right tabular-nums text-xs font-medium" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'">
+                                {{ med.margin_percentage }}%
+                            </TableCell>
                             <TableCell class="py-2 px-3 align-middle text-center">
-                                <span v-if="med.status === 'Tersedia'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <span v-if="med.status === 'Aman'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    Tersedia
+                                    Aman
+                                </span>
+                                <span v-else-if="med.status === 'Menipis'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                    Menipis
                                 </span>
                                 <span v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
                                     <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                    Pesan
+                                    Habis
                                 </span>
                             </TableCell>
                         </TableRow>
