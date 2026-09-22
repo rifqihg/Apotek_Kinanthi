@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import axios from 'axios';
 
@@ -14,10 +14,14 @@ const props = defineProps({
 
 const form = useForm({
     patient_id: '',
+    patient_weight_kg: '',
+    patient_age_years: '',
     doctor_name: '',
+    doctor_sip: '',
     clinic_name: '',
     prescription_date: new Date().toISOString().split('T')[0],
     notes: '',
+    screening_notes: '',
     items: [
         {
             item_type: 'obat_jadi',
@@ -30,6 +34,16 @@ const form = useForm({
             racikan_source: 'master' // local ui state: 'master' or 'baru'
         }
     ]
+});
+
+const hasControlledMedicine = computed(() => {
+    return form.items.some(item => {
+        if (item.item_type === 'obat_jadi' && item.medicine_id) {
+            const med = props.medicines?.find(m => m.id === item.medicine_id);
+            return med && (med.classification === 'narkotika' || med.classification === 'psikotropika');
+        }
+        return false;
+    });
 });
 
 const localPatients = ref([...(props.patients || [])]);
@@ -106,7 +120,7 @@ const savePatient = async () => {
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-foreground tracking-tight">Resep Baru</h1>
-                <p class="text-sm text-muted-foreground mt-1">Masukan data resep dari dokter</p>
+                <p class="text-sm text-muted-foreground mt-1">Masukan data resep dari dokter sesuai Permenkes No. 73/2016</p>
             </div>
             <Link :href="route('control.apoteker.prescriptions.index')" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Batal
@@ -116,9 +130,23 @@ const savePatient = async () => {
         <form @submit.prevent="submit" class="space-y-6">
             <!-- Data Pasien & Dokter -->
             <div class="bg-card border border-border rounded-lg p-6 shadow-sm space-y-4">
-                <h2 class="text-foreground font-semibold text-sm border-b border-border pb-3">Informasi Utama</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex items-center justify-between border-b border-border pb-3">
+                    <h2 class="text-foreground font-semibold text-sm">Informasi Administratif & Klinis Resep</h2>
+                    <span class="text-xs text-muted-foreground">Permenkes RI No. 73/2016</span>
+                </div>
+
+                <!-- Alert Khusus Obat Terkontrol (Narkotika/Psikotropika) -->
+                <div v-if="hasControlledMedicine" class="p-3 bg-red-500/10 border border-red-500/30 rounded-md flex items-start gap-2.5 text-xs text-red-700 dark:text-red-400">
+                    <svg class="w-4 h-4 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     <div>
+                        <strong class="font-bold uppercase tracking-wider block">Peringatan Regulasi Narkotika & Psikotropika</strong>
+                        Resep memuat obat golongan khusus. Nomor SIP Dokter wajib dicantumkan dan fisik resep asli wajib diverifikasi sebelum pemrosesan.
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- Pasien -->
+                    <div class="md:col-span-6">
                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Pasien <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
                             <select v-model="form.patient_id" class="flex-1 bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" required>
@@ -130,21 +158,65 @@ const savePatient = async () => {
                             </button>
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tanggal Resep <span class="text-red-500">*</span></label>
-                        <input v-model="form.prescription_date" type="date" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" required />
+
+                    <!-- Umur Pasien -->
+                    <div class="md:col-span-3">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Umur Pasien (Thn)</label>
+                        <input v-model.number="form.patient_age_years" type="number" min="0" max="150" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Contoh: 8" />
                     </div>
-                    <div>
+
+                    <!-- Berat Badan Pasien -->
+                    <div class="md:col-span-3">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Berat Badan (kg)</label>
+                        <input v-model.number="form.patient_weight_kg" type="number" step="0.1" min="0" max="300" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Contoh: 22.5" />
+                    </div>
+
+                    <!-- Nama Dokter -->
+                    <div class="md:col-span-4">
                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Dokter <span class="text-red-500">*</span></label>
                         <input v-model="form.doctor_name" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="dr. ..." required />
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Klinik/RS Asal</label>
-                        <input v-model="form.clinic_name" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Opsional" />
+
+                    <!-- SIP Dokter -->
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                            SIP Dokter
+                            <span v-if="hasControlledMedicine" class="text-red-500 font-bold ml-0.5">* (Wajib SIP)</span>
+                            <span v-else class="text-muted-foreground font-normal ml-0.5">(Opsional)</span>
+                        </label>
+                        <input 
+                            v-model="form.doctor_sip" 
+                            type="text" 
+                            class="w-full bg-background border rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors"
+                            :class="hasControlledMedicine && !form.doctor_sip ? 'border-red-500 ring-1 ring-red-500/30' : 'border-input'"
+                            placeholder="Contoh: 446/123/SIP.D/2026" 
+                            :required="hasControlledMedicine"
+                        />
+                        <p v-if="form.errors.doctor_sip" class="text-red-600 text-xs mt-1">{{ form.errors.doctor_sip }}</p>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Catatan Tambahan</label>
-                        <textarea v-model="form.notes" rows="2" class="w-full bg-background border border-input rounded-md p-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors resize-none"></textarea>
+
+                    <!-- Tanggal Resep -->
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tanggal Resep <span class="text-red-500">*</span></label>
+                        <input v-model="form.prescription_date" type="date" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" required />
+                    </div>
+
+                    <!-- Klinik / RS Asal -->
+                    <div class="md:col-span-6">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Klinik/RS Asal</label>
+                        <input v-model="form.clinic_name" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Puskesmas / RSUD..." />
+                    </div>
+
+                    <!-- Catatan Tambahan -->
+                    <div class="md:col-span-6">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Catatan Umum</label>
+                        <input v-model="form.notes" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Catatan tambahan pasien..." />
+                    </div>
+
+                    <!-- Skrining Klinis & Farmasetis -->
+                    <div class="md:col-span-12">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Catatan Telaah / Skrining Klinis Apoteker</label>
+                        <textarea v-model="form.screening_notes" rows="2" class="w-full bg-background border border-input rounded-md p-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors resize-none" placeholder="Hasil telaah persyaratan farmasetis dan klinis (ketepatan indikasi, dosis, duplikasi, potensi interaksi obat)..."></textarea>
                     </div>
                 </div>
             </div>

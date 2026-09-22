@@ -16,11 +16,41 @@ use Inertia\Inertia;
 
 class AdminInventoryController extends Controller
 {
-    public function returns()
+    public function returns(Request $request)
     {
-        $returns = ReturnForm::with(['incomingStock.medicine', 'supplier', 'creator'])
-            ->latest()
-            ->paginate(20);
+        $search = $request->query('search');
+        $date = $request->query('date');
+
+        $query = ReturnForm::with(['incomingStock.medicine', 'supplier', 'creator']);
+
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $date);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($search) {
+                $cleanedId = preg_replace('/[^0-9]/', '', $search);
+                if (!empty($cleanedId)) {
+                    $q->orWhere('id', (int) $cleanedId);
+                }
+                $q->orWhere('alasan_retur', 'like', "%{$search}%")
+                  ->orWhereHas('supplier', function ($sq) use ($search) {
+                      $sq->where('nama_pbf', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('incomingStock.medicine', function ($mq) use ($search) {
+                      $mq->where('nama_obat', 'like', "%{$search}%")
+                         ->orWhere('kode_obat', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('incomingStock', function ($iq) use ($search) {
+                      $iq->where('faktur_no', 'like', "%{$search}%")
+                         ->orWhere('batch_no', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $returns = $query->latest()
+            ->paginate(20)
+            ->withQueryString();
 
         // Fetch active incoming stocks that have available qty_converted > 0
         $activeIncomingStocks = IncomingStock::with(['medicine', 'supplier'])
@@ -32,6 +62,10 @@ class AdminInventoryController extends Controller
         return Inertia::render('Control/Admin/Returns', [
             'returns' => $returns,
             'activeIncomingStocks' => $activeIncomingStocks,
+            'filters' => [
+                'search' => $search ?? '',
+                'date' => $date ?? '',
+            ],
         ]);
     }
 
@@ -136,7 +170,12 @@ class AdminInventoryController extends Controller
             if ($search) {
                 $query->where(function($q) use ($search) {
                     $q->where('nama_obat', 'like', "%{$search}%")
-                      ->orWhere('kode_obat', 'like', "%{$search}%");
+                      ->orWhere('kode_obat', 'like', "%{$search}%")
+                      ->orWhereHas('warehouseInventories', function($sq) use ($search) {
+                          $sq->where('batch_no', 'like', "%{$search}%")
+                             ->orWhere('shelf_location', 'like', "%{$search}%")
+                             ->orWhere('rack_location', 'like', "%{$search}%");
+                      });
                 });
             }
             

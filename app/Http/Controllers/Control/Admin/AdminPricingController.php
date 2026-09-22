@@ -7,6 +7,8 @@ use App\Http\Requests\Control\SetMedicinePriceRequest;
 use App\Models\Control\AuditTrail;
 use App\Models\Control\CompoundedProduct;
 use App\Models\Control\Medicine;
+use App\Models\Prescription;
+use App\Models\PrescriptionItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -129,6 +131,53 @@ class AdminPricingController extends Controller
                     'approved_by' => $request->user()->id,
                     'admin_note' => $v['admin_note'] ?? null,
                 ]);
+            }
+
+            $product->loadMissing('submission');
+
+            // Otomatis sinkronkan status resep induk jika seluruh item sudah selesai & berharga
+            $prescription = null;
+            if ($product->submission && $product->submission->prescription_id) {
+                $prescription = Prescription::with('prescriptionItems')->find($product->submission->prescription_id);
+            }
+            if (!$prescription) {
+                $pItem = PrescriptionItem::with('prescription.prescriptionItems')
+                    ->where('compounded_product_id', $product->id)
+                    ->first();
+                $prescription = $pItem?->prescription;
+            }
+
+            if ($prescription && in_array($prescription->status, ['baru', 'diproses'])) {
+                $allItems = $prescription->prescriptionItems;
+                $hasUnfinished = $allItems->isEmpty() || $allItems->contains(fn($it) => $it->status !== 'selesai');
+
+                if (!$hasUnfinished) {
+                    $allPriced = true;
+                    foreach ($allItems->where('item_type', 'racikan') as $rItem) {
+                        if ($rItem->compounded_product_id === $product->id) {
+                            continue;
+                        }
+                        $otherCp = $rItem->compoundedProduct ?: ($rItem->compounded_product_id ? CompoundedProduct::find($rItem->compounded_product_id) : null);
+                        if (!$otherCp && $rItem->compounding_id) {
+                            $otherCp = CompoundedProduct::where('compounding_submission_id', $rItem->compounding_id)->first();
+                        }
+                        if (!$otherCp || $otherCp->pricing_status !== 'priced' || (float) $otherCp->harga_jual <= 0) {
+                            $allPriced = false;
+                            break;
+                        }
+                    }
+
+                    if ($allPriced) {
+                        $prescription->update(['status' => 'siap_ambil']);
+                        AuditTrail::log(
+                            $request->user()->id,
+                            'PRESCRIPTION_READY',
+                            "Resep {$prescription->prescription_number} otomatis diperbarui menjadi siap_ambil setelah harga racikan divalidasi oleh Admin.",
+                            Prescription::class,
+                            $prescription->id
+                        );
+                    }
+                }
             }
 
             AuditTrail::log(

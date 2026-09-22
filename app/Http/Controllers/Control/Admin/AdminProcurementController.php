@@ -15,12 +15,28 @@ use Inertia\Inertia;
 class AdminProcurementController extends Controller
 {
     // ─── SUPPLIERS ──────────────────────────────────────────
-    public function suppliers()
+    public function suppliers(Request $request)
     {
-        $suppliers = Supplier::latest()->paginate(15);
+        $search = $request->query('search');
+
+        $query = Supplier::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_pbf', 'like', "%{$search}%")
+                  ->orWhere('alamat', 'like', "%{$search}%")
+                  ->orWhere('telepon', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $suppliers = $query->latest()->paginate(15)->withQueryString();
 
         return Inertia::render('Control/Admin/Suppliers', [
             'suppliers' => $suppliers,
+            'filters' => [
+                'search' => $search
+            ]
         ]);
     }
 
@@ -93,10 +109,15 @@ class AdminProcurementController extends Controller
         $query = IncomingStock::with(['supplier', 'medicine', 'returnForm']);
 
         if ($search = $request->search) {
-            $query->where('faktur_no', 'like', "%{$search}%")
-                ->orWhereHas('supplier', function ($q) use ($search) {
-                    $q->where('nama_pbf', 'like', "%{$search}%");
-                });
+            $query->where(function ($q) use ($search) {
+                $q->where('faktur_no', 'like', "%{$search}%")
+                    ->orWhereHas('supplier', function ($q2) use ($search) {
+                        $q2->where('nama_pbf', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('medicine', function ($q2) use ($search) {
+                        $q2->where('nama_obat', 'like', "%{$search}%");
+                    });
+            });
         }
 
         $stocks = $query->latest()->paginate(15)->withQueryString();
@@ -124,18 +145,40 @@ class AdminProcurementController extends Controller
 
     public function storeIncomingStock(Request $request, IncomingStockService $service)
     {
+        // Normalize items array for multipart/form-data requests (booleans as "false"/"true")
+        $items = $request->input('items', []);
+        if (is_array($items)) {
+            foreach ($items as $i => $item) {
+                if (isset($item['is_new_medicine'])) {
+                    $items[$i]['is_new_medicine'] = filter_var($item['is_new_medicine'], FILTER_VALIDATE_BOOLEAN);
+                } else {
+                    $items[$i]['is_new_medicine'] = false;
+                }
+                if (empty($items[$i]['medicine_id'])) {
+                    $items[$i]['medicine_id'] = null;
+                }
+                if (isset($item['no_multi_unit'])) {
+                    $items[$i]['no_multi_unit'] = filter_var($item['no_multi_unit'], FILTER_VALIDATE_BOOLEAN);
+                }
+                if (isset($item['small_unit_skipped'])) {
+                    $items[$i]['small_unit_skipped'] = filter_var($item['small_unit_skipped'], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+            $request->merge(['items' => $items]);
+        }
+
         $validated = $request->validate([
             'faktur_no' => 'required|string|max:100',
             'supplier_id' => 'required|exists:suppliers,id',
             'tanggal_faktur' => 'nullable|date',
             'foto_faktur' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'items' => 'required|array|min:1',
-            'items.*.medicine_id' => 'nullable|exists:medicines,id',
             'items.*.is_new_medicine' => 'boolean',
-            'items.*.new_medicine_name' => 'required_if:items.*.is_new_medicine,true|nullable|string|max:255',
+            'items.*.medicine_id' => 'required_if:items.*.is_new_medicine,false,0|nullable|exists:medicines,id',
+            'items.*.new_medicine_name' => 'required_if:items.*.is_new_medicine,true,1|nullable|string|max:255',
             'items.*.new_medicine_kategori' => 'nullable|string|max:255',
             'items.*.new_medicine_satuan_besar' => 'nullable|string|max:50',
-            'items.*.new_medicine_satuan_kecil' => 'required_if:items.*.is_new_medicine,true|nullable|in:Tube,Gram,Pot,Tablet,Kapsul,Botol,Ampul,Sachet,Strip,Box,Pcs',
+            'items.*.new_medicine_satuan_kecil' => 'required_if:items.*.is_new_medicine,true,1|nullable|string|max:50',
             'items.*.new_medicine_rasio_konversi' => 'nullable|integer|min:1',
             'items.*.unit_conversion_factor' => 'nullable|integer|min:1',
             'items.*.satuan_input' => 'nullable|string|max:50',
@@ -148,6 +191,13 @@ class AdminProcurementController extends Controller
             'items.*.harga_beli_satuan' => 'required|numeric|min:0',
             'items.*.diskon_persen' => 'nullable|numeric|min:0|max:100',
             'items.*.min_stock_threshold' => 'nullable|integer|min:0',
+        ], [
+            'items.*.medicine_id.required_if' => 'Silakan pilih obat dari katalog untuk setiap baris obat yang bukan obat baru.',
+            'items.*.medicine_id.exists' => 'Obat yang dipilih tidak valid atau tidak terdaftar.',
+            'items.*.new_medicine_name.required_if' => 'Nama obat baru wajib diisi jika dicentang sebagai obat baru.',
+            'items.*.qty_masuk.required' => 'Jumlah (Qty) masuk wajib diisi.',
+            'items.*.qty_masuk.min' => 'Jumlah (Qty) masuk minimal 1.',
+            'items.*.harga_beli_satuan.required' => 'Harga beli satuan wajib diisi.',
         ]);
 
         $settings = Setting::current();

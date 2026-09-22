@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Control\Apoteker;
 
 use App\Http\Controllers\Controller;
+use App\Models\Control\IncomingStock;
 use App\Models\Control\Medicine;
 use App\Models\Control\RawMaterial;
 use App\Models\Control\StockLog;
+use App\Models\SaleItem;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -73,5 +77,161 @@ class ApotekerInventoryController extends Controller
         return Inertia::render('Control/Apoteker/StockAudit', [
             'logs' => StockLog::with(['user', 'rawMaterial', 'medicine'])->latest()->paginate(25),
         ]);
+    }
+
+    /**
+     * Compute SIPNAP data for a given Y-m month.
+     */
+    private function getSipnapData(string $month): array
+    {
+        try {
+            $carbonMonth = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        } catch (\Exception $e) {
+            $carbonMonth = now()->startOfMonth();
+            $month = $carbonMonth->format('Y-m');
+        }
+
+        $startOfMonth = $carbonMonth->copy()->startOfDay();
+        $endOfMonth = $carbonMonth->copy()->endOfMonth()->endOfDay();
+
+        $controlledMedicines = Medicine::sipnap()
+            ->select(['id', 'kode_obat', 'nama_obat', 'kategori', 'classification', 'satuan_stok', 'base_unit'])
+            ->orderBy('classification')
+            ->orderBy('nama_obat')
+            ->get();
+
+        $reportData = $controlledMedicines->map(function ($med) use ($startOfMonth, $endOfMonth) {
+            // 1. Mutasi SEBELUM tanggal 1 bulan terpilih
+            $masukBefore = (float) IncomingStock::where('medicine_id', $med->id)
+                ->where('status_gate', 'active')
+                ->where('created_at', '<', $startOfMonth)
+                ->sum('qty_converted');
+
+            $keluarBefore = (float) SaleItem::where('medicine_id', $med->id)
+                ->whereHas('sale', fn($q) => $q->where('status', 'paid'))
+                ->where('created_at', '<', $startOfMonth)
+                ->sum('quantity');
+
+            $stokAwal = max(0, $masukBefore - $keluarBefore);
+
+            // 2. Mutasi DALAM bulan terpilih
+            $masukBulan = (float) IncomingStock::where('medicine_id', $med->id)
+                ->where('status_gate', 'active')
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                ->sum('qty_converted');
+
+            $keluarBulan = (float) SaleItem::where('medicine_id', $med->id)
+                ->whereHas('sale', fn($q) => $q->where('status', 'paid'))
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+                ->sum('quantity');
+
+            // 3. Stok Akhir Bulan
+            $stokAkhir = max(0, $stokAwal + $masukBulan - $keluarBulan);
+
+            return [
+                'id' => $med->id,
+                'kode_obat' => $med->kode_obat,
+                'nama_obat' => $med->nama_obat,
+                'classification' => $med->classification,
+                'satuan' => $med->satuan_terkecil,
+                'stok_awal' => $stokAwal,
+                'pemasukan' => $masukBulan,
+                'pengeluaran' => $keluarBulan,
+                'stok_akhir' => $stokAkhir,
+            ];
+        });
+
+        $summary = [
+            'total_items' => $reportData->count(),
+            'total_narkotika' => $reportData->where('classification', 'narkotika')->count(),
+            'total_psikotropika' => $reportData->where('classification', 'psikotropika')->count(),
+            'total_pemasukan' => $reportData->sum('pemasukan'),
+            'total_pengeluaran' => $reportData->sum('pengeluaran'),
+        ];
+
+        return [
+            'month' => $month,
+            'carbonMonth' => $carbonMonth,
+            'summary' => $summary,
+            'reportData' => $reportData,
+        ];
+    }
+
+    /**
+     * SIPNAP Monthly Controlled Substance Movement Report (Narkotika & Psikotropika).
+     */
+    public function sipnapReport(Request $request)
+    {
+        $month = $request->query('month', now()->format('Y-m'));
+        $data = $this->getSipnapData($month);
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'month' => $data['month'],
+                'summary' => $data['summary'],
+                'data' => $data['reportData'],
+            ]);
+        }
+
+        return Inertia::render('Control/Apoteker/Reports/Sipnap', [
+            'month' => $data['month'],
+            'summary' => $data['summary'],
+            'reportData' => $data['reportData'],
+        ]);
+    }
+
+    /**
+     * Export SIPNAP Monthly Report to PDF (A4 Landscape).
+     */
+    public function exportSipnapPdf(Request $request)
+    {
+        $month = $request->query('month', now()->format('Y-m'));
+        $data = $this->getSipnapData($month);
+
+        $monthLabel = $data['carbonMonth']->translatedFormat('F Y');
+
+        $pdf = Pdf::loadView('exports.sipnap-report-pdf', [
+            'month'        => $data['month'],
+            'monthLabel'   => $monthLabel,
+            'reportData'   => $data['reportData'],
+            'summary'      => $data['summary'],
+            'logoKinanthi' => $this->getLogoBase64(),
+            'logoKemenkes' => $this->getKemenkesLogoBase64(),
+            'printedBy'    => auth()->user()?->name ?? 'Apoteker Pengelola Apotek',
+            'printedAt'    => Carbon::now()->format('d/m/Y H:i'),
+            'dateNow'      => Carbon::now()->translatedFormat('d F Y'),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('laporan-sipnap-kinanthi-' . $data['month'] . '.pdf');
+    }
+
+    private function getLogoBase64(): ?string
+    {
+        $logoPath = public_path('images/logo-clean.webp');
+        if (!file_exists($logoPath)) {
+            $logoPath = public_path('images/logo.webp');
+        }
+
+        if (file_exists($logoPath)) {
+            $ext = pathinfo($logoPath, PATHINFO_EXTENSION);
+            return 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        return null;
+    }
+
+    private function getKemenkesLogoBase64(): ?string
+    {
+        $logoPath = public_path('images/kemenkes-clean.webp');
+        if (!file_exists($logoPath)) {
+            $logoPath = public_path('images/kemenkes.webp');
+        }
+
+        if (file_exists($logoPath)) {
+            $ext = pathinfo($logoPath, PATHINFO_EXTENSION);
+            return 'data:image/' . $ext . ';base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
+        return null;
     }
 }

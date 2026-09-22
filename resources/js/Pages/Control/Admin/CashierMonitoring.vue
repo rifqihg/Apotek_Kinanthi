@@ -1,9 +1,7 @@
 <script setup>
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -14,56 +12,43 @@ const props = defineProps({
     transactions: [Array, Object],
 });
 
-const page = usePage();
-const activePage = ref(1);
+const isFiltering = ref(false);
+const startDate = ref(props.filters?.start_date || '');
+const endDate = ref(props.filters?.end_date || '');
 
-const form = ref({
-    start_date: props.filters?.start_date || '',
-    end_date: props.filters?.end_date || '',
-});
-
-// Reset page when date filter changes
-watch(form, () => {
-    activePage.value = 1;
+// Keep date inputs in sync if filters prop changes
+watch(() => props.filters, (newFilters) => {
+    if (newFilters?.start_date !== undefined) startDate.value = newFilters.start_date || '';
+    if (newFilters?.end_date !== undefined) endDate.value = newFilters.end_date || '';
 }, { deep: true });
 
-const expandedRows = ref({});
+const applyDateFilter = () => {
+    if (!startDate.value || !endDate.value) return;
+    isFiltering.value = true;
+    router.get(route(route().current()), {
+        start_date: startDate.value,
+        end_date: endDate.value,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isFiltering.value = false;
+        },
+    });
+};
 
-const toggleRow = (id) => { expandedRows.value[id] = !expandedRows.value[id]; };
-
-const { data: queryMonitoring, isFetching } = useQuery({
-    queryKey: computed(() => ['admin-cashier-monitoring', form.value.start_date, form.value.end_date, activePage.value]),
-    queryFn: async () => {
-        const res = await axios.get(route('control.admin.reports.cashier-monitoring'), {
-            params: {
-                start_date: form.value.start_date,
-                end_date: form.value.end_date,
-                page: activePage.value,
-            },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        return {
-            kpis: res.data.props.kpis,
-            transactions: res.data.props.transactions,
-        };
-    },
-    initialData: () => ({
-        kpis: props.kpis,
-        transactions: props.transactions,
-    }),
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
+watch([startDate, endDate], () => {
+    applyDateFilter();
 });
 
-const activeKpis = computed(() => queryMonitoring.value?.kpis || props.kpis || {});
+const expandedRows = ref({});
+const toggleRow = (id) => { expandedRows.value[id] = !expandedRows.value[id]; };
 
-const rawTransactions = computed(() => queryMonitoring.value?.transactions || props.transactions || []);
+const activeKpis = computed(() => props.kpis || {});
+
+const rawTransactions = computed(() => props.transactions || []);
 const activeTransactions = computed(() => {
     const t = rawTransactions.value;
     if (Array.isArray(t)) return t;
@@ -77,13 +62,10 @@ const activePagination = computed(() => {
 
 const goToPage = (url) => {
     if (!url) return;
-    try {
-        const urlObj = new URL(url, window.location.origin);
-        const p = urlObj.searchParams.get('page');
-        if (p) activePage.value = Number(p);
-    } catch (e) {
-        // fallback
-    }
+    router.visit(url, {
+        preserveState: true,
+        preserveScroll: true,
+    });
 };
 
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
@@ -92,15 +74,15 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-
 
 const exportToExcel = () => {
     const url = new URL(route('control.admin.reports.cashier-monitoring.export'));
-    if (form.value.start_date) url.searchParams.append('start_date', form.value.start_date);
-    if (form.value.end_date) url.searchParams.append('end_date', form.value.end_date);
+    if (startDate.value) url.searchParams.append('start_date', startDate.value);
+    if (endDate.value) url.searchParams.append('end_date', endDate.value);
     window.location.href = url.toString();
 };
 
 const exportToPdf = () => {
     const url = new URL(route('control.admin.reports.cashier-monitoring.export-pdf'));
-    if (form.value.start_date) url.searchParams.append('start_date', form.value.start_date);
-    if (form.value.end_date) url.searchParams.append('end_date', form.value.end_date);
+    if (startDate.value) url.searchParams.append('start_date', startDate.value);
+    if (endDate.value) url.searchParams.append('end_date', endDate.value);
     window.location.href = url.toString();
 };
 </script>
@@ -137,7 +119,7 @@ const exportToPdf = () => {
         <div class="bg-card rounded-lg border border-border p-5 shadow-sm">
             <div class="flex items-center justify-between mb-4">
                 <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filter Rentang Waktu</span>
-                <svg v-if="isFetching" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <svg v-if="isFiltering" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -145,11 +127,11 @@ const exportToPdf = () => {
             <div class="flex flex-col sm:flex-row gap-4 items-end">
                 <div class="flex-1 w-full">
                     <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Dari Tanggal</label>
-                    <input type="date" v-model="form.start_date" class="w-full h-10 rounded-md border-input bg-background focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium text-foreground text-sm">
+                    <input type="date" v-model="startDate" class="w-full h-10 rounded-md border-input bg-background focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium text-foreground text-sm">
                 </div>
                 <div class="flex-1 w-full">
                     <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Sampai Tanggal</label>
-                    <input type="date" v-model="form.end_date" class="w-full h-10 rounded-md border-input bg-background focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium text-foreground text-sm">
+                    <input type="date" v-model="endDate" class="w-full h-10 rounded-md border-input bg-background focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium text-foreground text-sm">
                 </div>
             </div>
         </div>

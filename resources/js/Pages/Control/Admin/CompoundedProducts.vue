@@ -1,12 +1,42 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
-const props = defineProps({ products: Object });
+const props = defineProps({ 
+    products: Object,
+    filters: { type: Object, default: () => ({}) }
+});
+
+const search = ref(props.filters?.search || '');
+const isSearching = ref(false);
+
+const handleLiveSearch = useDebounceFn((val) => {
+    isSearching.value = true;
+    router.get(route(route().current()), {
+        search: val || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+}, 300);
+
+watch(search, (newVal) => {
+    handleLiveSearch(newVal);
+});
+
+const clearSearch = () => {
+    search.value = '';
+};
 const expandedId = ref(null);
 const toggle = (id) => { expandedId.value = expandedId.value === id ? null : id; };
 
@@ -116,6 +146,34 @@ const budLabel = (bud) => {
         </div>
     </div>
 
+    <!-- SEARCH BAR -->
+    <div class="relative w-full max-w-md">
+        <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input 
+            v-model="search" 
+            type="text" 
+            placeholder="Cari nama produk, batch, atau formula..." 
+            class="w-full h-10 pl-10 pr-10 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" 
+        />
+        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+            <svg v-if="isSearching" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <button 
+                v-else-if="search" 
+                type="button" 
+                @click="clearSearch" 
+                class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                title="Hapus pencarian"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         <Table>
             <TableHeader>
@@ -170,6 +228,19 @@ const budLabel = (bud) => {
             <div class="space-y-1">
                 <h4 class="text-base font-semibold text-foreground">Belum Ada Produk Racikan</h4>
                 <p class="text-muted-foreground text-xs max-w-sm mx-auto">Produk racikan akan muncul di sini setelah proses peracikan diselesaikan oleh Apoteker dan dikonfirmasi oleh sistem.</p>
+            </div>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div v-if="products.links && products.links.length > 3" class="px-5 py-3 bg-muted/30 border-t border-border flex items-center justify-between">
+            <p class="text-xs font-medium text-muted-foreground">Halaman {{ products.current_page || 1 }} dari {{ products.last_page || 1 }} (Total {{ products.total || 0 }} produk racikan)</p>
+            <div class="flex items-center gap-1">
+                <template v-for="(link, i) in products.links" :key="i">
+                    <button v-if="link.url" @click="router.visit(link.url, { preserveState: true, preserveScroll: true })" 
+                        :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" 
+                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label"></button>
+                    <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
+                </template>
             </div>
         </div>
     </div>

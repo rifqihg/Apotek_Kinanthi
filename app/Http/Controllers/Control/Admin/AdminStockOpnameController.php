@@ -20,14 +20,42 @@ class AdminStockOpnameController extends Controller
     /**
      * Display a listing of stock opnames initiated by Admin.
      */
-    public function stockOpnameIndex()
+    public function stockOpnameIndex(Request $request)
     {
+        $search = $request->query('search');
+        $status = $request->query('status');
+        $date = $request->query('date');
+
+        $query = StockOpname::with('creator:id,name')
+            ->whereHas('creator', fn($q) => $q->where('role', 'admin'))
+            ->withCount('items');
+
+        if ($request->filled('status') && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('opname_date', $date);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($search) {
+                $cleanedId = preg_replace('/[^0-9]/', '', $search);
+                if (!empty($cleanedId)) {
+                    $q->orWhere('id', (int) $cleanedId);
+                }
+                $q->orWhere('catatan', 'like', "%{$search}%")
+                  ->orWhereHas('creator', fn($qu) => $qu->where('name', 'like', "%{$search}%"));
+            });
+        }
+
         return Inertia::render('Control/Admin/StockOpname', [
-            'opnames' => StockOpname::with('creator:id,name')
-                ->whereHas('creator', fn($q) => $q->where('role', 'admin'))
-                ->withCount('items')
-                ->latest()
-                ->paginate(15),
+            'opnames' => $query->latest()->paginate(15)->withQueryString(),
+            'filters' => [
+                'search' => $search ?? '',
+                'status' => $status ?? 'all',
+                'date' => $date ?? '',
+            ],
             'medicines' => Medicine::where('status', 'active')
                 ->select(['id', 'nama_obat', 'satuan_stok', 'category_id'])
                 ->with([

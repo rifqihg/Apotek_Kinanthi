@@ -80,10 +80,15 @@ const formatNumber = (num) => parseFloat(num || 0).toLocaleString('id-ID');
 // Available categories with counts for filter pills (matching POS style in Image 2)
 const categoryList = computed(() => {
     if (props.categories && props.categories.length > 0) {
-        return props.categories.map(c => ({
+        const list = props.categories.map(c => ({
             name: c.nama_kategori,
             count: props.medicines ? props.medicines.filter(m => (m.category?.nama_kategori || m.kategori) === c.nama_kategori).length : 0
         }));
+        const lainnyaCount = props.medicines ? props.medicines.filter(m => !(m.category?.nama_kategori || m.kategori)).length : 0;
+        if (lainnyaCount > 0 && !list.some(c => c.name.toLowerCase() === 'lainnya')) {
+            list.push({ name: 'Lainnya', count: lainnyaCount });
+        }
+        return list;
     }
     if (!props.medicines) return [];
     const map = {};
@@ -178,7 +183,8 @@ const addToCart = (item, itemType) => {
             unit_price: price,
             quantity: 1,
             maxStock: maxStock,
-            subtotal: price
+            subtotal: price,
+            foto_obat: item.foto_obat || null
         });
     }
 };
@@ -449,14 +455,14 @@ onUnmounted(() => {
                                 </div>
 
                                 <!-- PRODUCT IMAGE -->
-                                <div class="h-28 w-full rounded-md bg-muted/40 border border-border flex items-center justify-center p-2 mb-2 overflow-hidden group-hover:bg-muted/70 transition-colors">
+                                <div class="h-32 w-full rounded-md bg-muted/40 border border-border flex items-center justify-center mb-2 overflow-hidden group-hover:bg-muted/70 transition-colors relative">
                                     <img 
                                         v-if="obat.foto_obat" 
                                         :src="`/storage/medicines/${obat.foto_obat}`" 
                                         :alt="obat.nama_obat"
-                                        class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200" 
+                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
                                     />
-                                    <div v-else class="flex flex-col items-center justify-center text-muted-foreground">
+                                    <div v-else class="flex flex-col items-center justify-center text-muted-foreground p-2">
                                         <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                                     </div>
                                 </div>

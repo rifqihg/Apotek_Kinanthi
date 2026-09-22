@@ -1,12 +1,48 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
-const props = defineProps({ suppliers: Object });
+const props = defineProps({ 
+    suppliers: Object,
+    filters: Object,
+});
+
+const search = ref(props.filters?.search || '');
+const isSearching = ref(false);
+
+watch(() => props.filters?.search, (newSearch) => {
+    if (newSearch !== undefined && newSearch !== search.value) {
+        search.value = newSearch || '';
+    }
+});
+
+const handleLiveSearch = useDebounceFn((val) => {
+    isSearching.value = true;
+    router.get(route('control.admin.suppliers'), {
+        search: val || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+}, 300);
+
+watch(search, (newVal) => {
+    handleLiveSearch(newVal);
+});
+
+const clearSearch = () => {
+    search.value = '';
+};
 
 const stats = computed(() => {
     const list = props.suppliers?.data || [];
@@ -14,15 +50,6 @@ const stats = computed(() => {
     const active = list.filter(s => s.is_active).length;
     const inactive = list.filter(s => !s.is_active).length;
     return { total, active, inactive };
-});
-
-const search = ref('');
-const filteredSuppliers = computed(() => {
-    if (!search.value) return props.suppliers?.data || [];
-    const q = search.value.toLowerCase();
-    return (props.suppliers?.data || []).filter(s =>
-        s.nama_pbf?.toLowerCase().includes(q) || s.alamat?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q)
-    );
 });
 
 const showModal = ref(false);
@@ -169,7 +196,24 @@ function destroy(supplier) {
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="relative w-full sm:flex-1">
                 <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input v-model="search" type="text" placeholder="Cari berdasarkan nama PBF atau wilayah..." class="w-full h-10 pl-10 pr-3.5 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
+                <input v-model="search" type="text" placeholder="Cari berdasarkan nama PBF, kontak, atau alamat..." class="w-full h-10 pl-10 pr-10 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                    <svg v-if="isSearching" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <button 
+                        v-else-if="search" 
+                        type="button" 
+                        @click="clearSearch" 
+                        class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             <button @click="openCreate" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -190,12 +234,12 @@ function destroy(supplier) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-if="filteredSuppliers.length === 0">
+                        <TableRow v-if="!suppliers?.data || suppliers.data.length === 0">
                             <TableCell colspan="5" class="px-6 py-12 text-center text-muted-foreground text-sm">
                                 Data Supplier Belum Tersedia.
                             </TableCell>
                         </TableRow>
-                        <TableRow v-for="s in filteredSuppliers" :key="s.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                        <TableRow v-for="s in (suppliers?.data || [])" :key="s.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
                                 <div class="flex flex-col">
                                     <span class="text-foreground font-medium text-sm leading-tight">{{ s.nama_pbf }}</span>
@@ -234,12 +278,13 @@ function destroy(supplier) {
                 
                 <!-- Pagination Footer -->
                 <div class="px-5 py-3 bg-muted/30 border-t border-border flex items-center justify-between">
-                    <p class="text-xs font-medium text-muted-foreground">Halaman {{ suppliers.current_page || 1 }} dari {{ suppliers.last_page || 1 }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">Halaman {{ suppliers.current_page || 1 }} dari {{ suppliers.last_page || 1 }} (Total {{ suppliers.total || 0 }} PBF)</p>
                     <div v-if="suppliers.links?.length > 3" class="flex items-center gap-1">
-                        <template v-for="link in suppliers.links" :key="link.label">
-                            <button v-if="link.url" @click="router.get(link.url)" 
+                        <template v-for="(link, i) in suppliers.links" :key="i">
+                            <button v-if="link.url" @click="router.visit(link.url, { preserveState: true, preserveScroll: true })" 
                                 :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" 
                                 class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label"></button>
+                            <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
                         </template>
                     </div>
                 </div>

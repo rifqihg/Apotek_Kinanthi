@@ -1,11 +1,54 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
+import { useDebounceFn } from '@vueuse/core';
 
 defineOptions({ layout: ControlLayout });
 
-const props = defineProps({ prescriptions: Object });
+const props = defineProps({ 
+    prescriptions: Object,
+    filters: { type: Object, default: () => ({}) }
+});
+
+const search = ref(props.filters?.search || '');
+const status = ref(props.filters?.status || '');
+const date = ref(props.filters?.date || '');
+const isFiltering = ref(false);
+
+const applyFilters = () => {
+    isFiltering.value = true;
+    router.get(route(route().current()), {
+        search: search.value || undefined,
+        status: status.value || undefined,
+        date: date.value || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => { isFiltering.value = false; }
+    });
+};
+
+const debouncedSearch = useDebounceFn(() => {
+    applyFilters();
+}, 300);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) debouncedSearch();
+});
+
+watch([status, date], () => {
+    applyFilters();
+});
+
+const clearFilters = () => {
+    search.value = '';
+    status.value = '';
+    date.value = '';
+    applyFilters();
+};
 
 const stats = computed(() => {
     const list = props.prescriptions?.data || [];
@@ -23,6 +66,12 @@ const statusColor = (s) => ({
 }[s] || 'bg-slate-50 text-slate-600 border-[#E8EEF6]');
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+
+const isControlledRx = (rx) => {
+    return rx.prescription_items?.some(item => 
+        ['narkotika', 'psikotropika'].includes(item.medicine?.classification)
+    ) ?? false;
+};
 </script>
 
 <template>
@@ -122,6 +171,57 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-
             </Link>
         </div>
 
+        <!-- FILTER BAR -->
+        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
+            <!-- Search Input -->
+            <div class="flex-1 min-w-[220px] relative">
+                <input 
+                    v-model="search" 
+                    type="text" 
+                    placeholder="Cari no. resep, pasien, atau dokter..." 
+                    class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" 
+                />
+                <svg v-if="!isFiltering" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <button 
+                    v-if="search" 
+                    @click="search = ''; applyFilters()" 
+                    type="button" 
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
+                    title="Hapus pencarian"
+                >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Status Dropdown -->
+            <select v-model="status" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">
+                <option value="">Status: Resep Aktif (Default)</option>
+                <option value="all">Semua Status</option>
+                <option value="baru">Baru</option>
+                <option value="diproses">Diproses</option>
+                <option value="siap_ambil">Siap Ambil</option>
+                <option value="selesai">Selesai</option>
+                <option value="batal">Batal</option>
+            </select>
+
+            <!-- Date Filter -->
+            <input v-model="date" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer" title="Filter Tanggal Resep" />
+
+            <!-- Reset Button -->
+            <button v-if="search || status || date" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
+                Reset
+            </button>
+        </div>
+
         <!-- Table View -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
             <table class="w-full text-sm text-left">
@@ -148,7 +248,15 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-
                         </td>
                     </tr>
                     <tr v-for="rx in (prescriptions?.data || [])" :key="rx.id" class="hover:bg-muted/30 transition-colors">
-                        <td class="px-4 py-3 font-medium text-foreground text-sm tracking-wide">{{ rx.prescription_number }}</td>
+                        <td class="px-4 py-3 font-medium text-foreground text-sm tracking-wide">
+                            <div class="flex flex-col items-start gap-1">
+                                <span>{{ rx.prescription_number }}</span>
+                                <span v-if="isControlledRx(rx)" class="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800" title="Resep Narkotika / Psikotropika - Wajib Cek Fisik Resep & SIP">
+                                    <svg class="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                    Resep Narkotika / Psikotropika - Wajib Cek Fisik Resep &amp; SIP
+                                </span>
+                            </div>
+                        </td>
                         <td class="px-4 py-3 font-medium text-foreground">{{ rx.patient?.name }}</td>
                         <td class="px-4 py-3 text-muted-foreground text-sm">{{ rx.doctor_name }}</td>
                         <td class="px-4 py-3 text-center text-muted-foreground text-sm">{{ formatDate(rx.prescription_date) }}</td>
@@ -169,16 +277,17 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-
             
             <!-- Pagination -->
             <div class="px-4 py-3 bg-muted/20 border-t border-border flex items-center justify-between">
-                <span class="text-xs text-muted-foreground font-medium">Halaman {{ prescriptions?.current_page || 1 }}</span>
+                <span class="text-xs text-muted-foreground font-medium">Halaman {{ prescriptions?.current_page || 1 }} dari {{ prescriptions?.last_page || 1 }} (Total {{ prescriptions?.total || 0 }} resep)</span>
                 <div v-if="prescriptions?.links?.length > 3" class="flex items-center gap-1">
-                    <template v-for="l in (prescriptions?.links || [])" :key="l.label">
-                        <Link 
+                    <template v-for="(l, i) in (prescriptions?.links || [])" :key="i">
+                        <button 
                             v-if="l.url" 
-                            :href="l.url" 
+                            @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" 
                             :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
-                            class="w-8 h-8 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
+                            class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                             v-html="l.label"
-                        ></Link>
+                        ></button>
+                        <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                     </template>
                 </div>
             </div>

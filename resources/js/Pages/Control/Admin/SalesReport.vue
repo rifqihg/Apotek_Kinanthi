@@ -1,9 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -14,74 +12,59 @@ const props = defineProps({
     summary: Object
 });
 
-const page = usePage();
-const activePage = ref(1);
+const isFiltering = ref(false);
+const startDate = ref(props.filters?.start_date || '');
+const endDate = ref(props.filters?.end_date || '');
 
-const form = ref({
-    start_date: props.filters?.start_date || '',
-    end_date: props.filters?.end_date || ''
-});
-
-// Reset page when date filter changes
-watch(form, () => {
-    activePage.value = 1;
+// Keep date inputs in sync if filters prop changes
+watch(() => props.filters, (newFilters) => {
+    if (newFilters?.start_date !== undefined) startDate.value = newFilters.start_date || '';
+    if (newFilters?.end_date !== undefined) endDate.value = newFilters.end_date || '';
 }, { deep: true });
 
-const { data: queryReport, isFetching } = useQuery({
-    queryKey: computed(() => ['admin-sales-report', form.value.start_date, form.value.end_date, activePage.value]),
-    queryFn: async () => {
-        const res = await axios.get(route('control.admin.reports.sales'), {
-            params: {
-                start_date: form.value.start_date,
-                end_date: form.value.end_date,
-                page: activePage.value,
-            },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        return {
-            medicines: res.data.props.medicines,
-            summary: res.data.props.summary,
-        };
-    },
-    initialData: () => ({
-        medicines: props.medicines,
-        summary: props.summary,
-    }),
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
+const applyDateFilter = () => {
+    if (!startDate.value || !endDate.value) return;
+    isFiltering.value = true;
+    router.get(route(route().current()), {
+        start_date: startDate.value,
+        end_date: endDate.value,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isFiltering.value = false;
+        },
+    });
+};
+
+watch([startDate, endDate], () => {
+    applyDateFilter();
 });
 
-const activeMedicines = computed(() => queryReport.value?.medicines || props.medicines || { data: [], links: [] });
-const activeSummary = computed(() => queryReport.value?.summary || props.summary || { total_items: 0, total_amount: 0, total_laba: 0 });
+const activeMedicines = computed(() => props.medicines || { data: [], links: [] });
+const activeSummary = computed(() => props.summary || { total_items: 0, total_amount: 0, total_laba: 0 });
 
 const goToPage = (url) => {
     if (!url) return;
-    try {
-        const urlObj = new URL(url, window.location.origin);
-        const p = urlObj.searchParams.get('page');
-        if (p) activePage.value = Number(p);
-    } catch (e) {
-        // fallback
-    }
+    router.visit(url, {
+        preserveState: true,
+        preserveScroll: true,
+    });
 };
 
 const exportToExcel = () => {
     const url = new URL(route('control.admin.reports.sales.export'));
-    if (form.value.start_date) url.searchParams.append('start_date', form.value.start_date);
-    if (form.value.end_date) url.searchParams.append('end_date', form.value.end_date);
+    if (startDate.value) url.searchParams.append('start_date', startDate.value);
+    if (endDate.value) url.searchParams.append('end_date', endDate.value);
     window.location.href = url.toString();
 };
 
 const exportToPdf = () => {
     const url = new URL(route('control.admin.reports.sales.export-pdf'));
-    if (form.value.start_date) url.searchParams.append('start_date', form.value.start_date);
-    if (form.value.end_date) url.searchParams.append('end_date', form.value.end_date);
+    if (startDate.value) url.searchParams.append('start_date', startDate.value);
+    if (endDate.value) url.searchParams.append('end_date', endDate.value);
     window.location.href = url.toString();
 };
 
@@ -129,7 +112,7 @@ const formatCurrency = (amount) => {
         <div class="md:col-span-4 bg-card border border-border p-4 rounded-lg shadow-sm">
             <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
                 <span>Filter Periode</span>
-                <svg v-if="isFetching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <svg v-if="isFiltering" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -137,11 +120,11 @@ const formatCurrency = (amount) => {
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Mulai</label>
-                    <input type="date" v-model="form.start_date" class="w-full border-input bg-background rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" />
+                    <input type="date" v-model="startDate" class="w-full border-input bg-background rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" />
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Sampai</label>
-                    <input type="date" v-model="form.end_date" class="w-full border-input bg-background rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" />
+                    <input type="date" v-model="endDate" class="w-full border-input bg-background rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" />
                 </div>
             </div>
         </div>
@@ -212,7 +195,7 @@ const formatCurrency = (amount) => {
                             
                             <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground tabular-nums text-sm">{{ formatCurrency(med.total_penjualan) }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm">{{ formatCurrency(med.laba) }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right tabular-nums text-xs font-medium" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'">
+                            <TableCell class="py-2 px-3 align-middle text-center tabular-nums text-xs font-medium" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'">
                                 {{ med.margin_percentage }}%
                             </TableCell>
                             <TableCell class="py-2 px-3 align-middle text-center">

@@ -14,22 +14,54 @@ use Inertia\Inertia;
 
 class ApotekerPrescriptionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $prescriptions = Prescription::with(['patient', 'prescriptionItems'])
-            ->whereNotIn('status', ['selesai', 'batal'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        $search = $request->query('search');
+        $status = $request->query('status');
+        $date = $request->query('date');
+
+        $query = Prescription::with(['patient', 'prescriptionItems.medicine']);
+
+        if ($request->filled('status')) {
+            if ($status !== 'all') {
+                $query->where('status', $status);
+            }
+        } else {
+            $query->whereNotIn('status', ['selesai', 'batal']);
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $date);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('prescription_number', 'like', "%{$search}%")
+                  ->orWhere('doctor_name', 'like', "%{$search}%")
+                  ->orWhereHas('patient', function ($qp) use ($search) {
+                      $qp->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $prescriptions = $query->orderBy('created_at', 'desc')
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('Control/Apoteker/Prescriptions/Index', [
             'prescriptions' => $prescriptions,
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'date' => $date,
+            ],
         ]);
     }
 
     public function create()
     {
         $patients = Patient::orderBy('name')->get(['id', 'name']);
-        $medicines = Medicine::orderBy('nama_obat')->get(['id', 'nama_obat', 'satuan_stok']);
+        $medicines = Medicine::orderBy('nama_obat')->get(['id', 'nama_obat', 'satuan_stok', 'classification']);
         $compounded_products = CompoundedProduct::where('harga_jual', '>', 0)
             ->orderBy('nama_produk')
             ->get(['id', 'nama_produk', 'satuan']);
@@ -45,7 +77,10 @@ class ApotekerPrescriptionController extends Controller
     {
         $v = $request->validate([
             'patient_id' => 'required|exists:patients,id',
+            'patient_weight_kg' => 'nullable|numeric|min:0|max:300',
+            'patient_age_years' => 'nullable|integer|min:0|max:150',
             'doctor_name' => 'required|string|max:100',
+            'doctor_sip' => 'nullable|string|max:60',
             'clinic_name' => 'nullable|string|max:100',
             'prescription_date' => [
                 'required',
@@ -53,6 +88,7 @@ class ApotekerPrescriptionController extends Controller
                 'after_or_equal:' . now()->subDays(30)->toDateString()
             ],
             'notes' => 'nullable|string',
+            'screening_notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.item_type' => 'required|in:obat_jadi,racikan',
             'items.*.medicine_id' => 'required_if:items.*.item_type,obat_jadi|nullable|exists:medicines,id',
@@ -63,15 +99,37 @@ class ApotekerPrescriptionController extends Controller
             'items.*.usage_instructions' => 'nullable|string',
         ]);
 
+        // Validasi: Jika resep memuat obat bertipe 'narkotika' atau 'psikotropika', kolom 'doctor_sip' wajib diisi
+        $hasControlledDrug = false;
+        foreach ($v['items'] as $item) {
+            if ($item['item_type'] === 'obat_jadi' && !empty($item['medicine_id'])) {
+                $med = Medicine::find($item['medicine_id']);
+                if ($med && in_array($med->classification, ['narkotika', 'psikotropika'])) {
+                    $hasControlledDrug = true;
+                    break;
+                }
+            }
+        }
+
+        if ($hasControlledDrug && empty($v['doctor_sip'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'doctor_sip' => 'Resep yang memuat obat golongan Narkotika atau Psikotropika wajib mencantumkan Nomor SIP Dokter.'
+            ]);
+        }
+
         return DB::transaction(function () use ($v) {
             $prescription = Prescription::create([
                 'patient_id' => $v['patient_id'],
+                'patient_weight_kg' => $v['patient_weight_kg'] ?? null,
+                'patient_age_years' => $v['patient_age_years'] ?? null,
                 'doctor_name' => $v['doctor_name'],
+                'doctor_sip' => $v['doctor_sip'] ?? null,
                 'clinic_name' => $v['clinic_name'] ?? null,
                 'prescription_date' => $v['prescription_date'],
                 'status' => 'baru',
                 'handled_by' => auth()->id(),
                 'notes' => $v['notes'] ?? null,
+                'screening_notes' => $v['screening_notes'] ?? null,
             ]);
 
             foreach ($v['items'] as $item) {
@@ -141,6 +199,26 @@ class ApotekerPrescriptionController extends Controller
 
             if ($hasUnfinishedItems) {
                 return back()->withErrors(['status' => 'Semua item resep harus diselesaikan terlebih dahulu sebelum resep siap diambil.']);
+            }
+
+            // Periksa apakah terdapat item racikan yang belum divalidasi harganya oleh Admin
+            $hasPendingPricing = false;
+            $racikanItems = $prescription->prescriptionItems()->where('item_type', 'racikan')->get();
+            foreach ($racikanItems as $rItem) {
+                $cp = $rItem->compoundedProduct ?: ($rItem->compounded_product_id ? CompoundedProduct::find($rItem->compounded_product_id) : null);
+                if (!$cp && $rItem->compounding_id) {
+                    $cp = CompoundedProduct::where('compounding_submission_id', $rItem->compounding_id)->first();
+                }
+                if (!$cp || $cp->pricing_status !== 'priced' || (float) $cp->harga_jual <= 0) {
+                    $hasPendingPricing = true;
+                    break;
+                }
+            }
+
+            if ($hasPendingPricing) {
+                // Pertahankan status 'diproses' agar kasir TIDAK membacanya sebagai antrean siap bayar
+                $prescription->update(['status' => 'diproses']);
+                return back()->with('info', 'Item racikan telah selesai disiapkan. Resep tetap berstatus "diproses" menunggu validasi harga dari Admin sebelum siap diambil di kasir.');
             }
         }
 

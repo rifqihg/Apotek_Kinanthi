@@ -54,6 +54,8 @@ class AdminUserController extends Controller
             $mutationQuery->where(fn($q) =>
                 $q->whereHas('inventory.medicine', fn($q2) => $q2->where('nama_obat', 'like', "%{$search}%"))
                   ->orWhereHas('rawMaterialStock.rawMaterial', fn($q2) => $q2->where('nama_bahan', 'like', "%{$search}%"))
+                  ->orWhereHas('inventory', fn($q2) => $q2->where('batch_no', 'like', "%{$search}%"))
+                  ->orWhereHas('rawMaterialStock', fn($q2) => $q2->where('batch_no', 'like', "%{$search}%"))
             );
         }
 

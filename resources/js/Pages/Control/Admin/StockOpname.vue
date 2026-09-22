@@ -1,7 +1,8 @@
 <script setup>
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -11,7 +12,61 @@ const props = defineProps({
     medicines: Array,
     rawMaterials: Array,
     categories: Array,
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
 });
+
+const search = ref(props.filters?.search || '');
+const status = ref(props.filters?.status || 'all');
+const date = ref(props.filters?.date || '');
+const isSearching = ref(false);
+
+const applyFilters = () => {
+    isSearching.value = true;
+    router.get(route(route().current()), {
+        search: search.value || undefined,
+        status: status.value !== 'all' ? status.value : undefined,
+        date: date.value || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        }
+    });
+};
+
+const debouncedSearch = useDebounceFn(() => {
+    applyFilters();
+}, 300);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) debouncedSearch();
+});
+
+watch(status, () => {
+    applyFilters();
+});
+
+watch(date, () => {
+    applyFilters();
+});
+
+const clearSearch = () => {
+    search.value = '';
+    applyFilters();
+};
+
+const resetAllFilters = () => {
+    search.value = '';
+    status.value = 'all';
+    date.value = '';
+    applyFilters();
+};
 
 const stats = computed(() => {
     const list = props.opnames?.data || [];
@@ -287,15 +342,83 @@ const submit = () => {
             </div>
         </div>
 
-        <!-- ACTION BAR -->
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-                Daftar Sesi Stock Opname
-            </h2>
+        <!-- ACTION & FILTER BAR -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                    Daftar Sesi Stock Opname
+                </h2>
+                <p class="text-xs text-muted-foreground mt-0.5">Filter dan pantau riwayat audit fisik persediaan obat dan bahan baku.</p>
+            </div>
             <button @click="showModal = true" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Buat Stock Opname Baru
             </button>
+        </div>
+
+        <!-- FILTER CONTROLS -->
+        <div class="bg-card rounded-lg border border-border p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+                <!-- Live Search Box -->
+                <div class="relative flex-1 sm:max-w-xs">
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Cari ID, catatan, penanggung jawab..." 
+                        class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" 
+                    />
+                    <svg v-if="!isSearching" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <svg v-else class="animate-spin w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <button 
+                        v-if="search" 
+                        type="button" 
+                        @click="clearSearch" 
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors cursor-pointer"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="w-full sm:w-40">
+                    <select 
+                        v-model="status" 
+                        class="w-full h-9 bg-background border border-input rounded-md px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer"
+                    >
+                        <option value="all">Semua Status</option>
+                        <option value="draft">Draft</option>
+                        <option value="completed">Selesai</option>
+                    </select>
+                </div>
+
+                <!-- Date Filter -->
+                <div class="w-full sm:w-44">
+                    <input 
+                        v-model="date" 
+                        type="date" 
+                        class="w-full h-9 bg-background border border-input rounded-md px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                        title="Filter tanggal sesi opname"
+                    />
+                </div>
+            </div>
+
+            <!-- Reset Filter Button -->
+            <div v-if="search || status !== 'all' || date" class="shrink-0">
+                <button 
+                    type="button" 
+                    @click="resetAllFilters" 
+                    class="h-9 px-3 rounded-md text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Reset Filter
+                </button>
+            </div>
         </div>
 
         <!-- Table -->
@@ -304,7 +427,8 @@ const submit = () => {
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                         <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tanggal</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Keterangan</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Keterangan / ID</TableHead>
+                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Penanggung Jawab</TableHead>
                         <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Item</TableHead>
                         <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</TableHead>
                         <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</TableHead>
@@ -312,14 +436,30 @@ const submit = () => {
                 </TableHeader>
                 <TableBody>
                     <TableRow v-if="opnames.data.length === 0">
-                        <TableCell colspan="5" class="py-8 px-3 text-center text-muted-foreground text-xs font-medium">Belum ada riwayat stock opname dari Admin.</TableCell>
+                        <TableCell colspan="6" class="py-12 px-3 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
+                                    <svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="text-xs font-medium text-foreground">Tidak ada riwayat sesi stock opname ditemukan.</p>
+                                <p v-if="search || status !== 'all' || date" class="text-xs text-muted-foreground mt-1">Coba sesuaikan kata kunci atau filter yang Anda gunakan.</p>
+                            </div>
+                        </TableCell>
                     </TableRow>
                     <TableRow v-for="op in opnames.data" :key="op.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                         <TableCell class="py-2 px-3 align-middle font-medium text-foreground text-sm">
                             {{ new Date(op.opname_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                         </TableCell>
+                        <TableCell class="py-2 px-3 align-middle">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-semibold text-foreground">#SO-{{ op.id }}</span>
+                                <span class="text-xs text-muted-foreground line-clamp-1">{{ op.catatan || '-' }}</span>
+                            </div>
+                        </TableCell>
                         <TableCell class="py-2 px-3 align-middle text-xs text-muted-foreground">
-                            {{ op.catatan || '-' }}
+                            {{ op.creator?.name || 'Admin' }}
                         </TableCell>
                         <TableCell class="py-2 px-3 align-middle text-center">
                             <span class="text-xs font-mono text-muted-foreground tabular-nums">{{ op.items_count || 0 }} item</span>
@@ -340,11 +480,16 @@ const submit = () => {
                     </TableRow>
                 </TableBody>
             </Table>
-            <div v-if="opnames.links?.length > 3" class="px-5 py-3 border-t border-border flex items-center justify-center gap-1.5 bg-muted/30">
-                <template v-for="l in opnames.links" :key="l.label">
-                    <button v-if="l.url" @click="router.get(l.url)" :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label"></button>
-                    <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium" v-html="l.label"></span>
-                </template>
+            <div v-if="opnames.links?.length > 3" class="px-5 py-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/30">
+                <span class="text-xs text-muted-foreground font-medium">
+                    Menampilkan {{ opnames.from || 0 }} - {{ opnames.to || 0 }} dari {{ opnames.total || 0 }} sesi
+                </span>
+                <div class="flex items-center gap-1.5">
+                    <template v-for="l in opnames.links" :key="l.label">
+                        <button v-if="l.url" @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label"></button>
+                        <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
+                    </template>
+                </div>
             </div>
         </div>
     </div>

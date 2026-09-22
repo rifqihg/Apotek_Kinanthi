@@ -26,15 +26,37 @@ class KasirSaleController extends Controller
     public function index(Request $request)
     {
         $selectedDate = $request->query('date', today()->format('Y-m-d'));
+        $search = $request->query('search');
+
+        $prescriptionsQuery = Prescription::with(['patient', 'prescriptionItems'])
+            ->where('status', 'siap_ambil');
+
+        if ($search) {
+            $prescriptionsQuery->where(function ($q) use ($search) {
+                $q->where('prescription_number', 'like', "%{$search}%")
+                  ->orWhereHas('patient', function ($qp) use ($search) {
+                      $qp->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $prescriptions = $prescriptionsQuery->orderBy('updated_at', 'asc')
+            ->paginate(15)
+            ->withQueryString();
+
+        $sales = Sale::with(['prescription:id,patient_id', 'prescription.patient:id,name'])
+            ->where('kasir_id', auth()->id())
+            ->whereDate('created_at', $selectedDate)
+            ->latest()
+            ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']);
 
         return Inertia::render('Control/Kasir/Queue', [
-            'prescriptions' => Prescription::with(['patient', 'prescriptionItems'])->where('status', 'siap_ambil')->orderBy('updated_at', 'asc')->get(),
-            'sales' => Sale::with(['prescription:id,patient_id', 'prescription.patient:id,name'])
-                ->where('kasir_id', auth()->id())
-                ->whereDate('created_at', $selectedDate)
-                ->latest()
-                ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']),
-            'filters' => ['date' => $selectedDate]
+            'prescriptions' => $prescriptions,
+            'sales' => $sales,
+            'filters' => [
+                'date' => $selectedDate,
+                'search' => $search,
+            ]
         ]);
     }
 
@@ -144,10 +166,10 @@ class KasirSaleController extends Controller
         $search = $request->query('search');
         $category = $request->query('category');
 
-        $medicines = Medicine::select(['id', 'category_id', 'nama_obat', 'kode_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total'])
+        $medicines = Medicine::select(['id', 'category_id', 'nama_obat', 'kode_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total', 'foto_obat'])
             ->with([
-                'category:id,nama_kategori',
-                'latestIncomingStock:id,medicine_id,harga_jual_akhir',
+                'category:id,name',
+                'latestIncomingStock:incoming_stocks.id,incoming_stocks.medicine_id,incoming_stocks.harga_jual_akhir',
                 'warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'stock_on_hand'])
                     ->where('location_type', 'kasir')
                     ->where('location_id', $kasirId)
@@ -158,19 +180,29 @@ class KasirSaleController extends Controller
             ])
             ->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false)->whereDate('expired_date', '>', now()))
             ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('nama_obat', 'like', "%{$search}%")->orWhere('kode_obat', 'like', "%{$search}%")))
-            ->when($category && $category !== 'all', fn($q) => $q->whereHas('category', fn($cq) => $cq->where('nama_kategori', $category)))
+            ->when($category && $category !== 'all', function ($q) use ($category) {
+                if (strtolower($category) === 'lainnya') {
+                    $q->where(function ($sub) {
+                        $sub->whereHas('category', fn($cq) => $cq->where('name', 'Lainnya'))
+                            ->orWhereNull('category_id');
+                    });
+                } else {
+                    $q->whereHas('category', fn($cq) => $cq->where('name', $category));
+                }
+            })
             ->orderBy('nama_obat')
             ->limit(40)
             ->get()
             ->map(fn($med) => [
                 'id' => $med->id,
                 'category_id' => $med->category_id,
-                'category' => $med->category ? ['id' => $med->category->id, 'nama_kategori' => $med->category->nama_kategori] : null,
+                'category' => $med->category ? ['id' => $med->category->id, 'nama_kategori' => $med->category->name] : null,
                 'nama_obat' => $med->nama_obat,
                 'kode_obat' => $med->kode_obat,
                 'satuan' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
                 'selling_price' => (float) ($med->selling_price > 0 ? $med->selling_price : ($med->latestIncomingStock?->harga_jual_akhir ?? 0)),
                 'stok_kasir' => (float) $med->warehouseInventories->sum('stock_on_hand'),
+                'foto_obat' => $med->foto_obat,
             ]);
 
         $compoundedProducts = CompoundedProduct::select(['id', 'nama_produk', 'batch_no', 'harga_jual', 'qty_hasil', 'status', 'pricing_status'])
@@ -509,24 +541,46 @@ class KasirSaleController extends Controller
                     } elseif ($item->item_type === 'racikan' && $item->compounded_product_id) {
                         $cp = CompoundedProduct::lockForUpdate()->find($item->compounded_product_id);
                         if ($cp) {
-                            $cp->increment('qty_hasil', $item->quantity);
+                            // Ponytail & Standar Farmasi: Obat racikan kustom pasien yang batal tebus
+                            // TIDAK BOLEH dikembalikan ke stok aktif (qty_hasil tidak di-increment).
+                            // Item dicatat sebagai write-off/pemusnahan demi keselamatan pasien.
                             StockMutation::create([
                                 'item_id'        => $cp->id,
                                 'item_type'      => CompoundedProduct::class,
-                                'type'           => 'Penyesuaian Masuk',
+                                'type'           => 'Pemusnahan / Write-off',
                                 'quantity'       => $item->quantity,
                                 'balance_after'  => $cp->qty_hasil,
                                 'reference_type' => Sale::class,
                                 'reference_id'   => $sale->id,
-                                'note'           => "Void Transaksi {$sale->sale_number} (Admin: {$adminUser->name})",
+                                'note'           => "Batal Tebus / Dimusnahkan - Void Transaksi {$sale->sale_number} (Admin: {$adminUser->name})",
                             ]);
+
+                            AuditTrail::log(
+                                $kasirId,
+                                'compounding.disposal',
+                                "Obat racikan {$cp->nama_produk} ({$item->quantity} {$item->unit}) berstatus Batal Tebus / Dimusnahkan akibat void transaksi {$sale->sale_number} (Admin: {$adminUser->name}).",
+                                CompoundedProduct::class,
+                                $cp->id
+                            );
                         }
                     }
                 }
 
                 if ($sale->prescription_id) {
-                    Prescription::where('id', $sale->prescription_id)->update(['status' => 'siap_ambil']);
-                    PrescriptionItem::where('prescription_id', $sale->prescription_id)->update(['status' => 'siap_ambil']);
+                    $prescription = Prescription::with('prescriptionItems')->find($sale->prescription_id);
+                    if ($prescription) {
+                        $hasRacikan = $sale->saleItems->contains(fn($it) => $it->item_type === 'racikan');
+                        if ($hasRacikan) {
+                            // Racikan kustom pasien yang batal tidak dapat direstock/digunakan lagi (telah dimusnahkan)
+                            $prescription->update([
+                                'status' => 'batal',
+                                'notes'  => trim(($prescription->notes ?? '') . " [Batal via Void Kasir {$sale->sale_number}: Obat racikan dimusnahkan/write-off]"),
+                            ]);
+                        } else {
+                            // Obat jadi telah dikembalikan ke stok kasir, resep dapat dikembalikan ke antrean 'siap_ambil'
+                            $prescription->update(['status' => 'siap_ambil']);
+                        }
+                    }
                 }
 
                 $sale->update(['status' => 'cancelled']);
@@ -541,7 +595,7 @@ class KasirSaleController extends Controller
                 );
             });
 
-            return redirect()->back()->with('success', 'Transaksi berhasil dibatalkan (Void) dan stok fisik telah dikembalikan.');
+            return redirect()->back()->with('success', 'Transaksi berhasil dibatalkan (Void). Stok obat jadi dikembalikan, dan obat racikan dicatat sebagai pemusnahan/write-off.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()])->with('error', $e->getMessage());
         }

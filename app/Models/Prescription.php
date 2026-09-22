@@ -9,18 +9,24 @@ class Prescription extends Model
 {
     protected $fillable = [
         'patient_id',
+        'patient_weight_kg',
+        'patient_age_years',
         'doctor_name',
+        'doctor_sip',
         'clinic_name',
         'prescription_date',
         'status',
         'handled_by',
         'notes',
+        'screening_notes',
     ];
     // NOTE: prescription_number is NOT in fillable
     // because it is auto-generated in boot()
 
     protected $casts = [
         'prescription_date' => 'date',
+        'patient_weight_kg' => 'decimal:2',
+        'patient_age_years' => 'integer',
     ];
 
     protected static function boot(): void

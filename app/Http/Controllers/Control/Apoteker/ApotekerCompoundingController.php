@@ -10,8 +10,10 @@ use App\Models\Control\CompoundingFormula;
 use App\Models\Control\CompoundingLabel;
 use App\Models\Control\CompoundingStockDeduction;
 use App\Models\Control\CompoundingSubmission;
+use App\Models\Control\Medicine;
 use App\Models\Control\RawMaterial;
 use App\Models\Control\RawMaterialStock;
+use App\Models\Control\WarehouseInventory;
 use App\Models\PrescriptionItem;
 use App\Services\StockAuditService;
 use Carbon\Carbon;
@@ -24,12 +26,51 @@ class ApotekerCompoundingController extends Controller
     /**
      * Display listing of compounding submissions.
      */
-    public function submissions()
+    public function submissions(Request $request)
     {
+        $search = $request->query('search');
+        $status = $request->query('status');
+        $unit = $request->query('unit');
+
+        $query = CompoundingSubmission::with(['details.rawMaterial', 'details.medicine', 'label', 'formula', 'user'])
+            ->where('user_id', auth()->id());
+
+        if ($request->filled('status') && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($request->filled('unit') && $unit !== 'all') {
+            $query->where('target_unit', $unit);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_racikan', 'like', "%{$search}%")
+                  ->orWhere('target_unit', 'like', "%{$search}%")
+                  ->orWhereHas('formula', function ($qf) use ($search) {
+                      $qf->where('nama_resep', 'like', "%{$search}%")
+                         ->orWhere('kategori_sediaan', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('user', function ($qu) use ($search) {
+                      $qu->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $submissions = $query->latest()
+            ->paginate(15)
+            ->withQueryString();
+
         return Inertia::render('Control/Apoteker/Submissions', [
-            'submissions' => CompoundingSubmission::with(['details.rawMaterial', 'label', 'formula'])->where('user_id', auth()->id())->latest()->paginate(15),
+            'submissions' => $submissions,
             'formulas' => CompoundingFormula::active()->select('id', 'nama_resep', 'kategori_sediaan')->get(),
             'rawMaterials' => RawMaterial::select('id', 'nama_bahan', 'satuan_ukur')->get(),
+            'medicines' => Medicine::select('id', 'nama_obat', 'satuan_stok', 'stok_total')->where('stok_total', '>', 0)->orderBy('nama_obat')->get(),
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'unit' => $unit,
+            ],
         ]);
     }
 
@@ -38,7 +79,7 @@ class ApotekerCompoundingController extends Controller
      */
     public function storeSubmission(Request $request)
     {
-        // Validasi data input dengan penamaan field sesuai spesifikasi terbaru
+        // Validasi data input fleksibel untuk bahan baku murni maupun obat jadi pabrik
         $v = $request->validate([
             'nama_racikan' => 'required|string|max:255',
             'formula_id' => 'nullable|exists:compounding_formulas,id',
@@ -47,7 +88,8 @@ class ApotekerCompoundingController extends Controller
             'target_unit' => 'required|string|in:Kapsul,Puyer,Botol,Pot',
             'berat_per_unit' => 'required|numeric|min:0.01', // Berat/Unit (g)
             'bahan_baku' => 'required|array|min:1',
-            'bahan_baku.*.id_batch' => 'required|exists:raw_materials,id', // Mapping ke raw_material_id
+            'bahan_baku.*.source_type' => 'nullable|in:raw_material,medicine',
+            'bahan_baku.*.id_batch' => 'required', // ID raw_material atau medicine
             'bahan_baku.*.qty_taken_pcs' => 'required|numeric|min:0.01',
             'bahan_baku.*.qty_neto_mass' => 'required|numeric|min:0',
             'label' => 'required|array',
@@ -62,152 +104,305 @@ class ApotekerCompoundingController extends Controller
 
         $stockErrors = [];
         foreach ($v['bahan_baku'] as $bahan) {
-            $rm = RawMaterial::find($bahan['id_batch']);
-            if (!$rm) continue;
+            $sourceType = $bahan['source_type'] ?? 'raw_material';
+            $itemId = $bahan['id_batch'];
 
-            $totalAvailable = RawMaterialStock::where('raw_material_id', $bahan['id_batch'])
-                ->where('status', 'active')
-                ->where('stock_on_hand', '>', 0)
-                ->sum('stock_on_hand');
+            if ($sourceType === 'medicine') {
+                $med = Medicine::find($itemId);
+                if (!$med) continue;
 
-            // Kita cek berdasarkan qty_taken_pcs karena ini yang akan dipotong dari stock_on_hand
-            if ($totalAvailable < $bahan['qty_taken_pcs']) {
-                $stockErrors[] = $rm->nama_bahan;
+                $totalAvailable = (float) WarehouseInventory::where('medicine_id', $med->id)
+                    ->where('stock_on_hand', '>', 0)
+                    ->where('status', 'active')
+                    ->where('is_frozen', false)
+                    ->whereDate('expired_date', '>', now())
+                    ->sum('stock_on_hand');
+
+                if ($totalAvailable < (float) $bahan['qty_taken_pcs']) {
+                    $stockErrors[] = "{$med->nama_obat} (Obat Jadi - Sisa: {$totalAvailable})";
+                }
+            } else {
+                $rm = RawMaterial::find($itemId);
+                if (!$rm) continue;
+
+                $totalAvailable = (float) RawMaterialStock::where('raw_material_id', $rm->id)
+                    ->where('status', 'active')
+                    ->where('stock_on_hand', '>', 0)
+                    ->notExpired()
+                    ->sum('stock_on_hand');
+
+                if ($totalAvailable < (float) $bahan['qty_taken_pcs']) {
+                    $stockErrors[] = "{$rm->nama_bahan} (Bahan Baku - Sisa: {$totalAvailable})";
+                }
             }
         }
 
         if (!empty($stockErrors)) {
-            $errorMsg = "Stok tidak mencukupi untuk: " . implode(', ', $stockErrors);
+            $errorMsg = "Stok aktif tidak mencukupi untuk: " . implode(', ', $stockErrors);
             return redirect()->back()->with('error', $errorMsg);
         }
 
-        return DB::transaction(function () use ($v, $request) {
-            // 1. Kalkulasi Mass Balance & Verifikasi Filler (SOP Logic)
-            $totalMassaNetoBahan = round(collect($v['bahan_baku'])->sum('qty_neto_mass'), 2);
-            $totalMassaTarget = round($v['jumlah_unit'] * $v['berat_per_unit'], 2);
+        // Validasi USP <795>: Tanggal BUD tidak boleh melebihi tanggal kedaluwarsa fisik terdekat dari bahan-bahan penyusunnya
+        $calculatedBud = Carbon::parse($v['label']['tanggal_racik'])->addDays((int) $v['label']['bud_hari'])->endOfDay();
+        $earliestExpiry = null;
+        $earliestItemName = null;
 
-            // Filler otomatis dibutuhkan jika massa bahan baku < massa target
-            $fillerQty = max(0, round($totalMassaTarget - $totalMassaNetoBahan, 2));
+        foreach ($v['bahan_baku'] as $bahan) {
+            $sourceType = $bahan['source_type'] ?? 'raw_material';
+            $itemId = $bahan['id_batch'];
 
-            // Estimasi Hasil Unit (Yield)
-            $expectedYield = floor(round(($totalMassaNetoBahan + $fillerQty) / $v['berat_per_unit'], 2));
+            if ($sourceType === 'medicine') {
+                $nearestBatchExp = WarehouseInventory::where('medicine_id', $itemId)
+                    ->where('stock_on_hand', '>', 0)
+                    ->where('status', 'active')
+                    ->where('is_frozen', false)
+                    ->whereDate('expired_date', '>', now())
+                    ->orderBy('expired_date', 'asc')
+                    ->value('expired_date');
+                
+                if ($nearestBatchExp) {
+                    $exp = Carbon::parse($nearestBatchExp)->endOfDay();
+                    if ($earliestExpiry === null || $exp->lt($earliestExpiry)) {
+                        $earliestExpiry = $exp;
+                        $earliestItemName = Medicine::find($itemId)?->nama_obat ?? 'Obat Jadi';
+                    }
+                }
+            } else {
+                $nearestBatchExp = RawMaterialStock::where('raw_material_id', $itemId)
+                    ->where('status', 'active')
+                    ->where('stock_on_hand', '>', 0)
+                    ->notExpired()
+                    ->orderBy('expired_date', 'asc')
+                    ->value('expired_date');
 
-            // 2. Simpan Data Induk Pengajuan Racikan
-            $sub = CompoundingSubmission::create([
-                'user_id' => $request->user()->id,
-                'pharmacist_id' => $request->user()->id,
-                'formula_id' => $v['formula_id'] ?? null,
-                'nama_racikan' => $v['nama_racikan'],
-                'target_quantity' => $v['jumlah_unit'],
-                'target_unit' => $v['target_unit'],
-                'expected_yield' => $expectedYield,
-                'total_net_mass' => $totalMassaNetoBahan,
-                'filler_qty' => $fillerQty,
-                'unit_weight_target' => $v['berat_per_unit'],
-                'apoteker_note' => $v['apoteker_note'] ?? null,
-                'status' => 'pending_final_verification',
-                'prescription_id' => $v['prescription_id'] ?? null,
-                'prescription_item_id' => $v['prescription_item_id'] ?? null,
+                if ($nearestBatchExp) {
+                    $exp = Carbon::parse($nearestBatchExp)->endOfDay();
+                    if ($earliestExpiry === null || $exp->lt($earliestExpiry)) {
+                        $earliestExpiry = $exp;
+                        $earliestItemName = RawMaterial::find($itemId)?->nama_bahan ?? 'Bahan Baku';
+                    }
+                }
+            }
+        }
+
+        if ($earliestExpiry && $calculatedBud->gt($earliestExpiry)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'label.bud_hari' => "Sesuai standar USP <795>, Beyond Use Date ({$calculatedBud->format('d/m/Y')}) tidak boleh melebihi tanggal kedaluwarsa fisik terdekat bahan '{$earliestItemName}' ({$earliestExpiry->format('d/m/Y')}). Kurangi durasi BUD hari."
             ]);
+        }
 
-            $totalBaseCost = 0;
+        try {
+            return DB::transaction(function () use ($v, $request) {
+                // 1. Kalkulasi Mass Balance & Verifikasi Filler (SOP Logic)
+                $totalMassaNetoBahan = round(collect($v['bahan_baku'])->sum('qty_neto_mass'), 2);
+                $totalMassaTarget = round($v['jumlah_unit'] * $v['berat_per_unit'], 2);
 
-            // 3. Proses Detail Bahan & Pengurangan Stok (FEFO)
-            foreach ($v['bahan_baku'] as $d) {
-                $rm = RawMaterial::findOrFail($d['id_batch']);
-                $fefo = CompoundingDetail::suggestFEFO($d['id_batch'], 'raw_material');
+                // Filler otomatis dibutuhkan jika massa bahan baku < massa target
+                $fillerQty = max(0, round($totalMassaTarget - $totalMassaNetoBahan, 2));
 
-                $detail = CompoundingDetail::create([
-                    'compounding_id' => $sub->id,
-                    'raw_material_id' => $d['id_batch'],
-                    'stock_batch_id' => $fefo?->id,
-                    'source_type' => 'raw_material',
-                    'qty_needed' => $d['qty_taken_pcs'],
-                    'net_quantity' => $d['qty_neto_mass'],
-                    'volume_to_mass_factor' => $rm->density_factor ?? 1.0,
-                    'suggested_batch_no' => $fefo?->batch_no,
-                    'suggested_expired_date' => $fefo?->expired_date,
-                    'harga_satuan_saat_pakai' => $rm->harga_beli_satuan,
+                // Estimasi Hasil Unit (Yield)
+                $expectedYield = floor(round(($totalMassaNetoBahan + $fillerQty) / $v['berat_per_unit'], 2));
+
+                // 2. Simpan Data Induk Pengajuan Racikan
+                $sub = CompoundingSubmission::create([
+                    'user_id' => $request->user()->id,
+                    'pharmacist_id' => $request->user()->id,
+                    'formula_id' => $v['formula_id'] ?? null,
+                    'nama_racikan' => $v['nama_racikan'],
+                    'target_quantity' => $v['jumlah_unit'],
+                    'target_unit' => $v['target_unit'],
+                    'expected_yield' => $expectedYield,
+                    'total_net_mass' => $totalMassaNetoBahan,
+                    'filler_qty' => $fillerQty,
+                    'unit_weight_target' => $v['berat_per_unit'],
+                    'apoteker_note' => $v['apoteker_note'] ?? null,
+                    'status' => 'pending_final_verification',
+                    'prescription_id' => $v['prescription_id'] ?? null,
+                    'prescription_item_id' => $v['prescription_item_id'] ?? null,
                 ]);
 
-                $totalBaseCost += ($detail->qty_needed * $detail->harga_satuan_saat_pakai);
+                $totalBaseCost = 0;
 
-                // Pengurangan Stok Otomatis sesuai Batch FEFO
-                $remaining = $d['qty_taken_pcs'];
-                $batches = RawMaterialStock::where('raw_material_id', $rm->id)
-                    ->where('stock_on_hand', '>', 0)
-                    ->notExpired()->fefo()->get();
+                // 3. Proses Detail Bahan & Pengurangan Stok (FEFO dengan Pessimistic Lock)
+                foreach ($v['bahan_baku'] as $d) {
+                    $sourceType = $d['source_type'] ?? 'raw_material';
+                    $itemId = $d['id_batch'];
+                    $fefo = CompoundingDetail::suggestFEFO($itemId, $sourceType);
 
-                foreach ($batches as $batch) {
-                    if ($remaining <= 0)
-                        break;
-                    $deduct = min($remaining, $batch->stock_on_hand);
-                    $batch->setMutationContext('out', $sub, "Bahan racikan: {$sub->nama_racikan}");
-                    $batch->stock_on_hand -= $deduct;
-                    $batch->save();
+                    if ($sourceType === 'medicine') {
+                        $med = Medicine::with('latestIncomingStock')->findOrFail($itemId);
+                        $hppUnit = (float) ($med->latestIncomingStock?->calculateHppSatuan() ?? ($med->selling_price > 0 ? $med->selling_price : 0));
 
-                    CompoundingStockDeduction::create([
-                        'compounding_detail_id' => $detail->id,
-                        'stock_source_id' => $batch->id,
-                        'stock_source_type' => RawMaterialStock::class,
-                        'qty_deducted' => $deduct,
-                    ]);
-                    $remaining -= $deduct;
+                        $detail = CompoundingDetail::create([
+                            'compounding_id' => $sub->id,
+                            'medicine_id' => $med->id,
+                            'raw_material_id' => null,
+                            'stock_batch_id' => null,
+                            'source_type' => 'medicine',
+                            'qty_needed' => $d['qty_taken_pcs'],
+                            'net_quantity' => $d['qty_neto_mass'],
+                            'volume_to_mass_factor' => 1.0,
+                            'suggested_batch_no' => $fefo?->batch_no,
+                            'suggested_expired_date' => $fefo?->expired_date,
+                            'harga_satuan_saat_pakai' => $hppUnit,
+                        ]);
+
+                        $totalBaseCost += ($detail->qty_needed * $detail->harga_satuan_saat_pakai);
+
+                        // Pengurangan Stok Otomatis sesuai Batch FEFO WarehouseInventory dengan Kunci Pesimistik (Race-Free)
+                        $remaining = (float) $d['qty_taken_pcs'];
+                        $inventories = WarehouseInventory::where('medicine_id', $med->id)
+                            ->where('stock_on_hand', '>', 0)
+                            ->where('status', 'active')
+                            ->where('is_frozen', false)
+                            ->whereDate('expired_date', '>', now())
+                            ->orderBy('expired_date', 'asc')
+                            ->lockForUpdate()
+                            ->get();
+
+                        $totalAvailable = (float) $inventories->sum('stock_on_hand');
+                        if ($totalAvailable < $remaining) {
+                            throw new \Exception("Stok tidak mencukupi untuk obat jadi '{$med->nama_obat}' saat penguncian batch. Dibutuhkan: {$remaining}, Tersedia: {$totalAvailable}.");
+                        }
+
+                        foreach ($inventories as $inv) {
+                            if ($remaining <= 0) break;
+                            $deduct = min($remaining, (float) $inv->stock_on_hand);
+
+                            $inv->setMutationContext('out', $sub, "Bahan Racikan: {$sub->nama_racikan}");
+                            $inv->stock_on_hand -= $deduct;
+                            $inv->save();
+
+                            if ($inv->incomingStock) {
+                                $incoming = $inv->incomingStock;
+                                $incoming->qty_converted = max(0, $incoming->qty_converted - $deduct);
+                                $incoming->saveQuietly();
+                            }
+
+                            CompoundingStockDeduction::create([
+                                'compounding_detail_id' => $detail->id,
+                                'stock_source_id' => $inv->id,
+                                'stock_source_type' => WarehouseInventory::class,
+                                'qty_deducted' => $deduct,
+                            ]);
+                            $remaining -= $deduct;
+                        }
+
+                        $med->recalculateStock();
+
+                        StockAuditService::log(
+                            $med,
+                            'Pengurangan Racikan',
+                            (float) ($med->stok_total + $d['qty_taken_pcs']),
+                            (float) $med->stok_total,
+                            "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
+                        );
+                    } else {
+                        $rm = RawMaterial::findOrFail($itemId);
+                        $detail = CompoundingDetail::create([
+                            'compounding_id' => $sub->id,
+                            'raw_material_id' => $rm->id,
+                            'medicine_id' => null,
+                            'stock_batch_id' => $fefo?->id,
+                            'source_type' => 'raw_material',
+                            'qty_needed' => $d['qty_taken_pcs'],
+                            'net_quantity' => $d['qty_neto_mass'],
+                            'volume_to_mass_factor' => $rm->density_factor ?? 1.0,
+                            'suggested_batch_no' => $fefo?->batch_no,
+                            'suggested_expired_date' => $fefo?->expired_date,
+                            'harga_satuan_saat_pakai' => $rm->harga_beli_satuan,
+                        ]);
+
+                        $totalBaseCost += ($detail->qty_needed * $detail->harga_satuan_saat_pakai);
+
+                        // Pengurangan Stok Otomatis sesuai Batch FEFO RawMaterialStock dengan Kunci Pesimistik (Race-Free)
+                        $remaining = (float) $d['qty_taken_pcs'];
+                        $batches = RawMaterialStock::where('raw_material_id', $rm->id)
+                            ->where('stock_on_hand', '>', 0)
+                            ->notExpired()
+                            ->fefo()
+                            ->lockForUpdate()
+                            ->get();
+
+                        $totalAvailable = (float) $batches->sum('stock_on_hand');
+                        if ($totalAvailable < $remaining) {
+                            throw new \Exception("Stok tidak mencukupi untuk bahan baku '{$rm->nama_bahan}' saat penguncian batch. Dibutuhkan: {$remaining}, Tersedia: {$totalAvailable}.");
+                        }
+
+                        foreach ($batches as $batch) {
+                            if ($remaining <= 0)
+                                break;
+                            $deduct = min($remaining, (float) $batch->stock_on_hand);
+                            $batch->setMutationContext('out', $sub, "Bahan racikan: {$sub->nama_racikan}");
+                            $batch->stock_on_hand -= $deduct;
+                            $batch->save();
+
+                            CompoundingStockDeduction::create([
+                                'compounding_detail_id' => $detail->id,
+                                'stock_source_id' => $batch->id,
+                                'stock_source_type' => RawMaterialStock::class,
+                                'qty_deducted' => $deduct,
+                            ]);
+                            $remaining -= $deduct;
+                        }
+                        $rm->recalculateStock();
+
+                        StockAuditService::log(
+                            $rm,
+                            'Pengurangan Racikan',
+                            (float) ($rm->stok_total + $d['qty_taken_pcs']),
+                            (float) $rm->stok_total,
+                            "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
+                        );
+                    }
                 }
-                $rm->recalculateStock();
 
-                StockAuditService::log(
-                    $rm,
-                    'Pengurangan Racikan',
-                    (float) ($rm->stok_total + $d['qty_taken_pcs']),
-                    (float) $rm->stok_total,
-                    "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
-                );
-            }
+                // 4. Buat Record Produksi & Label Etiket
+                $cp = CompoundedProduct::create([
+                    'compounding_submission_id' => $sub->id,
+                    'nama_produk' => $sub->nama_racikan,
+                    'batch_no' => 'RAC-' . now()->format('Ymd') . '-' . str_pad($sub->id, 4, '0', STR_PAD_LEFT),
+                    'tanggal_racik' => $v['label']['tanggal_racik'],
+                    'bud_date' => Carbon::parse($v['label']['tanggal_racik'])->addDays($v['label']['bud_hari']),
+                    'qty_hasil' => $v['jumlah_unit'],
+                    'satuan' => $v['target_unit'],
+                    'base_cost' => $totalBaseCost,
+                    'status' => 'inactive',
+                    'pricing_status' => 'pending_price',
+                    'created_by' => $request->user()->id,
+                ]);
 
-            // 4. Buat Record Produksi & Label Etiket
-            $cp = CompoundedProduct::create([
-                'compounding_submission_id' => $sub->id,
-                'nama_produk' => $sub->nama_racikan,
-                'batch_no' => 'RAC-' . now()->format('Ymd') . '-' . str_pad($sub->id, 4, '0', STR_PAD_LEFT),
-                'tanggal_racik' => $v['label']['tanggal_racik'],
-                'bud_date' => Carbon::parse($v['label']['tanggal_racik'])->addDays($v['label']['bud_hari']),
-                'qty_hasil' => $v['jumlah_unit'],
-                'satuan' => $v['target_unit'],
-                'base_cost' => $totalBaseCost,
-                'status' => 'inactive',
-                'pricing_status' => 'pending_price',
-                'created_by' => $request->user()->id,
-            ]);
+                CompoundingLabel::create([
+                    'compounding_id' => $sub->id,
+                    'tanggal_racik' => $v['label']['tanggal_racik'],
+                    'bud_hari' => $v['label']['bud_hari'],
+                    'tanggal_kadaluarsa_bud' => $cp->bud_date,
+                    'aturan_pakai' => $v['label']['aturan_pakai'],
+                    'keterangan' => $v['label']['keterangan'] ?? null,
+                    'nama_pasien' => $v['label']['nama_pasien'] ?? null,
+                ]);
 
-            CompoundingLabel::create([
-                'compounding_id' => $sub->id,
-                'tanggal_racik' => $v['label']['tanggal_racik'],
-                'bud_hari' => $v['label']['bud_hari'],
-                'tanggal_kadaluarsa_bud' => $cp->bud_date,
-                'aturan_pakai' => $v['label']['aturan_pakai'],
-                'keterangan' => $v['label']['keterangan'] ?? null,
-                'nama_pasien' => $v['label']['nama_pasien'] ?? null,
-            ]);
+                $sub->update(['total_hpp_bahan' => $totalBaseCost]);
 
-            $sub->update(['total_hpp_bahan' => $totalBaseCost]);
-
-            // Link ke item resep jika berasal dari pengerjaan resep
-            if (!empty($v['prescription_item_id'])) {
-                $pItem = PrescriptionItem::find($v['prescription_item_id']);
-                if ($pItem) {
-                    $pItem->update([
-                        'compounding_id' => $sub->id,
-                        'compounded_product_id' => $cp->id,
-                        'status' => 'selesai',
-                    ]);
+                // Link ke item resep jika berasal dari pengerjaan resep
+                if (!empty($v['prescription_item_id'])) {
+                    $pItem = PrescriptionItem::find($v['prescription_item_id']);
+                    if ($pItem) {
+                        $pItem->update([
+                            'compounding_id' => $sub->id,
+                            'compounded_product_id' => $cp->id,
+                            'status' => 'selesai',
+                        ]);
+                    }
                 }
-            }
 
-            AuditTrail::log($request->user()->id, 'CREATE_COMPOUNDING', "Submit Racikan: {$sub->nama_racikan}. Stok batch dikunci.", CompoundingSubmission::class, $sub->id);
+                AuditTrail::log($request->user()->id, 'CREATE_COMPOUNDING', "Submit Racikan: {$sub->nama_racikan}. Stok batch dikunci.", CompoundingSubmission::class, $sub->id);
 
-            return redirect()->back()->with('success', 'Pengajuan racikan berhasil. Menunggu penetapan harga jual dari Admin.');
-        });
+                return redirect()->back()->with('success', 'Pengajuan racikan berhasil. Menunggu penetapan harga jual dari Admin.');
+            });
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
     /**
@@ -243,7 +438,15 @@ class ApotekerCompoundingController extends Controller
     public function fefoSuggestion(Request $request, int $itemId)
     {
         $type = $request->query('type', 'raw_material');
-        return response()->json(['suggestion' => CompoundingDetail::suggestFEFO($itemId, $type)]);
+        $suggestion = CompoundingDetail::suggestFEFO($itemId, $type);
+        if ($suggestion) {
+            if ($type === 'medicine') {
+                $suggestion->loadMissing('medicine');
+            } else {
+                $suggestion->loadMissing('rawMaterial');
+            }
+        }
+        return response()->json(['suggestion' => $suggestion]);
     }
 
     /**
@@ -276,8 +479,19 @@ class ApotekerCompoundingController extends Controller
                         $source->increment('stock_on_hand', $deduction->qty_deducted);
 
                         // Log to Stock Logs for transparency
-                        $rm = $detail->rawMaterial;
-                        if ($rm) {
+                        if ($detail->source_type === 'medicine' && $detail->medicine) {
+                            $med = $detail->medicine;
+                            $qtyBefore = (float) $med->stok_total;
+                            $med->recalculateStock();
+                            StockAuditService::log(
+                                $med,
+                                'Pembatalan Racikan',
+                                $qtyBefore,
+                                (float) $med->fresh()->stok_total,
+                                "Pembatalan Racikan #{$submission->id} - Stok obat jadi dikembalikan ke Batch #{$source->id}"
+                            );
+                        } elseif ($detail->rawMaterial) {
+                            $rm = $detail->rawMaterial;
                             $qtyBefore = (float) $rm->stok_total;
                             $rm->recalculateStock();
                             StockAuditService::log(
@@ -291,7 +505,9 @@ class ApotekerCompoundingController extends Controller
                     }
                 }
 
-                if ($detail->rawMaterial) {
+                if ($detail->source_type === 'medicine' && $detail->medicine) {
+                    $detail->medicine->recalculateStock();
+                } elseif ($detail->rawMaterial) {
                     $detail->rawMaterial->recalculateStock();
                 }
             }
@@ -306,5 +522,34 @@ class ApotekerCompoundingController extends Controller
 
             return redirect()->back()->with('success', 'Racikan berhasil dibatalkan. Stok telah berhasil dikembalikan ke inventaris.');
         });
+    }
+
+    /**
+     * Print thermal label (etiket) for compounding submission.
+     */
+    public function printLabel($id)
+    {
+        $submission = CompoundingSubmission::with([
+            'label',
+            'prescription.patient',
+            'details.medicine',
+            'details.rawMaterial',
+            'user',
+            'formula',
+        ])->findOrFail($id);
+
+        $compoundedProduct = CompoundedProduct::where('compounding_submission_id', $submission->id)->first();
+
+        $targetUnit = strtolower($submission->target_unit ?? '');
+        $namaRacikan = strtolower($submission->nama_racikan ?? '');
+        $kategori = strtolower($submission->formula?->kategori_sediaan ?? '');
+        $isObatLuar = in_array($targetUnit, ['pot', 'tube']) 
+            || preg_match('/(salep|krim|cream|gel|pasta|tetes|kumur|gargle|suppo|lotion|lotio|topikal|oles|luar)/i', $namaRacikan . ' ' . $kategori . ' ' . $targetUnit);
+
+        return view('prints.etiket-thermal', [
+            'submission' => $submission,
+            'compoundedProduct' => $compoundedProduct,
+            'isObatLuar' => $isObatLuar,
+        ]);
     }
 }

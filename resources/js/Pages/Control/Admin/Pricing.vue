@@ -174,7 +174,8 @@ const calculateHargaJual = (product) => {
                 </div>
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
-                    <Table>
+                    <div class="overflow-x-auto">
+                        <Table>
                         <TableHeader>
                             <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                                 <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk / Batch</TableHead>
@@ -222,6 +223,7 @@ const calculateHargaJual = (product) => {
                             </TableRow>
                         </TableBody>
                     </Table>
+                    </div>
                 </div>
             </div>
 
@@ -232,7 +234,7 @@ const calculateHargaJual = (product) => {
                     <p class="text-sm text-muted-foreground mt-1">Atur harga jual (selling price) untuk obat jadi. Harga ini akan jadi default di Kasir.</p>
                 </div>
 
-                <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden h-[640px] flex flex-col">
+                <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                     <!-- TOOLBAR: FILTER & SEARCH -->
                     <div class="p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <!-- Filter Tabs -->
@@ -272,7 +274,7 @@ const calculateHargaJual = (product) => {
                     </div>
 
                     <!-- TABLE CONTENT -->
-                    <div class="overflow-y-auto flex-1">
+                    <div class="overflow-x-auto">
                         <Table>
                             <TableHeader class="sticky top-0 bg-muted/90 backdrop-blur z-10">
                                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">

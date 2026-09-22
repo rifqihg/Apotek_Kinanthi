@@ -1,55 +1,73 @@
 <script setup>
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
+import { useDebounceFn } from '@vueuse/core';
 
 defineOptions({ layout: ControlLayout });
-import { ref, computed } from 'vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
 
 const formatDate = (d) => d ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d)) : '';
 const formatTime = (d) => d ? new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit' }).format(new Date(d)) : '';
 
 const props = defineProps({
-    prescriptions: Array,
-    sales: Array,
-    filters: Object,
+    prescriptions: [Object, Array],
+    sales: [Object, Array],
+    filters: { type: Object, default: () => ({}) },
 });
 
-const page = usePage();
+const search = ref(props.filters?.search || '');
+const date = ref(props.filters?.date || new Date().toISOString().split('T')[0]);
+const isSearching = ref(false);
 
-const form = ref({
-    date: props.filters?.date || new Date().toISOString().split('T')[0],
+const applyFilters = () => {
+    isSearching.value = true;
+    router.get(route(route().current()), {
+        date: date.value || undefined,
+        search: search.value || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        }
+    });
+};
+
+const debouncedSearch = useDebounceFn(() => {
+    applyFilters();
+}, 300);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) debouncedSearch();
 });
 
-const { data: queryQueue, isFetching } = useQuery({
-    queryKey: computed(() => ['kasir-queue', form.value.date]),
-    queryFn: async () => {
-        const res = await axios.get(route('control.kasir.queue'), {
-            params: form.value,
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        return {
-            prescriptions: res.data.props.prescriptions,
-            sales: res.data.props.sales,
-        };
-    },
-    initialData: () => ({
-        prescriptions: props.prescriptions,
-        sales: props.sales,
-    }),
-    staleTime: 5000, // Real-time queue exception: 5s freshness
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
+watch(date, () => {
+    applyFilters();
 });
 
-const activePrescriptions = computed(() => queryQueue.value?.prescriptions || props.prescriptions || []);
-const activeSales = computed(() => queryQueue.value?.sales || props.sales || []);
+const clearSearch = () => {
+    search.value = '';
+    applyFilters();
+};
+
+const activePrescriptions = computed(() => {
+    if (props.prescriptions?.data) return props.prescriptions.data;
+    if (Array.isArray(props.prescriptions)) return props.prescriptions;
+    return [];
+});
+
+const totalPrescriptions = computed(() => {
+    if (props.prescriptions?.total !== undefined) return props.prescriptions.total;
+    return activePrescriptions.value.length;
+});
+
+const activeSales = computed(() => {
+    if (props.sales?.data) return props.sales.data;
+    if (Array.isArray(props.sales)) return props.sales;
+    return [];
+});
 
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
@@ -141,8 +159,35 @@ const submitVoid = () => {
                     <h2 class="text-lg font-bold tracking-tight text-foreground">Antrian Resep Siap Bayar</h2>
                     <p class="text-xs text-muted-foreground mt-0.5">Daftar resep yang sudah selesai diracik dan menunggu pembayaran.</p>
                 </div>
-                <div class="bg-primary/10 border border-primary/20 text-primary font-medium h-9 px-3.5 rounded-md text-xs flex items-center justify-center shrink-0">
-                    {{ activePrescriptions.length }} Menunggu
+                <div class="flex items-center gap-3">
+                    <div class="relative w-64">
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari no. resep / pasien..." 
+                            class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" 
+                        />
+                        <svg v-if="!isSearching" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <svg v-else class="animate-spin w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <button 
+                            v-if="search" 
+                            type="button" 
+                            @click="clearSearch" 
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors cursor-pointer"
+                            title="Hapus pencarian"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="bg-primary/10 border border-primary/20 text-primary font-medium h-9 px-3.5 rounded-md text-xs flex items-center justify-center shrink-0">
+                        {{ totalPrescriptions }} Menunggu
+                    </div>
                 </div>
             </div>
 
@@ -196,6 +241,23 @@ const submitVoid = () => {
                     </tbody>
                 </table>
             </div>
+
+            <!-- Prescriptions Pagination -->
+            <div v-if="prescriptions?.links?.length > 3" class="px-4 py-3 bg-muted/20 border-t border-border flex items-center justify-between">
+                <span class="text-xs text-muted-foreground font-medium">Halaman {{ prescriptions?.current_page || 1 }} dari {{ prescriptions?.last_page || 1 }} (Total {{ prescriptions?.total || 0 }} antrean)</span>
+                <div class="flex items-center gap-1">
+                    <template v-for="(l, i) in (prescriptions?.links || [])" :key="i">
+                        <button 
+                            v-if="l.url" 
+                            @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" 
+                            :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
+                            class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
+                            v-html="l.label"
+                        ></button>
+                        <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
+                    </template>
+                </div>
+            </div>
         </section>
 
         <!-- Ringkasan Shift Kasir (X-Report) -->
@@ -207,7 +269,7 @@ const submitVoid = () => {
                     </div>
                     <div>
                         <h3 class="text-base font-bold text-foreground">Ringkasan Kas Shift Berjalan</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi transaksi kasir aktif pada tanggal {{ formatDate(form.date) }}.</p>
+                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi transaksi kasir aktif pada tanggal {{ formatDate(date) }}.</p>
                     </div>
                 </div>
                 <button
@@ -255,11 +317,11 @@ const submitVoid = () => {
                     <p class="text-xs text-muted-foreground mt-0.5">Daftar transaksi yang sudah Anda selesaikan berdasarkan tanggal.</p>
                 </div>
                 <div class="no-print shrink-0 flex items-center gap-2 bg-background rounded-md border border-input px-2 h-9">
-                    <svg v-if="isFetching" class="animate-spin h-4 w-4 text-primary ml-1" fill="none" viewBox="0 0 24 24">
+                    <svg v-if="isSearching" class="animate-spin h-4 w-4 text-primary ml-1" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <input type="date" v-model="form.date" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" />
+                    <input type="date" v-model="date" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" />
                 </div>
             </div>
 

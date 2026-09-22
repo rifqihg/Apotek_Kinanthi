@@ -1,17 +1,68 @@
 <script setup>
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
 
-const props = defineProps({ formulas: Object });
+const props = defineProps({
+    formulas: Object,
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
+});
+
+const search = ref(props.filters?.search || '');
+const kategori = ref(props.filters?.kategori || 'all');
+const isSearching = ref(false);
+
+const applyFilters = () => {
+    isSearching.value = true;
+    router.get(route(route().current()), {
+        search: search.value || undefined,
+        kategori: kategori.value !== 'all' ? kategori.value : undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        }
+    });
+};
+
+const debouncedSearch = useDebounceFn(() => {
+    applyFilters();
+}, 300);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) debouncedSearch();
+});
+
+watch(kategori, () => {
+    applyFilters();
+});
+
+const clearSearch = () => {
+    search.value = '';
+    applyFilters();
+};
+
+const resetAllFilters = () => {
+    search.value = '';
+    kategori.value = 'all';
+    applyFilters();
+};
+
 const showModal = ref(false);
 const form = useForm({ nama_resep:'', kategori_sediaan:'', instruksi_racik:'' });
 
 const stats = computed(() => {
     const list = props.formulas?.data || [];
-    const total = list.length;
+    const total = props.formulas?.total ?? list.length;
     const standard = list.filter(f => f.kategori_sediaan).length;
     return { total, standard };
 });
@@ -115,15 +166,78 @@ function submit() {
             </div>
         </div>
 
-        <!-- ACTION BAR -->
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-                Katalog Formula & Protokol Peracikan
-            </h2>
+        <!-- ACTION & FILTER BAR -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                    Katalog Formula & Protokol Peracikan
+                </h2>
+                <p class="text-xs text-muted-foreground mt-0.5">Standarisasi pustaka formula racikan apotek dan instruksi klinis sediaan.</p>
+            </div>
             <button @click="showModal=true;form.reset();form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Tambah Formula Baru
             </button>
+        </div>
+
+        <!-- FILTER CONTROLS -->
+        <div class="bg-card rounded-lg border border-border p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+                <!-- Live Search Box -->
+                <div class="relative flex-1 sm:max-w-md">
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Cari nama resep, kode, kategori, indikasi klinis..." 
+                        class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" 
+                    />
+                    <svg v-if="!isSearching" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <svg v-else class="animate-spin w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <button 
+                        v-if="search" 
+                        type="button" 
+                        @click="clearSearch" 
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors cursor-pointer"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Kategori Filter Dropdown -->
+                <div class="w-full sm:w-56">
+                    <select 
+                        v-model="kategori" 
+                        class="w-full h-9 bg-background border border-input rounded-md px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer"
+                    >
+                        <option value="all">Semua Kategori</option>
+                        <option value="Larutan Air/Sirup">Larutan Air / Sirup</option>
+                        <option value="Sediaan Padat/Puyer/Kapsul">Padat / Puyer / Kapsul</option>
+                        <option value="Sediaan Topikal/Lainnya">Topikal / Salep / Lainnya</option>
+                        <option value="Kapsul">Kapsul</option>
+                        <option value="Puyer">Puyer</option>
+                        <option value="Sirup">Sirup</option>
+                        <option value="Salep">Salep</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Reset Filter Button -->
+            <div v-if="search || kategori !== 'all'" class="shrink-0">
+                <button 
+                    type="button" 
+                    @click="resetAllFilters" 
+                    class="h-9 px-3 rounded-md text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Reset Filter
+                </button>
+            </div>
         </div>
 
         <!-- Cards Grid -->
@@ -132,8 +246,9 @@ function submit() {
                 <div class="w-12 h-12 bg-muted text-muted-foreground rounded-md flex items-center justify-center mb-3 border border-border">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 </div>
-                <p class="text-foreground font-semibold text-sm">Pustaka Formula Kosong</p>
-                <p class="text-muted-foreground text-xs mt-1 max-w-sm">Klik tombol Tambah Formula Baru untuk mulai membangun basis data instruksi racikan standar.</p>
+                <p class="text-foreground font-semibold text-sm">Tidak ada formula racikan ditemukan</p>
+                <p v-if="search || kategori !== 'all'" class="text-muted-foreground text-xs mt-1 max-w-sm">Coba sesuaikan kata kunci atau filter kategori sediaan yang Anda pilih.</p>
+                <p v-else class="text-muted-foreground text-xs mt-1 max-w-sm">Klik tombol Tambah Formula Baru untuk mulai membangun basis data instruksi racikan standar.</p>
             </div>
 
             <div v-for="f in (formulas?.data || [])" :key="f.id" class="bg-card border border-border rounded-lg p-5 shadow-sm hover:shadow-md transition-all flex flex-col group">
@@ -151,17 +266,27 @@ function submit() {
         </div>
 
         <!-- Pagination -->
-        <div v-if="formulas.links?.length > 3" class="flex justify-center gap-1 pt-4">
-            <template v-for="l in formulas.links" :key="l.label">
-                <button 
-                    v-if="l.url" 
-                    @click="router.get(l.url)" 
-                    :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
-                    class="w-8 h-8 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
-                    v-html="l.label"
-                ></button>
-                <span v-else class="w-8 h-8 flex items-center justify-center text-muted-foreground text-xs" v-html="l.label"></span>
-            </template>
+        <div v-if="formulas.links?.length > 3" class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border">
+            <span class="text-xs text-muted-foreground font-medium">
+                Menampilkan {{ formulas.from || 0 }} - {{ formulas.to || 0 }} dari {{ formulas.total || 0 }} formula
+            </span>
+            <div class="flex items-center gap-1">
+                <template v-for="l in formulas.links" :key="l.label">
+                    <button 
+                        v-if="l.url" 
+                        @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" 
+                        :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
+                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
+                        v-html="l.label"
+                    ></button>
+                    <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
+                </template>
+            </div>
+        </div>
+        <div v-else-if="formulas.data && formulas.data.length > 0" class="flex justify-between items-center pt-4 border-t border-border">
+            <span class="text-xs text-muted-foreground font-medium">
+                Menampilkan {{ formulas.data.length }} formula
+            </span>
         </div>
     </div>
 

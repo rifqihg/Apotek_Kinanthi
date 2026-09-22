@@ -17,7 +17,10 @@ return new class extends Migration
             $table->id();
             $table->string('prescription_number')->unique();
             $table->foreignId('patient_id')->constrained('patients')->restrictOnDelete();
+            $table->decimal('patient_weight_kg', 5, 2)->nullable();
+            $table->unsignedTinyInteger('patient_age_years')->nullable();
             $table->string('doctor_name', 100);
+            $table->string('doctor_sip', 60)->nullable();
             $table->string('clinic_name', 100)->nullable();
             $table->date('prescription_date');
             $table->enum('status', [
@@ -29,6 +32,7 @@ return new class extends Migration
             ])->default('baru');
             $table->foreignId('handled_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
+            $table->text('screening_notes')->nullable();
             $table->timestamps();
 
             $table->index('status', 'prescriptions_status_idx');

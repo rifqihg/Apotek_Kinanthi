@@ -1,8 +1,7 @@
 <script setup>
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
@@ -16,55 +15,46 @@ const props = defineProps({
     filters: { type: Object, default: () => ({ search: '' }) }
 });
 
-const page = usePage();
-const searchQuery = ref(props.filters.search || '');
-const activeSearch = ref(props.filters.search || '');
+const search = ref(props.filters?.search || '');
+const isSearching = ref(false);
 
-// TanStack Vue Query: Fast reactive search with initialData from Inertia
-const { data: queryData, isFetching, refetch } = useQuery({
-    queryKey: computed(() => ['admin-medicines', props.activeTab, activeSearch.value]),
-    queryFn: async () => {
-        if (!activeSearch.value.trim()) {
-            return props.activeTab === 'faktur' ? props.fakturStocks : props.racikanProducts;
-        }
-        const endpoint = props.activeTab === 'faktur' 
-            ? 'control.admin.medicines.faktur' 
-            : 'control.admin.medicines.racikan';
-
-        const res = await axios.get(route(endpoint, { search: activeSearch.value }), {
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        const fetchedProps = res.data?.props;
-        return props.activeTab === 'faktur' 
-            ? (fetchedProps?.fakturStocks || props.fakturStocks)
-            : (fetchedProps?.racikanProducts || props.racikanProducts);
-    },
-    initialData: () => props.activeTab === 'faktur' ? props.fakturStocks : props.racikanProducts,
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
+// Sync if props.filters.search changes from outside
+watch(() => props.filters?.search, (newSearch) => {
+    if (newSearch !== undefined && newSearch !== search.value) {
+        search.value = newSearch || '';
+    }
 });
 
-const handleSearch = () => {
-    activeSearch.value = searchQuery.value;
-    refetch();
+const handleLiveSearch = useDebounceFn((query) => {
+    const targetRoute = props.activeTab === 'racikan'
+        ? 'control.admin.medicines.racikan'
+        : 'control.admin.medicines.faktur';
+
+    isSearching.value = true;
+    router.get(route(targetRoute), {
+        search: query || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+}, 300);
+
+watch(search, (newVal) => {
+    handleLiveSearch(newVal);
+});
+
+const clearSearch = () => {
+    search.value = '';
 };
 
-// Reactive data bindings (fallback to Inertia props)
-const activeFakturStocks = computed(() => {
-    if (props.activeTab !== 'faktur') return props.fakturStocks;
-    return queryData.value || props.fakturStocks;
-});
-
-const activeRacikanProducts = computed(() => {
-    if (props.activeTab !== 'racikan') return props.racikanProducts;
-    return queryData.value || props.racikanProducts;
-});
+// Reactive data bindings (directly from Inertia props)
+const activeFakturStocks = computed(() => props.fakturStocks || { data: [], total: 0 });
+const activeRacikanProducts = computed(() => props.racikanProducts || { data: [], total: 0 });
 
 const formatCurrency = (val) => Number(val) ? 'Rp ' + Number(val).toLocaleString('id-ID') : 'Rp 0';
 
@@ -100,6 +90,36 @@ const expandedRows = ref([]);
 const toggleRow = (id) => {
     const idx = expandedRows.value.indexOf(id);
     idx > -1 ? expandedRows.value.splice(idx, 1) : expandedRows.value.push(id);
+};
+
+// State for editing medicine classification & threshold
+const editingMedicine = ref(null);
+const editForm = useForm({
+    classification: 'obat_keras',
+    threshold_min: 10,
+    deskripsi: '',
+});
+
+const openEditModal = (medicine) => {
+    editingMedicine.value = medicine;
+    editForm.classification = medicine.classification || 'obat_keras';
+    editForm.threshold_min = medicine.threshold_min ?? 10;
+    editForm.deskripsi = medicine.deskripsi || '';
+};
+
+const closeEditModal = () => {
+    editingMedicine.value = null;
+    editForm.reset();
+};
+
+const submitEditMedicine = () => {
+    if (!editingMedicine.value) return;
+    editForm.put(route('control.admin.medicines.update', editingMedicine.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeEditModal();
+        },
+    });
 };
 </script>
 
@@ -236,31 +256,30 @@ const toggleRow = (id) => {
                         </svg>
                         <input 
                             type="text" 
-                            v-model="searchQuery" 
-                            @keyup.enter="handleSearch"
+                            v-model="search" 
                             placeholder="Cari berdasarkan nama obat, batch, atau kategori..." 
-                            class="w-full h-10 pl-10 pr-4 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl text-xs sm:text-sm font-medium text-slate-800 dark:text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                            class="w-full h-10 pl-10 pr-10 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl text-xs sm:text-sm font-medium text-slate-800 dark:text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
                         />
-                    </div>
-
-                    <div class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
-                        <!-- Filter Button -->
-                        <button 
-                            type="button" 
-                            @click="handleSearch"
-                            :disabled="isFetching"
-                            class="h-10 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
-                        >
-                            <svg v-if="!isFetching" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                            </svg>
-                            <svg v-else class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                            <svg v-if="isSearching" class="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span>Filter</span>
-                        </button>
+                            <button 
+                                v-else-if="search" 
+                                type="button" 
+                                @click="clearSearch" 
+                                class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-muted transition-colors cursor-pointer"
+                                title="Hapus pencarian"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
 
+                    <div class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
                         <!-- + Tambah Button -->
                         <Link 
                             v-if="activeTab === 'faktur'"
@@ -309,8 +328,26 @@ const toggleRow = (id) => {
                                     <!-- IDENTITAS -->
                                     <TableCell class="py-2 px-3 align-middle">
                                         <div class="flex flex-col">
-                                            <span class="font-medium text-foreground text-sm leading-tight line-clamp-1" :title="item.medicine?.nama_obat">{{ item.medicine?.nama_obat || 'Obat Tidak Diketahui' }}</span>
-                                            <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.medicine?.kategori || '-' }}</span>
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-medium text-foreground text-sm leading-tight line-clamp-1" :title="item.medicine?.nama_obat">{{ item.medicine?.nama_obat || 'Obat Tidak Diketahui' }}</span>
+                                                <span v-if="item.medicine?.classification" class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" :class="{
+                                                    'bg-red-100 text-red-800 border border-red-300': item.medicine.classification === 'narkotika',
+                                                    'bg-purple-100 text-purple-800 border border-purple-300': item.medicine.classification === 'psikotropika',
+                                                    'bg-blue-100 text-blue-800 border border-blue-300': item.medicine.classification === 'prekursor',
+                                                    'bg-rose-50 text-rose-700 border border-rose-200': item.medicine.classification === 'obat_keras',
+                                                    'bg-amber-50 text-amber-700 border border-amber-200': item.medicine.classification === 'bebas_terbatas',
+                                                    'bg-emerald-50 text-emerald-700 border border-emerald-200': item.medicine.classification === 'bebas'
+                                                }">
+                                                    {{ item.medicine.classification.replace('_', ' ') }}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-xs text-muted-foreground leading-tight mt-1">
+                                                <span>{{ item.medicine?.kategori || '-' }}</span>
+                                                <button v-if="item.medicine" @click="openEditModal(item.medicine)" class="text-[11px] text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-0.5 font-medium">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                    Ubah Golongan
+                                                </button>
+                                            </div>
                                         </div>
                                     </TableCell>
                                     <!-- BATCH NO -->
@@ -430,6 +467,18 @@ const toggleRow = (id) => {
                             <span class="text-xs font-medium text-muted-foreground">
                                 Menampilkan {{ activeFakturStocks.data.length }} Obat Faktur
                             </span>
+                            <div v-if="activeFakturStocks.links && activeFakturStocks.links.length > 3" class="flex items-center gap-1">
+                                <button v-for="(link, i) in activeFakturStocks.links" :key="i"
+                                    type="button"
+                                    @click="link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })"
+                                    v-html="link.label"
+                                    :class="[
+                                        'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                                        link.active ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-muted',
+                                        !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+                                    ]"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -494,8 +543,62 @@ const toggleRow = (id) => {
                             <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                 Menampilkan {{ activeRacikanProducts.data.length }} Obat Racikan
                             </span>
+                            <div v-if="activeRacikanProducts.links && activeRacikanProducts.links.length > 3" class="flex items-center gap-1">
+                                <button v-for="(link, i) in activeRacikanProducts.links" :key="i"
+                                    type="button"
+                                    @click="link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })"
+                                    v-html="link.label"
+                                    :class="[
+                                        'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                                        link.active ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-muted',
+                                        !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+                                    ]"
+                                />
+                            </div>
                         </div>
                     </div>
+            </div>
+
+            <!-- MODAL EDIT PENGATURAN GOLONGAN OBAT -->
+            <div v-if="editingMedicine" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+                <div class="bg-card border border-border rounded-xl p-6 shadow-xl max-w-md w-full space-y-4">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h3 class="font-bold text-sm text-foreground">Pengaturan Master Obat</h3>
+                        <button @click="closeEditModal" class="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</p>
+                        <p class="font-semibold text-sm text-foreground mt-0.5">{{ editingMedicine.nama_obat }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Klasifikasi Golongan Obat (BPOM / SIPNAP)</label>
+                        <select v-model="editForm.classification" class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                            <option value="obat_keras">Obat Keras (Lingkaran Merah K)</option>
+                            <option value="narkotika">Narkotika (Palang Merah - Wajib SIPNAP)</option>
+                            <option value="psikotropika">Psikotropika (Lingkaran Biru K - Wajib SIPNAP)</option>
+                            <option value="prekursor">Prekursor Farmasi</option>
+                            <option value="bebas_terbatas">Obat Bebas Terbatas (Lingkaran Biru)</option>
+                            <option value="bebas">Obat Bebas (Lingkaran Hijau)</option>
+                        </select>
+                        <p class="text-[11px] text-muted-foreground mt-1">Obat bertipe Narkotika/Psikotropika mewajibkan input No. SIP Dokter pada resep dan tercatat di mutasi SIPNAP.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Batas Minimum Stok (Threshold Alert)</label>
+                        <input type="number" v-model="editForm.threshold_min" min="0" class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Deskripsi / Catatan Khusus</label>
+                        <textarea v-model="editForm.deskripsi" rows="2" class="w-full rounded-md border border-input bg-background p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Catatan penyimpanan, suhu, atau regulasi..."></textarea>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t">
+                        <button type="button" @click="closeEditModal" class="px-3.5 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted text-foreground transition-colors">
+                            Batal
+                        </button>
+                        <button type="button" @click="submitEditMedicine" :disabled="editForm.processing" class="px-4 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors">
+                            {{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}
+                        </button>
+                    </div>
+                </div>
             </div>
     </div>
 </template>

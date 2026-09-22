@@ -1,87 +1,68 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { useQuery } from '@tanstack/vue-query';
+import { useDebounceFn } from '@vueuse/core';
+import Swal from 'sweetalert2';
 
 defineOptions({ layout: ControlLayout });
-import axios from 'axios';
-import debounce from 'lodash/debounce';
-import Swal from 'sweetalert2';
 
 const props = defineProps({
     kasirs: Array,
     selectedKasirId: [String, Number],
     medicines: Object,
-    filters: Object,
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
-const page = usePage();
 const dropdownOpen = ref(false);
+const isSearching = ref(false);
 
 const form = reactive({
     kasir_id: props.selectedKasirId || '',
     search: props.filters?.search || '',
 });
 
-const activeSearch = ref(props.filters?.search || '');
-const activePage = ref(1);
+const applyFilters = () => {
+    isSearching.value = true;
+    router.get(route(route().current()), {
+        kasir_id: form.kasir_id || undefined,
+        search: form.search || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        }
+    });
+};
 
-const debouncedSearchUpdate = debounce((val) => {
-    activeSearch.value = val;
-    activePage.value = 1;
+const debouncedSearch = useDebounceFn(() => {
+    applyFilters();
 }, 300);
 
-watch(() => form.search, (newVal) => {
-    debouncedSearchUpdate(newVal);
+watch(() => form.search, (newVal, oldVal) => {
+    if (newVal !== oldVal) debouncedSearch();
 });
 
 // Watch kasir select
-watch(() => form.kasir_id, () => {
-    cart.value = [];
-    activePage.value = 1;
-});
-
-const { data: queryMedicines, isFetching, refetch } = useQuery({
-    queryKey: computed(() => ['admin-distribution', form.kasir_id, activeSearch.value, activePage.value]),
-    queryFn: async () => {
-        if (!form.kasir_id) {
-            return { data: [], links: [] };
-        }
-        const res = await axios.get(route('control.admin.inventory.distribution'), {
-            params: {
-                kasir_id: form.kasir_id,
-                search: activeSearch.value,
-                page: activePage.value,
-            },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        return res.data.props.medicines;
-    },
-    initialData: () => props.medicines || { data: [], links: [] },
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
-    enabled: computed(() => Boolean(form.kasir_id)),
-});
-
-const activeMedicines = computed(() => queryMedicines.value || props.medicines || { data: [], links: [] });
-
-const goToPage = (url) => {
-    if (!url) return;
-    try {
-        const urlObj = new URL(url, window.location.origin);
-        const p = urlObj.searchParams.get('page');
-        if (p) activePage.value = Number(p);
-    } catch (e) {
-        // fallback
+watch(() => form.kasir_id, (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+        cart.value = [];
+        applyFilters();
     }
+});
+
+const clearSearch = () => {
+    form.search = '';
+    applyFilters();
 };
+
+const activeMedicines = computed(() => props.medicines || { data: [], links: [] });
 
 // --- CART LOGIC ---
 const cart = ref([]);
@@ -183,7 +164,6 @@ const submitCart = () => {
                 preserveScroll: true,
                 onSuccess: () => {
                     cart.value = []; // empty cart on success
-                    refetch();
                     Swal.fire('Berhasil!', 'Semua distribusi stok berhasil diproses secara otomatis (FEFO).', 'success');
                 }
             });
@@ -269,7 +249,7 @@ const uploadPhoto = async (medicine) => {
                         <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Cari Obat</label>
                         <div class="relative rounded-md shadow-2xs">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg v-if="!isFetching" class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg v-if="!isSearching" class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                                 <svg v-else class="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
@@ -277,7 +257,16 @@ const uploadPhoto = async (medicine) => {
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             </div>
-                            <input type="text" v-model="form.search" placeholder="Ketik nama atau kode..." class="h-10 pl-9 block w-full rounded-md border border-input bg-background focus:ring-1 focus:ring-ring sm:text-sm font-medium">
+                            <input type="text" v-model="form.search" placeholder="Ketik nama, kode, nomor batch, atau lokasi rak..." class="h-10 pl-9 pr-8 block w-full rounded-md border border-input bg-background focus:ring-1 focus:ring-ring sm:text-sm font-medium">
+                            <button 
+                                v-if="form.search" 
+                                type="button" 
+                                @click="clearSearch" 
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors cursor-pointer"
+                                title="Hapus pencarian"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -357,13 +346,18 @@ const uploadPhoto = async (medicine) => {
                     <div v-if="activeMedicines.links && activeMedicines.data.length > 0" class="mt-8 pb-8 flex justify-center">
                         <div class="flex gap-1 bg-card p-1 rounded-md shadow-2xs border border-border">
                             <template v-for="(link, idx) in activeMedicines.links" :key="idx">
-                                <Component 
-                                    :is="link.url ? 'button' : 'span'"
+                                <button 
+                                    v-if="link.url"
                                     type="button"
                                     v-html="link.label"
                                     class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                                    :class="link.active ? 'bg-primary text-primary-foreground font-semibold' : 'text-foreground hover:bg-muted' + (!link.url ? ' opacity-50 cursor-not-allowed' : '')"
-                                    @click="goToPage(link.url)"
+                                    :class="link.active ? 'bg-primary text-primary-foreground font-semibold' : 'text-foreground hover:bg-muted'"
+                                    @click="router.visit(link.url, { preserveState: true, preserveScroll: true })"
+                                />
+                                <span 
+                                    v-else
+                                    v-html="link.label"
+                                    class="px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground opacity-50 cursor-not-allowed"
                                 />
                             </template>
                         </div>

@@ -47,15 +47,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
     // ─── MASTER DATA ─────────────────────────────────────────
     Route::get('/medicines/faktur', [AdminMedicineController::class, 'medicinesFaktur'])->name('medicines.faktur');
     Route::get('/medicines/racikan', [AdminMedicineController::class, 'medicinesRacikan'])->name('medicines.racikan');
+    Route::post('/medicines', [AdminMedicineController::class, 'store'])->name('medicines.store');
     Route::post('/medicines/{medicine}/photo', [AdminMedicineController::class, 'updateMedicinePhoto'])->name('medicines.updatePhoto');
     Route::put('/medicines/{medicine}', [AdminMedicineController::class, 'updateMedicine'])->name('medicines.update');
     Route::get('/compounded-products', [AdminMedicineController::class, 'compoundedProducts'])->name('compounded-products');
-
-    // Raw Materials managed by Admin
-    Route::get('/raw-materials', [AdminMedicineController::class, 'rawMaterials'])->name('raw-materials');
-    Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
-    Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
-    Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
 
     // ─── FAKTUR MASUK (Single-Gate Workflow) ─────────────────
     Route::get('/incoming-stocks', [AdminProcurementController::class, 'incomingStocks'])->name('incoming-stocks');
@@ -102,6 +97,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/control/reports/cashier-monitoring/export-pdf', [AdminCashierExportController::class, 'exportCashierMonitoringPdf'])->name('control.reports.cashier-monitoring.export-pdf');
 });
 
+// Shared Master Bahan Baku (Accessible by Admin & Apoteker)
+Route::middleware(['auth', 'role:admin,apoteker'])->prefix('control/admin')->name('control.admin.')->group(function () {
+    Route::get('/raw-materials', [AdminMedicineController::class, 'rawMaterials'])->name('raw-materials');
+    Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
+    Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
+    Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
+});
+
 // ═══════════════════════════════════════════════════════════
 // APOTEKER ROUTES (The Lab)
 // ═══════════════════════════════════════════════════════════
@@ -118,14 +121,20 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
     Route::get('/submissions/{submission}', [ApotekerCompoundingController::class, 'showSubmission'])->name('submissions.show');
     Route::post('/submissions/{submission}/cancel', [ApotekerCompoundingController::class, 'cancelSubmission'])->name('submissions.cancel');
 
+    // Thermal Label
+    Route::get('/compounding/{id}/label', [ApotekerCompoundingController::class, 'printLabel'])->name('compounding.label');
+
     // FEFO API
     Route::get('/fefo/{medicineId}', [ApotekerCompoundingController::class, 'fefoSuggestion'])->name('fefo');
 
     // Stock Check
     Route::get('/stock-check', [ApotekerInventoryController::class, 'stockCheck'])->name('stock-check');
 
-    // Katalog Bahan Baku (Read-only for Apoteker, CRUD by Admin)
+    // Katalog Bahan Baku & CRUD by Apoteker
     Route::get('/raw-materials', [ApotekerInventoryController::class, 'rawMaterials'])->name('raw-materials');
+    Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
+    Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
+    Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
 
     // BUD Tracker
     Route::get('/bud-tracker', [ApotekerCompoundingController::class, 'budTracker'])->name('bud-tracker');
@@ -142,6 +151,8 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
 
     // Laporan & Log Audit
     Route::get('/stock-audit', [ApotekerInventoryController::class, 'auditLogs'])->name('stock-audit');
+    Route::get('/reports/sipnap', [ApotekerInventoryController::class, 'sipnapReport'])->name('reports.sipnap');
+    Route::get('/reports/sipnap/export-pdf', [ApotekerInventoryController::class, 'exportSipnapPdf'])->name('reports.sipnap.export-pdf');
 });
 
 // ═══════════════════════════════════════════════════════════

@@ -284,6 +284,7 @@ return new class extends Migration
 
             $table->index('item_type', 'sale_items_item_type_idx');
             $table->index(['item_type', 'medicine_id'], 'sale_items_item_type_med_id_idx');
+            $table->index(['sale_id', 'medicine_id']);
         });
     }
 

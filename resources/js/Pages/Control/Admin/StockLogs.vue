@@ -1,9 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
+import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -14,8 +13,6 @@ const props = defineProps({
     kpi: { type: Object, default: () => ({ in: 0, out: 0, total: 0 }) },
     filters: { type: Object, default: () => ({}) }
 });
-
-const page = usePage();
 
 // Tab state: 'mutasi' or 'audit' (0ms instant transition)
 const activeTab = ref(
@@ -33,47 +30,55 @@ const switchTab = (tab) => {
     }
 };
 
-// ─── TAB 1: MUTASI STOK STATE & QUERY ────────────────────────
+// ─── TAB 1: MUTASI STOK STATE & LIVE FILTER ──────────────────
 const search = ref(props.filters?.search || '');
 const startDate = ref(props.filters?.start_date || '');
 const endDate = ref(props.filters?.end_date || '');
 const filterType = ref(props.filters?.type || 'all');
 const filterDropdownOpen = ref(false);
+const isFilteringLogs = ref(false);
 
-const { data: queryData, isFetching: isFetchingLogs } = useQuery({
-    queryKey: computed(() => ['admin-stock-logs', search.value, startDate.value, endDate.value, filterType.value]),
-    queryFn: async () => {
-        if (!search.value && !startDate.value && !endDate.value && filterType.value === 'all') {
-            return { logs: props.logs, kpi: props.kpi };
-        }
-        const res = await axios.get(route('control.admin.stock-logs'), {
-            params: {
-                tab: 'mutasi',
-                search: search.value || undefined,
-                start_date: startDate.value || undefined,
-                end_date: endDate.value || undefined,
-                type: filterType.value !== 'all' ? filterType.value : undefined,
-            },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        return {
-            logs: res.data?.props?.logs || props.logs,
-            kpi: res.data?.props?.kpi || props.kpi
-        };
-    },
-    initialData: () => ({ logs: props.logs, kpi: props.kpi }),
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
+const applyMutationFilters = () => {
+    isFilteringLogs.value = true;
+    router.get(route('control.admin.stock-logs'), {
+        tab: 'mutasi',
+        search: search.value || undefined,
+        start_date: startDate.value || undefined,
+        end_date: endDate.value || undefined,
+        type: filterType.value !== 'all' ? filterType.value : undefined,
+        mutations_page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => { isFilteringLogs.value = false; },
+    });
+};
+
+const debouncedMutationSearch = useDebounceFn(() => {
+    applyMutationFilters();
+}, 300);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+        debouncedMutationSearch();
+    }
 });
 
-const activeLogs = computed(() => queryData.value?.logs || props.logs);
-const activeKpi = computed(() => queryData.value?.kpi || props.kpi);
+watch([startDate, endDate, filterType], () => {
+    applyMutationFilters();
+});
+
+const activeLogs = computed(() => props.logs || { data: [], links: [] });
+const activeKpi = computed(() => props.kpi || { in: 0, out: 0, total: 0 });
+
+const clearFilters = () => {
+    search.value = '';
+    startDate.value = '';
+    endDate.value = '';
+    filterType.value = 'all';
+    applyMutationFilters();
+};
 
 const displayType = (l) => {
     if (l.type === 'Masuk' || l.type === 'Penyesuaian Masuk') return 'Masuk';
@@ -138,49 +143,46 @@ const getMutationUnits = (qty, inventory) => {
     return res.length ? res : [{ qty: 0, unit: uSmall }];
 };
 
-const clearFilters = () => {
-    search.value = '';
-    startDate.value = '';
-    endDate.value = '';
-    filterType.value = 'all';
-};
-
-// ─── TAB 2: AUDIT TRAIL STATE & QUERY ────────────────────────
+// ─── TAB 2: AUDIT TRAIL STATE & LIVE FILTER ──────────────────
 const auditSearch = ref(props.filters?.audit_search || '');
 const roleFilter = ref(props.filters?.role || '');
+const isFilteringAudits = ref(false);
 
-const { data: queryAudits, isFetching: isFetchingAudits } = useQuery({
-    queryKey: computed(() => ['admin-audit-trails', auditSearch.value, roleFilter.value]),
-    queryFn: async () => {
-        if (!auditSearch.value.trim() && !roleFilter.value) {
-            return props.audits;
-        }
-        const res = await axios.get(route('control.admin.stock-logs'), {
-            params: {
-                tab: 'audit',
-                audit_search: auditSearch.value || undefined,
-                role: roleFilter.value || undefined,
-            },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        return res.data?.props?.audits || props.audits;
-    },
-    initialData: () => props.audits,
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
+const applyAuditFilters = () => {
+    isFilteringAudits.value = true;
+    router.get(route('control.admin.stock-logs'), {
+        tab: 'audit',
+        audit_search: auditSearch.value || undefined,
+        role: roleFilter.value || undefined,
+        audits_page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => { isFilteringAudits.value = false; },
+    });
+};
+
+const debouncedAuditSearch = useDebounceFn(() => {
+    applyAuditFilters();
+}, 300);
+
+watch(auditSearch, (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+        debouncedAuditSearch();
+    }
 });
 
-const activeAudits = computed(() => queryAudits.value || props.audits);
+watch(roleFilter, () => {
+    applyAuditFilters();
+});
+
+const activeAudits = computed(() => props.audits || { data: [], links: [] });
 
 const clearAuditFilters = () => {
     auditSearch.value = '';
     roleFilter.value = '';
+    applyAuditFilters();
 };
 
 const getActionClass = (a) => {
@@ -344,14 +346,26 @@ const formatAuditDate = (dateStr) => {
         <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
             <div class="flex-1 min-w-[200px] relative">
                 <input v-model="search" type="text" placeholder="Cari nama obat atau bahan baku..." 
-                       class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
-                <svg v-if="!isFetchingLogs" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
+                <svg v-if="!isFilteringLogs" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
+                <button 
+                    v-if="search" 
+                    @click="search = ''; applyMutationFilters()" 
+                    type="button" 
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
+                    title="Hapus pencarian"
+                >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
             <div class="relative">
                 <button @click="filterDropdownOpen = !filterDropdownOpen" @blur="setTimeout(() => filterDropdownOpen = false, 200)" class="h-9 min-w-[130px] bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground hover:bg-accent cursor-pointer outline-none transition-colors flex items-center justify-between gap-2 shadow-sm">
@@ -510,14 +524,26 @@ const formatAuditDate = (dateStr) => {
             <div class="flex flex-1 flex-wrap items-center gap-3">
                 <div class="flex-1 min-w-[220px] max-w-md relative">
                     <input v-model="auditSearch" type="text" placeholder="Cari aktivitas, tindakan, atau user..." 
-                           class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
-                    <svg v-if="!isFetchingAudits" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
+                    <svg v-if="!isFilteringAudits" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
+                    <button 
+                        v-if="auditSearch" 
+                        @click="auditSearch = ''; applyAuditFilters()" 
+                        type="button" 
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
 
                 <select v-model="roleFilter" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">

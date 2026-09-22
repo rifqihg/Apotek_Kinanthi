@@ -174,32 +174,72 @@ class AdminMedicineController extends Controller
     }
 
     // ─── COMPOUNDED PRODUCTS (Master Obat Racikan) ──────────
-    public function compoundedProducts()
+    public function compoundedProducts(Request $request)
     {
-        $products = CompoundedProduct::with(['submission.user', 'creator'])
-            ->latest()
-            ->paginate(15);
+        $search = $request->query('search');
+
+        $query = CompoundedProduct::with(['submission.user', 'creator']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_produk', 'like', "%{$search}%")
+                  ->orWhere('batch_no', 'like', "%{$search}%")
+                  ->orWhere('satuan', 'like', "%{$search}%")
+                  ->orWhereHas('submission.formula', function ($q2) use ($search) {
+                      $q2->where('nama_resep', 'like', "%{$search}%")
+                         ->orWhere('kategori_sediaan', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('submission', function ($q2) use ($search) {
+                      $q2->where('nama_racikan', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $products = $query->latest()
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('Control/Admin/CompoundedProducts', [
             'products' => $products,
+            'filters' => [
+                'search' => $search
+            ]
         ]);
     }
 
     // ─── RAW MATERIALS (Master Bahan Baku — Admin View) ─────
-    public function rawMaterials()
+    public function rawMaterials(Request $request)
     {
-        $materials = RawMaterial::with([
+        $search = $request->query('search');
+
+        $query = RawMaterial::with([
             'category',
             'stocks' => function ($q) {
                 $q->where('stock_on_hand', '>', 0)->orderBy('expired_date');
             }
         ])
-            ->where('status', 'active')
-            ->latest()
-            ->paginate(15);
+            ->where('status', 'active');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama_bahan', 'like', "%{$search}%")
+                  ->orWhere('kode_bahan', 'like', "%{$search}%")
+                  ->orWhere('bentuk_sediaan', 'like', "%{$search}%")
+                  ->orWhereHas('category', function ($q2) use ($search) {
+                      $q2->where('nama_kategori', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $materials = $query->latest()
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('Control/Admin/RawMaterials', [
             'materials' => $materials,
+            'filters' => [
+                'search' => $search
+            ]
         ]);
     }
 
@@ -302,13 +342,58 @@ class AdminMedicineController extends Controller
     }
 
     /**
-     * Update medicine metadata only (threshold, description). Stock is READ-ONLY.
+     * Store a new medicine master record.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'nama_obat' => 'required|string|max:255',
+            'kode_obat' => 'nullable|string|max:50|unique:medicines,kode_obat',
+            'kategori' => 'nullable|string|max:100',
+            'classification' => ['required', \Illuminate\Validation\Rule::in(['narkotika', 'psikotropika', 'prekursor', 'obat_keras', 'bebas_terbatas', 'bebas'])],
+            'satuan_stok' => 'required|string|max:50',
+            'satuan_besar' => 'nullable|string|max:50',
+            'satuan_menengah' => 'nullable|string|max:50',
+            'rasio_konversi' => 'nullable|integer|min:1',
+            'threshold_min' => 'required|integer|min:0',
+            'deskripsi' => 'nullable|string|max:1000',
+        ]);
+
+        $medicine = Medicine::create([
+            'nama_obat' => $validated['nama_obat'],
+            'kode_obat' => $validated['kode_obat'] ?? null,
+            'kategori' => $validated['kategori'] ?? null,
+            'classification' => $validated['classification'],
+            'satuan_stok' => $validated['satuan_stok'],
+            'satuan_besar' => $validated['satuan_besar'] ?? null,
+            'satuan_menengah' => $validated['satuan_menengah'] ?? null,
+            'rasio_konversi' => $validated['rasio_konversi'] ?? 1,
+            'threshold_min' => $validated['threshold_min'],
+            'deskripsi' => $validated['deskripsi'] ?? null,
+            'status' => 'active',
+            'stok_total' => 0,
+        ]);
+
+        AuditTrail::log(
+            $request->user()->id,
+            'CREATE_MEDICINE',
+            "Menambah master obat baru: {$medicine->nama_obat}",
+            Medicine::class,
+            $medicine->id
+        );
+
+        return redirect()->back()->with('success', 'Obat baru berhasil ditambahkan.');
+    }
+
+    /**
+     * Update medicine metadata only (threshold, description, classification). Stock is READ-ONLY.
      */
     public function updateMedicine(Request $request, Medicine $medicine)
     {
         $validated = $request->validate([
             'threshold_min' => 'required|integer|min:0',
             'deskripsi' => 'nullable|string|max:1000',
+            'classification' => ['nullable', \Illuminate\Validation\Rule::in(['narkotika', 'psikotropika', 'prekursor', 'obat_keras', 'bebas_terbatas', 'bebas'])],
         ]);
 
         $old = $medicine->toArray();

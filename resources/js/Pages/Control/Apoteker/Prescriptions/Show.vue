@@ -25,6 +25,12 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-
 
 const allItemsDone = computed(() => props.prescription?.prescription_items?.every(item => item.status === 'selesai') ?? false);
 
+const hasControlledMedicine = computed(() => {
+    return props.prescription?.prescription_items?.some(item => 
+        ['narkotika', 'psikotropika'].includes(item.medicine?.classification)
+    ) ?? false;
+});
+
 const updateStatus = (newStatus) => {
     if (newStatus === 'siap_ambil' && !allItemsDone.value) return;
     
@@ -57,6 +63,15 @@ const completeItem = (itemId) => {
             </Link>
         </div>
 
+        <!-- Alert Narkotika / Psikotropika -->
+        <div v-if="hasControlledMedicine" class="bg-rose-50 border border-rose-300 dark:bg-rose-950/40 dark:border-rose-800 rounded-lg p-4 flex items-start gap-3 text-rose-800 dark:text-rose-200 shadow-sm">
+            <svg class="w-5 h-5 text-rose-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <div>
+                <p class="font-bold text-sm tracking-wide">PERINGATAN REGULASI: RESEP MENGANDUNG NARKOTIKA / PSIKOTROPIKA</p>
+                <p class="text-xs mt-1 text-rose-700 dark:text-rose-300">Resep ini memuat obat golongan terkontrol. Wajib verifikasi fisik resep asli, keabsahan SIP dokter ({{ prescription.doctor_sip || 'BELUM TERDAFTAR' }}), identitas penerima, dan pencatatan mutasi SIPNAP.</p>
+            </div>
+        </div>
+
         <!-- Section 1: Header Info -->
         <div class="bg-card border border-border rounded-lg p-6 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
@@ -66,10 +81,14 @@ const completeItem = (itemId) => {
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Pasien</p>
                 <p class="font-medium text-foreground text-sm">{{ prescription.patient?.name }}</p>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                    {{ prescription.patient_age_years ? prescription.patient_age_years + ' thn' : '-' }} / {{ prescription.patient_weight_kg ? prescription.patient_weight_kg + ' kg' : '-' }}
+                </p>
             </div>
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Dokter</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Dokter & SIP</p>
                 <p class="font-medium text-foreground text-sm">{{ prescription.doctor_name }}</p>
+                <p class="text-xs text-muted-foreground mt-0.5">SIP: {{ prescription.doctor_sip || '-' }}</p>
             </div>
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Klinik/RS</p>
@@ -83,11 +102,15 @@ const completeItem = (itemId) => {
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Ditangani Oleh</p>
                 <p class="font-medium text-foreground text-sm">{{ prescription.handler?.name || '-' }}</p>
             </div>
-            <div class="md:col-span-2">
+            <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Status Resep</p>
                 <span :class="statusColor(prescription.status)" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-block">
                     {{ prescription.status ? prescription.status.replace(/_/g, ' ') : 'unknown' }}
                 </span>
+            </div>
+            <div class="col-span-2 md:col-span-4 bg-muted/20 border border-border/50 rounded p-3 mt-1" v-if="prescription.screening_notes">
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Catatan Skrining Resep (Farmasis)</p>
+                <p class="text-xs text-foreground">{{ prescription.screening_notes }}</p>
             </div>
         </div>
 
@@ -114,7 +137,19 @@ const completeItem = (itemId) => {
                             <span class="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-md font-medium uppercase tracking-wider border border-border">{{ item.item_type.replace('_', ' ') }}</span>
                         </td>
                         <td class="px-4 py-3 font-medium text-foreground">
-                            <template v-if="item.medicine_id">{{ item.medicine?.nama_obat }}</template>
+                            <template v-if="item.medicine_id">
+                                <span>{{ item.medicine?.nama_obat }}</span>
+                                <span v-if="item.medicine?.classification" class="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase" :class="{
+                                    'bg-red-100 text-red-800 border border-red-300': item.medicine.classification === 'narkotika',
+                                    'bg-purple-100 text-purple-800 border border-purple-300': item.medicine.classification === 'psikotropika',
+                                    'bg-blue-100 text-blue-800 border border-blue-300': item.medicine.classification === 'prekursor',
+                                    'bg-rose-50 text-rose-700 border border-rose-200': item.medicine.classification === 'obat_keras',
+                                    'bg-amber-50 text-amber-700 border border-amber-200': item.medicine.classification === 'bebas_terbatas',
+                                    'bg-emerald-50 text-emerald-700 border border-emerald-200': item.medicine.classification === 'bebas'
+                                }">
+                                    {{ item.medicine.classification }}
+                                </span>
+                            </template>
                             <template v-else-if="item.compounded_product_id">{{ item.compounded_product?.nama_produk }}</template>
                             <template v-else-if="item.custom_formula_name">
                                 {{ item.custom_formula_name }} <span class="text-xs font-normal text-muted-foreground ml-1">(Formula Baru)</span>

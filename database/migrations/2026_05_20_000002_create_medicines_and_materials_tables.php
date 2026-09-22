@@ -18,8 +18,16 @@ return new class extends Migration
             $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->string('nama_obat');
             $table->string('kategori')->nullable();
+            $table->enum('classification', [
+                'narkotika',
+                'psikotropika',
+                'prekursor',
+                'obat_keras',
+                'bebas_terbatas',
+                'bebas'
+            ])->default('obat_keras');
             $table->string('kode_obat')->unique()->nullable();
-            $table->enum('satuan_stok', ['Tube', 'Gram', 'Pot', 'Tablet', 'Kapsul', 'Botol', 'Ampul', 'Sachet', 'Strip', 'Box'])->default('Tablet');
+            $table->string('satuan_stok', 50)->default('Tablet');
             $table->string('satuan_besar')->nullable();
             $table->string('satuan_menengah')->nullable();
             $table->integer('rasio_konversi')->default(1);
@@ -39,6 +47,7 @@ return new class extends Migration
             $table->index('category_id');
             $table->index('status');
             $table->index('nama_obat');
+            $table->index('classification');
         });
 
         // 2. Raw Materials (Katalog Bahan Baku)
@@ -91,6 +100,10 @@ return new class extends Migration
             $table->index(['raw_material_id', 'batch_no']);
             $table->index('expired_date');
             $table->index('status');
+            $table->index(
+                ['raw_material_id', 'status', 'stock_on_hand', 'expired_date'],
+                'rm_stocks_fefo_idx'
+            );
         });
     }
 

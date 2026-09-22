@@ -16,6 +16,7 @@ class Medicine extends Model
         'kode_obat',
         'satuan_stok',
         'kategori',
+        'classification',
         'satuan_besar',
         'satuan_menengah',
         'rasio_konversi',
@@ -102,6 +103,11 @@ class Medicine extends Model
     public function scopeBelowThreshold($query)
     {
         return $query->whereColumn('stok_total', '<', 'threshold_min');
+    }
+
+    public function scopeSipnap($query)
+    {
+        return $query->whereIn('classification', ['narkotika', 'psikotropika']);
     }
 
     public function recalculateStock(): void

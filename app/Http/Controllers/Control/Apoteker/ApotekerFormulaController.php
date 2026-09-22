@@ -13,10 +13,39 @@ class ApotekerFormulaController extends Controller
     /**
      * Display a listing of active compounding formulas.
      */
-    public function formulas()
+    public function formulas(Request $request)
     {
+        $search = $request->query('search');
+        $kategori = $request->query('kategori');
+
+        $query = CompoundingFormula::active();
+
+        if ($request->filled('kategori') && $kategori !== 'all') {
+            $query->where('kategori_sediaan', 'like', "%{$kategori}%");
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($search) {
+                $cleanedId = preg_replace('/[^0-9]/', '', $search);
+                if (!empty($cleanedId)) {
+                    $q->orWhere('id', (int) $cleanedId);
+                }
+                $q->orWhere('nama_resep', 'like', "%{$search}%")
+                  ->orWhere('kategori_sediaan', 'like', "%{$search}%")
+                  ->orWhere('instruksi_racik', 'like', "%{$search}%");
+            });
+        }
+
+        $formulas = $query->latest()
+            ->paginate(15)
+            ->withQueryString();
+
         return Inertia::render('Control/Apoteker/Formulas', [
-            'formulas' => CompoundingFormula::active()->latest()->paginate(15),
+            'formulas' => $formulas,
+            'filters' => [
+                'search' => $search ?? '',
+                'kategori' => $kategori ?? 'all',
+            ],
         ]);
     }
 

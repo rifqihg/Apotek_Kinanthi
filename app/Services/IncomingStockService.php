@@ -28,7 +28,7 @@ class IncomingStockService
                         'kategori' => $item['new_medicine_kategori'] ?? null,
                         'satuan_besar' => $item['satuan_input'] ?? $item['new_medicine_satuan_besar'] ?? null,
                         'satuan_menengah' => $item['mid_unit'] ?? null,
-                        'satuan_stok' => $item['new_medicine_satuan_kecil'],
+                        'satuan_stok' => $item['new_medicine_satuan_kecil'] ?: 'Tablet',
                         'rasio_konversi' => $item['unit_conversion_factor'] ?? 1,
                         'threshold_min' => isset($item['min_stock_threshold']) ? (int) $item['min_stock_threshold'] : 10,
                         'stok_total' => 0,
@@ -41,7 +41,7 @@ class IncomingStockService
                         Medicine::class, $medicine->id
                     );
                 } else {
-                    $medicine = Medicine::find($item['medicine_id']);
+                    $medicine = Medicine::findOrFail($item['medicine_id']);
                     if (isset($item['min_stock_threshold']) && $item['min_stock_threshold'] !== null && $item['min_stock_threshold'] !== '') {
                         $medicine->update(['threshold_min' => (int) $item['min_stock_threshold']]);
                     }

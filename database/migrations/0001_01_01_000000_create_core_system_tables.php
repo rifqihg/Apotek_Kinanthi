@@ -22,6 +22,8 @@ return new class extends Migration
             $table->enum('role', ['admin', 'apoteker', 'kasir'])->default('apoteker');
             $table->rememberToken();
             $table->timestamps();
+
+            $table->index('role');
         });
 
         // 2. Password Reset Tokens

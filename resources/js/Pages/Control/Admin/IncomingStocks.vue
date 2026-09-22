@@ -1,45 +1,48 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 
 defineOptions({ layout: ControlLayout });
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { formatInventoryThreshold } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/Components/ui/table';
 
 const props = defineProps({ stocks: Object, suppliers: Array, medicines: Array, settings: Object, filters: Object });
 const showModal = ref(false);
-const page = usePage();
 const searchInvoiceQuery = ref(props.filters?.search || '');
-const activeSearch = ref(props.filters?.search || '');
+const isSearching = ref(false);
 
-const { data: queryStocks, isFetching } = useQuery({
-    queryKey: computed(() => ['admin-incoming-stocks', activeSearch.value]),
-    queryFn: async () => {
-        const res = await axios.get(route('control.admin.incoming-stocks'), {
-            params: { search: activeSearch.value },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        return res.data.props.stocks;
-    },
-    initialData: () => props.stocks,
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
+watch(() => props.filters?.search, (newSearch) => {
+    if (newSearch !== undefined && newSearch !== searchInvoiceQuery.value) {
+        searchInvoiceQuery.value = newSearch || '';
+    }
 });
 
-const activeStocks = computed(() => queryStocks.value || props.stocks);
+const handleLiveSearch = useDebounceFn((val) => {
+    isSearching.value = true;
+    router.get(route('control.admin.incoming-stocks'), {
+        search: val || undefined,
+        page: 1,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isSearching.value = false;
+        },
+    });
+}, 300);
 
-const handleSearch = () => {
-    activeSearch.value = searchInvoiceQuery.value;
+watch(searchInvoiceQuery, (newVal) => {
+    handleLiveSearch(newVal);
+});
+
+const clearSearch = () => {
+    searchInvoiceQuery.value = '';
 };
+
+const activeStocks = computed(() => props.stocks || { data: [], total: 0 });
 
 const hideDropdown = (item) => {
     setTimeout(() => {
@@ -168,7 +171,7 @@ const selectMedicine = (index, m) => {
     item.medicine_id = m.id;
     item.search_query = m.nama_obat;
     item.active_dropdown = false;
-    item.unit_conversion_factor = m.rasio_konversi || 1;
+    item.unit_conversion_factor = Number(m.rasio_konversi) || 1;
     item.new_medicine_satuan_kecil = m.satuan_stok || 'Tablet';
     if (m.threshold_min !== undefined && m.threshold_min !== null) {
         item.min_stock_threshold = m.threshold_min;
@@ -180,15 +183,23 @@ const selectMedicine = (index, m) => {
         item.mid_unit = m.satuan_menengah;
         item.small_unit_skipped = false;
         item.no_multi_unit = false;
+        item.mid_to_big_ratio = 1;
+        item.small_to_mid_ratio = Number(m.rasio_konversi) || 1;
     } else if (m.satuan_besar && m.satuan_besar === m.satuan_stok && (!m.rasio_konversi || m.rasio_konversi == 1)) {
         item.no_multi_unit = true;
         item.small_unit_skipped = false;
+        item.mid_to_big_ratio = 1;
+        item.small_to_mid_ratio = 1;
     } else if (m.satuan_besar && m.satuan_besar !== m.satuan_stok) {
         item.no_multi_unit = false;
         item.small_unit_skipped = true;
+        item.mid_to_big_ratio = 1;
+        item.small_to_mid_ratio = Number(m.rasio_konversi) || 1;
     } else {
         item.no_multi_unit = false;
         item.small_unit_skipped = false;
+        item.mid_to_big_ratio = 1;
+        item.small_to_mid_ratio = Number(m.rasio_konversi) || 1;
     }
 };
 
@@ -268,6 +279,19 @@ const formGrandTotal = computed(() => {
 });
 
 function submit() {
+    // Validasi awal di client agar user tidak bingung jika ada baris yang belum dipilih
+    for (let i = 0; i < form.items.length; i++) {
+        const item = form.items[i];
+        if (!item.is_new_medicine && !item.medicine_id) {
+            alert(`Obat baris ke-${i + 1} belum dipilih dari katalog. Silakan ketik dan klik obat dari daftar yang muncul, atau centang 'Input Obat Baru' jika sediaan baru.`);
+            return;
+        }
+        if (item.is_new_medicine && !item.new_medicine_name?.trim()) {
+            alert(`Nama obat baru pada baris ke-${i + 1} wajib diisi.`);
+            return;
+        }
+    }
+
     form.items.forEach(item => {
         if (item.no_multi_unit) {
             item.unit_conversion_factor = 1;
@@ -280,17 +304,21 @@ function submit() {
             item.mid_unit = null; // Clear mid unit so backend knows it's a 2-level hierarchy
             item.mid_to_big_ratio = 1;
         } else {
-            item.unit_conversion_factor = (item.mid_to_big_ratio || 1) * (item.small_to_mid_ratio || 1);
+            item.unit_conversion_factor = (Number(item.mid_to_big_ratio) || 1) * (Number(item.small_to_mid_ratio) || 1);
         }
     });
 
     form.post(route('control.admin.incoming-stocks.store'), {
         forceFormData: true,
+        preserveScroll: true,
         onSuccess: () => { 
             showModal.value = false; 
             form.reset(); 
             form.items = [getEmptyItem()];
             form.clearErrors(); 
+        },
+        onError: (errors) => {
+            console.error('Terjadi kesalahan validasi faktur masuk:', errors);
         }
     });
 }
@@ -389,28 +417,31 @@ function submit() {
 
     <!-- SEARCH & ACTION BAR -->
     <div class="bg-card p-3 rounded-lg border border-border flex flex-col sm:flex-row gap-3 justify-between items-center">
-        <div class="flex items-center gap-2 w-full sm:flex-1">
-            <div class="flex-1 relative">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                <input 
-                    type="text" 
-                    v-model="searchInvoiceQuery"
-                    @keyup.enter="handleSearch"
-                    placeholder="Cari no faktur atau nama supplier..." 
-                    class="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-md text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
-                />
-            </div>
-            <button 
-                @click="handleSearch"
-                :disabled="isFetching"
-                class="h-9 px-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2 shrink-0 shadow-sm"
-            >
-                <svg v-if="isFetching" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+        <div class="w-full sm:flex-1 relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input 
+                type="text" 
+                v-model="searchInvoiceQuery"
+                placeholder="Cari no faktur, nama supplier, atau obat..." 
+                class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-md text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+            />
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Cari</span>
-            </button>
+                <button 
+                    v-else-if="searchInvoiceQuery" 
+                    type="button" 
+                    @click="clearSearch" 
+                    class="p-0.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                    title="Hapus pencarian"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
         </div>
         <button @click="showModal=true; form.reset(); form.items=[getEmptyItem()]; form.clearErrors()" class="h-9 px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-sm shrink-0">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -516,6 +547,19 @@ function submit() {
                 </div>
             </div>
         </div>
+
+        <!-- Pagination Footer -->
+        <div v-if="activeStocks.links && activeStocks.links.length > 3" class="px-5 py-3 bg-card rounded-lg border border-border flex items-center justify-between shadow-sm">
+            <p class="text-xs font-medium text-muted-foreground">Halaman {{ activeStocks.current_page || 1 }} dari {{ activeStocks.last_page || 1 }} (Total {{ activeStocks.total || 0 }} data faktur)</p>
+            <div class="flex items-center gap-1">
+                <template v-for="(link, i) in activeStocks.links" :key="i">
+                    <button v-if="link.url" @click="router.visit(link.url, { preserveState: true, preserveScroll: true })" 
+                        :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" 
+                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label"></button>
+                    <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
+                </template>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Input Faktur Baru -->
@@ -539,6 +583,17 @@ function submit() {
             </div>
 
             <form @submit.prevent="submit" class="flex-1 overflow-y-auto bg-card custom-scrollbar p-6 space-y-5">
+                <!-- Alert Validasi Global jika ada eror -->
+                <div v-if="Object.keys(form.errors).length > 0" class="p-3.5 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs space-y-1.5 animate-in fade-in-50 duration-200">
+                    <div class="font-semibold flex items-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Terdapat kesalahan pada formulir, mohon periksa:
+                    </div>
+                    <ul class="list-disc list-inside pl-1 space-y-0.5 text-muted-foreground dark:text-destructive-foreground">
+                        <li v-for="(err, key) in form.errors" :key="key">{{ err }}</li>
+                    </ul>
+                </div>
+
                 <!-- Bagian 1: Data Faktur -->
                 <div class="bg-card p-4 rounded-lg border border-border space-y-4">
                     <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -627,7 +682,7 @@ function submit() {
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{{ item.is_new_medicine ? 'Nama Obat Baru' : 'Pilih Obat' }} <span class="text-destructive">*</span></label>
                                     
                                     <div v-if="!item.is_new_medicine" class="relative">
-                                        <input type="text" v-model="item.search_query" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Ketik nama obat..." required />
+                                        <input type="text" v-model="item.search_query" @input="item.medicine_id = ''" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Ketik nama obat..." required />
                                         <div v-if="item.active_dropdown" class="absolute z-20 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto p-1">
                                             <div v-for="m in filteredMedicines(item.search_query)" :key="m.id" @click.prevent="selectMedicine(index, m)" class="px-3 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer text-sm flex justify-between items-center">
                                                 <span class="font-medium text-foreground">{{ m.nama_obat }}</span>
@@ -637,18 +692,30 @@ function submit() {
                                     </div>
                                     
                                     <input v-else v-model="item.new_medicine_name" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Masukkan nama obat baru..." required />
+                                    <p v-if="form.errors[`items.${index}.medicine_id`]" class="mt-1 text-xs text-destructive">
+                                        {{ form.errors[`items.${index}.medicine_id`] }}
+                                    </p>
+                                    <p v-if="form.errors[`items.${index}.new_medicine_name`]" class="mt-1 text-xs text-destructive">
+                                        {{ form.errors[`items.${index}.new_medicine_name`] }}
+                                    </p>
                                 </div>
                                 
                                 <!-- QTY (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Qty <span class="text-destructive">*</span></label>
                                     <input v-model="item.qty_masuk" type="number" min="1" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                    <p v-if="form.errors[`items.${index}.qty_masuk`]" class="mt-1 text-xs text-destructive">
+                                        {{ form.errors[`items.${index}.qty_masuk`] }}
+                                    </p>
                                 </div>
 
                                 <!-- HARGA BELI (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Harga Beli <span class="text-destructive">*</span></label>
                                     <input v-model="item.harga_beli_satuan" type="number" step="0.01" min="0" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                    <p v-if="form.errors[`items.${index}.harga_beli_satuan`]" class="mt-1 text-xs text-destructive">
+                                        {{ form.errors[`items.${index}.harga_beli_satuan`] }}
+                                    </p>
                                 </div>
 
                                 <!-- DISC (col-span-2) -->
