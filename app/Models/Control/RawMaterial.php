@@ -77,4 +77,9 @@ class RawMaterial extends Model
             'stok_total' => $this->stocks()->sum('stock_on_hand'),
         ]);
     }
+
+    public function getSatuanAttribute(): string
+    {
+        return $this->satuan_ukur ?? '';
+    }
 }

@@ -10,6 +10,7 @@ use App\Models\Control\Setting;
 use App\Models\Control\Supplier;
 use App\Services\IncomingStockService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class AdminProcurementController extends Controller
@@ -206,5 +207,26 @@ class AdminProcurementController extends Controller
         $service->store($validated, $request->file('foto_faktur'), $request->user()->id);
 
         return redirect()->back()->with('success', 'Faktur berhasil disimpan dan stok langsung aktif.');
+    }
+
+    /**
+     * Tampilkan file foto faktur secara aman dari disk privat (local/public fallback).
+     */
+    public function showFakturFile(IncomingStock $incomingStock)
+    {
+        if (!$incomingStock->foto_faktur_path) {
+            abort(404, 'Faktur tidak ditemukan.');
+        }
+
+        $disk = Storage::disk('local')->exists($incomingStock->foto_faktur_path)
+            ? 'local'
+            : (Storage::disk('public')->exists($incomingStock->foto_faktur_path) ? 'public' : null);
+
+        if (!$disk) {
+            abort(404, 'File fisik faktur tidak ditemukan di server.');
+        }
+
+        $path = Storage::disk($disk)->path($incomingStock->foto_faktur_path);
+        return response()->file($path);
     }
 }

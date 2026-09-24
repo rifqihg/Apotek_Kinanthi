@@ -126,7 +126,7 @@ const closeVoidModal = () => {
 const submitVoid = () => {
     if (!voidTargetSale.value) return;
     if (!voidForm.value.admin_username || !voidForm.value.admin_password) {
-        voidErrorMessage.value = 'Username dan password Admin wajib diisi.';
+        voidErrorMessage.value = 'Email/Nama dan password Admin wajib diisi.';
         return;
     }
 
@@ -424,12 +424,12 @@ const submitVoid = () => {
 
                 <form @submit.prevent="submitVoid" class="space-y-3">
                     <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Username / Email Admin</label>
+                        <label class="block text-xs font-semibold text-foreground mb-1">Email / Nama Admin</label>
                         <input
                             type="text"
                             v-model="voidForm.admin_username"
                             required
-                            placeholder="Masukkan username atau email admin"
+                            placeholder="Masukkan email atau nama lengkap admin"
                             class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                         />
                     </div>

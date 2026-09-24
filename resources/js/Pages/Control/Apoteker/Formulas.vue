@@ -68,10 +68,12 @@ const stats = computed(() => {
 });
 
 function submit() { 
-    const routeName = route().current().startsWith('control.admin') 
-        ? 'control.admin.formulas.store' 
-        : 'control.apoteker.formulas.store';
-    form.post(route(routeName), { onSuccess: () => { showModal.value = false; form.reset(); } }); 
+    form.post(route('control.apoteker.formulas.store'), { 
+        onSuccess: () => { 
+            showModal.value = false; 
+            form.reset(); 
+        } 
+    }); 
 }
 </script>
 

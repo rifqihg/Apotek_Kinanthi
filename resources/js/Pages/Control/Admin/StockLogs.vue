@@ -482,7 +482,7 @@ const formatAuditDate = (dateStr) => {
                                     <span class="text-sm font-semibold tabular-nums" :class="l.type === 'Masuk' || l.type === 'Penyesuaian Masuk' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
                                         {{ Number(l.quantity) }}
                                     </span>
-                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_ukur || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
                                 </div>
                             </TableCell>
                             <!-- Sisa Stok -->
@@ -499,7 +499,7 @@ const formatAuditDate = (dateStr) => {
                                 <!-- Base Unit Display -->
                                 <div v-else class="flex items-center justify-center gap-1 text-xs text-muted-foreground">
                                     <span class="text-sm font-semibold text-foreground tabular-nums">{{ Number(l.balance_after) }}</span>
-                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_ukur || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
                                 </div>
                             </TableCell>
                         </TableRow>

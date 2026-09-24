@@ -59,15 +59,6 @@ class ApotekerInventoryController extends Controller
         ]);
     }
 
-    /**
-     * Display catalog of raw materials accessible by Apoteker.
-     */
-    public function rawMaterials()
-    {
-        return Inertia::render('Control/Apoteker/RawMaterials', [
-            'rawMaterials' => RawMaterial::where('creator_id', auth()->id())->orWhere('status', 'active')->latest()->paginate(15),
-        ]);
-    }
 
     /**
      * Display audit trail log of stock movements for Apoteker.

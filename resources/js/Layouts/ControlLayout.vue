@@ -118,7 +118,7 @@ const apotekerNav = [
     {
         group: 'INVENTORY',
         items: [
-            { name: 'Stok Bahan Baku', href: 'control.apoteker.raw-materials', component: 'Control/Apoteker/RawMaterials', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+            { name: 'Stok Bahan Baku', href: 'control.admin.raw-materials', component: 'Control/Admin/RawMaterials', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
             { name: 'Cek Stok Obat', href: 'control.apoteker.stock-check', component: 'Control/Apoteker/StockCheck', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
             { name: 'BUD Tracker', href: 'control.apoteker.bud-tracker', component: 'Control/Apoteker/BudTracker', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
         ]
@@ -127,6 +127,7 @@ const apotekerNav = [
         group: 'AUDIT & KEPATUHAN',
         items: [
             { name: 'Audit & Mutasi', href: 'control.apoteker.stock-audit', component: 'Control/Apoteker/StockAudit', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+            { name: 'Laporan SIPNAP', href: 'control.apoteker.reports.sipnap', component: 'Control/Apoteker/Reports/Sipnap', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
         ]
     }
 ];
@@ -164,11 +165,10 @@ const isRouteActive = (target) => {
 
     // 1. Verifikasi berbasis nilai mutlak komponen (usePage().component === 'NamaHalaman')
     if (componentName && currentComponent === componentName) {
-        if (routeName === 'control.admin.medicines.faktur' || routeName === 'control.admin.medicines.racikan') {
+        if (routeName === 'control.admin.medicines.faktur') {
             try {
                 if (route().current(routeName)) return true;
-                if (routeName === 'control.admin.medicines.faktur' && currentUrl.includes('/medicines/faktur')) return true;
-                if (routeName === 'control.admin.medicines.racikan' && currentUrl.includes('/medicines/racikan')) return true;
+                if (currentUrl.includes('/medicines/faktur')) return true;
             } catch {
                 return false;
             }
@@ -216,11 +216,11 @@ const activePageTitle = computed(() => {
     }
     const specialRoutes = {
         'control.admin.medicines.faktur': 'Katalog Faktur',
-        'control.admin.medicines.racikan': 'Katalog Racikan',
         'control.admin.stock-opname.show': 'Detail Stock Opname',
         'control.apoteker.submissions.show': 'Detail Racikan',
         'control.apoteker.prescriptions.show': 'Detail Resep',
         'control.apoteker.prescriptions.create': 'Input Resep Baru',
+        'control.apoteker.reports.sipnap': 'Laporan SIPNAP',
         'control.kasir.checkout': 'Pembayaran Kasir',
         'control.kasir.receipt': 'Struk Penjualan',
         'control.admin.stock-logs': 'Mutasi & Audit',

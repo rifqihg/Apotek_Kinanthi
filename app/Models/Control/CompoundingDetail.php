@@ -61,7 +61,7 @@ class CompoundingDetail extends Model
 
     public function calculateTotalDeducted(): float
     {
-        return round($this->qty_needed - ($this->qty_needed * $this->wastage_percentage / 100), 2);
+        return (float) $this->qty_needed;
     }
 
     protected static function booted(): void

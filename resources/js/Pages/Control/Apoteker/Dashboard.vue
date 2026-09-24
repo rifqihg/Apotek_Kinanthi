@@ -1,7 +1,6 @@
 <script setup>
 import { Head } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import DashboardCharts from '@/Components/DashboardCharts.vue';
 
 defineOptions({ layout: ControlLayout });
 
@@ -82,9 +81,6 @@ defineProps({
                 <p class="mt-2 text-xs text-muted-foreground">Menunggu approval finansial</p>
             </div>
         </div>
-
-        <!-- Dashboard Charts -->
-        <DashboardCharts />
 
         <!-- Tabel: Monitor Antrean Compounding -->
         <div class="bg-card rounded-lg border border-border overflow-hidden shadow-sm">

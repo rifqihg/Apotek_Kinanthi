@@ -175,42 +175,63 @@ const budLabel = (bud) => {
     </div>
 
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <Table>
+        <Table class="w-full table-fixed">
             <TableHeader>
                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk</TableHead>
-                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</TableHead>
-                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tgl Racik</TableHead>
-                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">BUD Date</TableHead>
-                    <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty</TableHead>
-                    <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status BUD</TableHead>
+                    <TableHead class="w-[4%] min-w-10 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                    <TableHead class="w-[25%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Produk</TableHead>
+                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">No Batch</TableHead>
+                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Racik</TableHead>
+                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">BUD</TableHead>
+                    <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty</TableHead>
+                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status BUD</TableHead>
+                    <TableHead class="w-[9%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                <template v-for="p in products.data" :key="p.id">
+                <TableRow v-if="!products.data || products.data.length === 0">
+                    <TableCell colspan="8" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
+                        Belum ada data produk racikan terdaftar.
+                    </TableCell>
+                </TableRow>
+                <template v-for="(p, index) in products.data" :key="p.id">
                     <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors group cursor-pointer" @click="toggle(p.id)">
-                        <TableCell class="py-2 px-3 align-middle">
-                            <div class="flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200" :class="expandedId===p.id?'rotate-90 text-primary':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                <span class="font-medium text-foreground text-sm leading-tight">{{ p.nama_produk }}</span>
-                            </div>
+                        <!-- NO -->
+                        <TableCell class="py-2 px-3 text-center align-middle text-xs text-muted-foreground tabular-nums">
+                            {{ ((products.current_page || 1) - 1) * (products.per_page || 15) + index + 1 }}
                         </TableCell>
-                        <TableCell class="py-2 px-3 text-center align-middle font-mono text-sm font-normal text-foreground tracking-tight">
+                        <!-- NAMA PRODUK -->
+                        <TableCell class="py-2 px-3 align-middle text-left break-words whitespace-normal">
+                            <span class="font-medium text-foreground text-sm leading-snug break-words">{{ p.nama_produk }}</span>
+                        </TableCell>
+                        <!-- NO BATCH -->
+                        <TableCell class="py-2 px-3 text-center align-middle text-xs font-medium text-foreground/90 tabular-nums whitespace-nowrap">
                             {{ p.batch_no }}
                         </TableCell>
-                        <TableCell class="py-2 px-3 text-center text-xs font-mono text-muted-foreground tabular-nums align-middle">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</TableCell>
-                        <TableCell class="py-2 px-3 text-center font-mono text-foreground text-xs tabular-nums align-middle">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</TableCell>
-                        <TableCell class="py-2 px-3 text-right font-medium text-foreground text-sm tabular-nums align-middle">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} <span class="text-xs text-muted-foreground">{{ p.satuan }}</span></TableCell>
-                        <TableCell class="py-2 px-3 text-center align-middle">
+                        <!-- TGL RACIK -->
+                        <TableCell class="py-2 px-3 text-center text-xs font-medium text-muted-foreground tabular-nums align-middle whitespace-nowrap">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</TableCell>
+                        <!-- BUD -->
+                        <TableCell class="py-2 px-3 text-center text-foreground font-medium text-xs tabular-nums align-middle whitespace-nowrap">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</TableCell>
+                        <!-- QTY (RATA TENGAH) -->
+                        <TableCell class="py-2 px-3 text-center font-medium text-foreground text-sm tabular-nums align-middle whitespace-nowrap">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} <span class="text-xs text-muted-foreground">{{ p.satuan }}</span></TableCell>
+                        <!-- STATUS BUD -->
+                        <TableCell class="py-2 px-3 text-center align-middle whitespace-nowrap">
                             <span :class="getDiff(p.bud_date) < 30 ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full" :class="getDiff(p.bud_date) < 30 ? 'bg-destructive' : 'bg-emerald-500'"></span>
                                 {{ budLabel(p.bud_date) }}
                             </span>
                         </TableCell>
+                        <!-- AKSI -->
+                        <TableCell class="py-2 px-3 text-center align-middle whitespace-nowrap">
+                            <div class="inline-flex items-center justify-center gap-1 text-xs font-medium text-primary group-hover:underline">
+                                <span>Rincian</span>
+                                <svg class="w-3.5 h-3.5 shrink-0 transition-transform duration-200" :class="expandedId===p.id?'rotate-180 text-primary':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </TableCell>
                     </TableRow>
                     <TableRow v-if="expandedId===p.id" class="bg-muted/20">
-                        <TableCell colspan="6" class="p-3 sm:p-4 border-b border-border">
-                            <div class="bg-card p-3 rounded-md border border-border shadow-2xs grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <TableCell colspan="8" class="p-3.5 sm:p-4 bg-slate-50/80 dark:bg-muted/20 border-b border-border">
+                            <div class="bg-card p-3.5 rounded-lg border border-slate-200/80 dark:border-border/80 shadow-2xs grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
                                 <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Apoteker</p><p class="font-medium text-foreground text-xs">{{ p.submission?.user?.name || '-' }}</p></div>
                                 <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Racikan Asal</p><p class="font-medium text-foreground text-xs">{{ p.submission?.nama_racikan || '-' }}</p></div>
                                 <div><p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Harga Jual</p><p class="font-semibold text-emerald-600 text-xs tabular-nums">Rp {{ Number(p.harga_jual).toLocaleString('id-ID') }}</p></div>

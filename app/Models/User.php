@@ -10,7 +10,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Control\AuditTrail;
 use App\Models\Control\CompoundingSubmission;
-use App\Models\Control\StockConfirmation;
 
 class User extends Authenticatable
 {
@@ -98,13 +97,5 @@ class User extends Authenticatable
     public function compoundingSubmissions(): HasMany
     {
         return $this->hasMany(CompoundingSubmission::class);
-    }
-
-    /**
-     * Stock confirmations by this user (admin).
-     */
-    public function stockConfirmations(): HasMany
-    {
-        return $this->hasMany(StockConfirmation::class);
     }
 }

@@ -9,9 +9,7 @@ defineOptions({ layout: ControlLayout });
 
 const props = defineProps({
     fakturStocks: { type: Object, default: () => ({ data: [], total: 0 }) },
-    racikanProducts: { type: Object, default: () => ({ data: [], total: 0 }) },
     title: { type: String, default: 'Katalog Obat & Sediaan' },
-    activeTab: { type: String, default: 'faktur' },
     filters: { type: Object, default: () => ({ search: '' }) }
 });
 
@@ -26,12 +24,8 @@ watch(() => props.filters?.search, (newSearch) => {
 });
 
 const handleLiveSearch = useDebounceFn((query) => {
-    const targetRoute = props.activeTab === 'racikan'
-        ? 'control.admin.medicines.racikan'
-        : 'control.admin.medicines.faktur';
-
     isSearching.value = true;
-    router.get(route(targetRoute), {
+    router.get(route('control.admin.medicines.faktur'), {
         search: query || undefined,
         page: 1,
     }, {
@@ -54,11 +48,8 @@ const clearSearch = () => {
 
 // Reactive data bindings (directly from Inertia props)
 const activeFakturStocks = computed(() => props.fakturStocks || { data: [], total: 0 });
-const activeRacikanProducts = computed(() => props.racikanProducts || { data: [], total: 0 });
 
 const formatCurrency = (val) => Number(val) ? 'Rp ' + Number(val).toLocaleString('id-ID') : 'Rp 0';
-
-const getRacikanProfit = (hpp, sell) => (hpp > 0 && sell > 0) ? Math.round(((sell - hpp) / hpp) * 100) : 0;
 
 // Kemasan & Multi-unit breakdown helper (single-pass)
 const getStockUnits = (item) => {
@@ -136,13 +127,10 @@ const submitEditMedicine = () => {
                     <!-- Left Text Column -->
                     <div class="relative z-10 max-w-sm sm:max-w-md">
                         <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                            {{ activeTab === 'faktur' ? 'Katalog Obat dari Faktur' : 'Katalog Formula & Obat Racikan' }}
+                            Katalog Obat dari Faktur
                         </h1>
                         <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                            {{ activeTab === 'faktur' 
-                                ? 'Manajemen dan pemantauan menyeluruh data sediaan obat dari faktur pembelian masuk secara terpusat.' 
-                                : 'Manajemen master formula peracikan, takaran bahan baku aktif, dan standarisasi sediaan racikan apotek.' 
-                            }}
+                            Manajemen dan pemantauan menyeluruh data sediaan obat dari faktur pembelian masuk secara terpusat.
                         </p>
                     </div>
 
@@ -150,7 +138,7 @@ const submitEditMedicine = () => {
                     <div class="relative z-10 flex items-center justify-center shrink-0">
                         <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
                             <!-- SVG FAKTUR (Botol Obat Etiket Presisi + Kapsul Interlocking) -->
-                            <svg v-if="activeTab === 'faktur'" class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect x="10" y="4" width="16" height="4.5" rx="2" stroke="#2563EB" stroke-width="2" fill="#EFF6FF" />
                                 <rect x="14" y="8.5" width="8" height="3" stroke="#2563EB" stroke-width="1.6" fill="#FFFFFF" />
                                 <rect x="4" y="11.5" width="28" height="40" rx="5" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
@@ -164,20 +152,6 @@ const submitEditMedicine = () => {
                                     <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#2563EB" stroke-width="1.8" />
                                 </g>
                             </svg>
-
-                            <!-- SVG RACIKAN (Lab Flask Erlenmeyer + Kapsul Interlocking) -->
-                            <svg v-else class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="12" y="4" width="14" height="4.5" rx="1.8" stroke="#059669" stroke-width="2" fill="#ECFDF5" />
-                                <path d="M15 8.5v11L5 46.5a4 4 0 0 0 3.5 5.5h23a4 4 0 0 0 3.5-5.5L25 19.5V8.5" stroke="#059669" stroke-width="2.2" stroke-linejoin="round" fill="#FFFFFF" />
-                                <path d="M8 39c3-1.5 6 1.5 10 0s6-.5 10 1l2 6.5a3 3 0 0 1-2.5 4H10a3 3 0 0 1-2.8-4l.8-7.5z" fill="#A7F3D0" fill-opacity="0.9" />
-                                <line x1="16" y1="26" x2="20" y2="26" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
-                                <line x1="14" y1="31" x2="20" y2="31" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
-                                <g transform="translate(37, 33) rotate(28)">
-                                    <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
-                                    <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#10B981" />
-                                    <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#059669" stroke-width="1.8" />
-                                </g>
-                            </svg>
                         </div>
                     </div>
                 </div>
@@ -185,15 +159,11 @@ const submitEditMedicine = () => {
                 <!-- 2 STAT CARDS (lg:col-span-4: diperkecil lebarnya, tinggi mengikuti hero banner) -->
                 <div class="lg:col-span-4 grid grid-cols-2 gap-3">
                     <!-- Card 1: Total Data Faktur -->
-                    <Link 
-                        :href="route('control.admin.medicines.faktur')" 
-                        class="bg-white dark:bg-card border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
-                        :class="activeTab === 'faktur' 
-                            ? 'border-blue-400/90 ring-2 ring-blue-500/10' 
-                            : 'border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700'"
+                    <div 
+                        class="bg-white dark:bg-card border border-blue-400/90 ring-2 ring-blue-500/10 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all h-full"
                     >
                         <div class="flex items-center justify-between gap-1">
-                            <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-blue-600 transition-colors truncate">
+                            <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                                 TOTAL DATA FAKTUR
                             </span>
                             <div class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
@@ -212,19 +182,16 @@ const submitEditMedicine = () => {
                         <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
                             Item sediaan faktur masuk
                         </p>
-                    </Link>
+                    </div>
 
-                    <!-- Card 2: Total Data Racikan -->
+                    <!-- Card 2: Link ke Katalog Racikan -->
                     <Link 
-                        :href="route('control.admin.medicines.racikan')" 
-                        class="bg-white dark:bg-card border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
-                        :class="activeTab === 'racikan' 
-                            ? 'border-emerald-400/90 ring-2 ring-emerald-500/10' 
-                            : 'border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700'"
+                        :href="route('control.admin.compounded-products')" 
+                        class="bg-white dark:bg-card border border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
                     >
                         <div class="flex items-center justify-between gap-1">
                             <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-emerald-600 transition-colors truncate">
-                                TOTAL DATA RACIKAN
+                                PRODUK RACIKAN
                             </span>
                             <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -236,7 +203,7 @@ const submitEditMedicine = () => {
                         </div>
                         <div class="my-0.5">
                             <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                                {{ activeRacikanProducts.total || 0 }}
+                                &rarr;
                             </span>
                         </div>
                         <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
@@ -282,7 +249,6 @@ const submitEditMedicine = () => {
                     <div class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
                         <!-- + Tambah Button -->
                         <Link 
-                            v-if="activeTab === 'faktur'"
                             :href="route('control.admin.incoming-stocks')"
                             class="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 whitespace-nowrap"
                         >
@@ -291,40 +257,34 @@ const submitEditMedicine = () => {
                             </svg>
                             <span>Tambah Faktur</span>
                         </Link>
-
-                        <Link 
-                            v-else
-                            :href="route('control.admin.compounded-products')"
-                            class="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 whitespace-nowrap"
-                        >
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span>Tambah Racikan</span>
-                        </Link>
                     </div>
                 </div>
 
                     <!-- TABLE: KATALOG FAKTUR -->
-                    <div v-if="activeTab === 'faktur'" class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
-                        <Table>
+                    <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
+                        <Table class="w-full table-fixed">
                             <TableHeader>
                                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Nomor Batch</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Exp Date</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty / Jumlah</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Harga Jual</TableHead>
+                                    <TableHead class="w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                                    <TableHead class="w-[23%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
+                                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</TableHead>
+                                    <TableHead class="w-[14%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Exp Date</TableHead>
+                                    <TableHead class="w-[28%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty / Jumlah</TableHead>
+                                    <TableHead class="w-[18%] text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Jual</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 <TableRow v-if="!activeFakturStocks.data || activeFakturStocks.data.length === 0">
-                                    <TableCell colspan="5" class="px-6 py-12 text-center text-muted-foreground text-sm">
+                                    <TableCell colspan="6" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
                                         Belum ada data obat dari faktur pembelian.
                                     </TableCell>
                                 </TableRow>
-                                <template v-for="item in activeFakturStocks.data" :key="item.id">
+                                <template v-for="(item, index) in activeFakturStocks.data" :key="item.id">
                                 <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors" :class="expandedRows.includes(item.id) ? 'bg-muted/20' : ''">
+                                    <!-- NO -->
+                                    <TableCell class="py-2 px-3 text-center align-middle font-mono text-xs text-muted-foreground tabular-nums">
+                                        {{ ((activeFakturStocks.current_page || 1) - 1) * (activeFakturStocks.per_page || 15) + index + 1 }}
+                                    </TableCell>
                                     <!-- IDENTITAS -->
                                     <TableCell class="py-2 px-3 align-middle">
                                         <div class="flex flex-col">
@@ -369,7 +329,7 @@ const submitEditMedicine = () => {
                                     </TableCell>
                                     <!-- QTY -->
                                     <TableCell class="py-2 px-3 text-center align-middle">
-                                        <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                        <div class="flex items-center justify-center gap-1.5 whitespace-nowrap">
                                             <template v-for="(b, i) in getStockUnits(item)" :key="i">
                                                 <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
                                                     <span class="font-semibold tabular-nums text-foreground">{{ b.qty }}</span>
@@ -395,65 +355,70 @@ const submitEditMedicine = () => {
 
                                 <!-- EXPANDED ACCORDION ROW -->
                                 <TableRow v-if="expandedRows.includes(item.id)" class="bg-muted/10">
-                                    <TableCell colspan="5" class="p-0 border-b border-border">
-                                        <div class="px-5 py-3">
-                                            <div class="text-xs font-semibold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                                <svg class="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                Detail Harga Per Satuan
-                                            </div>
-                                            
-                                            <div class="overflow-hidden rounded-md border border-border bg-card w-full">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow class="h-8 bg-muted/40 hover:bg-muted/40 border-b border-border">
-                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</TableHead>
-                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Isi Konversi</TableHead>
-                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">HPP</TableHead>
-                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap text-right">Harga Jual</TableHead>
-                                                            <TableHead class="py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Margin</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        <template v-for="(priceData, level) in item.prices" :key="level">
-                                                            <TableRow v-if="priceData" class="h-8 hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0">
-                                                                <TableCell class="py-1.5 px-3 text-xs align-middle">
-                                                                    <span class="font-medium text-foreground uppercase">{{ priceData.unit }}</span>
-                                                                </TableCell>
-                                                                <TableCell class="py-1.5 px-3 text-xs text-muted-foreground whitespace-nowrap align-middle">
-                                                                    <template v-if="level === 'besar' && item.mid_unit">
-                                                                        1 {{ priceData.unit }} = {{ item.mid_to_big_ratio }} {{ item.mid_unit }}
-                                                                    </template>
-                                                                    <template v-else-if="level === 'besar' && !item.mid_unit">
-                                                                        1 {{ priceData.unit }} = {{ item.unit_conversion_factor }} {{ item.medicine?.satuan_stok }}
-                                                                    </template>
-                                                                    <template v-else-if="level === 'menengah'">
-                                                                        1 {{ priceData.unit }} = {{ item.small_to_mid_ratio }} {{ item.medicine?.satuan_stok }}
-                                                                    </template>
-                                                                    <template v-else>
-                                                                        -
-                                                                    </template>
-                                                                </TableCell>
-                                                                <TableCell class="py-1.5 px-3 text-xs text-muted-foreground text-right whitespace-nowrap tabular-nums align-middle">{{ formatCurrency(priceData.hpp) }}</TableCell>
-                                                                <TableCell class="py-1.5 px-3 text-right whitespace-nowrap align-middle">
-                                                                    <span class="text-sm font-medium text-foreground tabular-nums">
-                                                                        {{ priceData.selling > 0 ? formatCurrency(priceData.selling) : 'Rp 0' }}
-                                                                    </span>
-                                                                    <span v-if="level === 'kecil'" class="text-[10px] text-primary ml-1">(utama)</span>
-                                                                </TableCell>
-                                                                <TableCell class="py-1.5 px-3 text-right whitespace-nowrap align-middle">
-                                                                    <span v-if="priceData.selling > 0" 
-                                                                          class="text-xs font-medium tabular-nums"
-                                                                          :class="priceData.profit >= 0 ? 'text-emerald-600' : 'text-destructive'">
-                                                                        {{ priceData.profit > 0 ? '+' : '' }}{{ priceData.profit }}%
-                                                                    </span>
-                                                                    <span v-else class="text-xs text-muted-foreground">
-                                                                        Belum
-                                                                    </span>
-                                                                </TableCell>
+                                    <TableCell colspan="6" class="p-0 border-b border-border">
+                                        <div class="w-full bg-slate-50/70 dark:bg-muted/30 p-4 border-y border-slate-200/60 dark:border-border/60">
+                                            <div class="w-full bg-card rounded-lg border border-slate-200/80 dark:border-border/80 shadow-2xs overflow-hidden">
+                                                <div class="px-4 py-2.5 border-b border-slate-200/60 dark:border-border/60 bg-muted/30 flex items-center justify-between">
+                                                    <div class="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                                        <svg class="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                        <span>Detail Harga Per Satuan</span>
+                                                    </div>
+                                                    <span class="text-[11px] text-muted-foreground font-medium">Struktur Multi-Satuan</span>
+                                                </div>
+                                                
+                                                <div class="w-full overflow-x-auto">
+                                                    <Table class="w-full table-fixed">
+                                                        <TableHeader>
+                                                            <TableRow class="h-8 bg-muted/15 hover:bg-muted/15 border-b border-border/60">
+                                                                <TableHead class="w-[12%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Satuan</TableHead>
+                                                                <TableHead class="w-[24%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Isi Konversi</TableHead>
+                                                                <TableHead class="w-[20%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">HPP</TableHead>
+                                                                <TableHead class="w-[24%] py-1.5 px-3 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">Harga Jual</TableHead>
+                                                                <TableHead class="w-[20%] py-1.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Margin</TableHead>
                                                             </TableRow>
-                                                        </template>
-                                                    </TableBody>
-                                                </Table>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            <template v-for="(priceData, level) in item.prices" :key="level">
+                                                                <TableRow v-if="priceData" class="h-8 hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0">
+                                                                    <TableCell class="py-1.5 px-3 text-xs align-middle">
+                                                                        <span class="font-semibold text-foreground uppercase">{{ priceData.unit }}</span>
+                                                                    </TableCell>
+                                                                    <TableCell class="py-1.5 px-3 text-xs text-muted-foreground whitespace-nowrap align-middle">
+                                                                        <template v-if="level === 'besar' && item.mid_unit">
+                                                                            1 {{ priceData.unit }} = {{ item.mid_to_big_ratio }} {{ item.mid_unit }}
+                                                                        </template>
+                                                                        <template v-else-if="level === 'besar' && !item.mid_unit">
+                                                                            1 {{ priceData.unit }} = {{ item.unit_conversion_factor }} {{ item.medicine?.satuan_stok }}
+                                                                        </template>
+                                                                        <template v-else-if="level === 'menengah'">
+                                                                            1 {{ priceData.unit }} = {{ item.small_to_mid_ratio }} {{ item.medicine?.satuan_stok }}
+                                                                        </template>
+                                                                        <template v-else>
+                                                                            -
+                                                                        </template>
+                                                                    </TableCell>
+                                                                    <TableCell class="py-1.5 px-3 text-xs text-muted-foreground text-right whitespace-nowrap tabular-nums align-middle">{{ formatCurrency(priceData.hpp) }}</TableCell>
+                                                                    <TableCell class="py-1.5 px-3 text-right whitespace-nowrap align-middle">
+                                                                        <span class="text-sm font-medium text-foreground tabular-nums">
+                                                                            {{ priceData.selling > 0 ? formatCurrency(priceData.selling) : 'Rp 0' }}
+                                                                        </span>
+                                                                        <span v-if="level === 'kecil'" class="text-[10px] text-primary ml-1">(utama)</span>
+                                                                    </TableCell>
+                                                                    <TableCell class="py-1.5 px-3 text-center whitespace-nowrap align-middle">
+                                                                        <span v-if="priceData.selling > 0" 
+                                                                              class="text-xs font-medium tabular-nums"
+                                                                              :class="priceData.profit >= 0 ? 'text-emerald-600' : 'text-destructive'">
+                                                                            {{ priceData.profit > 0 ? '+' : '' }}{{ priceData.profit }}%
+                                                                        </span>
+                                                                        <span v-else class="text-xs text-muted-foreground">
+                                                                            Belum
+                                                                        </span>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            </template>
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -481,83 +446,7 @@ const submitEditMedicine = () => {
                             </div>
                         </div>
                     </div>
-
-                    <!-- TABLE: KATALOG RACIKAN -->
-                    <div v-if="activeTab === 'racikan'" class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
-                        <Table>
-                            <TableHeader>
-                                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Racikan</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Buat & BUD</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Hasil</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Harga Jual</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                <TableRow v-if="!activeRacikanProducts.data || activeRacikanProducts.data.length === 0">
-                                    <TableCell colspan="4" class="px-6 py-12 text-center text-muted-foreground text-sm">
-                                        Belum ada data racikan terdaftar.
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow v-for="item in activeRacikanProducts.data" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                                    <!-- IDENTITAS -->
-                                    <TableCell class="py-2 px-3 align-middle">
-                                        <div class="flex flex-col">
-                                            <span class="font-medium text-foreground text-sm leading-tight line-clamp-1" :title="item.nama_produk">{{ item.nama_produk }}</span>
-                                            <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.satuan || 'Puyer' }}</span>
-                                        </div>
-                                    </TableCell>
-                                    <!-- DATES -->
-                                    <TableCell class="py-2 px-3 align-middle">
-                                        <div class="flex items-center gap-2 text-xs">
-                                            <span class="text-muted-foreground">Buat: <span class="font-mono text-foreground tabular-nums">{{ new Date(item.tanggal_racik).toLocaleDateString('id-ID') }}</span></span>
-                                            <span>·</span>
-                                            <span class="text-destructive font-medium">BUD: <span class="font-mono tabular-nums">{{ new Date(item.bud_date).toLocaleDateString('id-ID') }}</span></span>
-                                        </div>
-                                    </TableCell>
-                                    <!-- QTY -->
-                                    <TableCell class="py-2 px-3 text-center align-middle">
-                                        <span class="text-sm font-semibold text-foreground tabular-nums">{{ Number(item.qty_hasil) }}</span>
-                                        <span class="text-xs text-muted-foreground ml-1">{{ item.satuan || 'Unit' }}</span>
-                                    </TableCell>
-                                    <!-- HARGA & PROFIT -->
-                                    <TableCell class="py-2 px-3 text-right align-middle">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <span class="text-sm font-medium text-foreground tabular-nums">
-                                                {{ item.harga_jual > 0 ? formatCurrency(item.harga_jual) : 'Rp 0' }}
-                                            </span>
-                                            <span v-if="item.harga_jual > 0" class="text-xs font-medium text-emerald-600 tabular-nums">
-                                                (+{{ getRacikanProfit(item.hpp_per_unit, item.harga_jual) }}%)
-                                            </span>
-                                            <span v-else class="text-xs text-muted-foreground">
-                                                (Belum set)
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
-
-                        <!-- PAGINATION RACIKAN -->
-                        <div v-if="activeRacikanProducts.data && activeRacikanProducts.data.length > 0" class="px-6 py-3.5 bg-muted/20 border-t border-border flex items-center justify-between">
-                            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Menampilkan {{ activeRacikanProducts.data.length }} Obat Racikan
-                            </span>
-                            <div v-if="activeRacikanProducts.links && activeRacikanProducts.links.length > 3" class="flex items-center gap-1">
-                                <button v-for="(link, i) in activeRacikanProducts.links" :key="i"
-                                    type="button"
-                                    @click="link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })"
-                                    v-html="link.label"
-                                    :class="[
-                                        'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-                                        link.active ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-muted',
-                                        !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-                                    ]"
-                                />
-                            </div>
-                        </div>
-                    </div>
-            </div>
+                </div>
 
             <!-- MODAL EDIT PENGATURAN GOLONGAN OBAT -->
             <div v-if="editingMedicine" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">

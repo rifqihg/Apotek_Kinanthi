@@ -223,46 +223,55 @@ function destroy(supplier) {
 
             <!-- TABLE CONTAINER -->
             <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-                <Table>
+                <Table class="w-full table-fixed">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Informasi PBF / Nama Perusahaan</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kontak Distributor</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Alamat / Lokasi</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</TableHead>
+                            <TableHead class="w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                            <TableHead class="w-[24%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Informasi PBF / Nama Perusahaan</TableHead>
+                            <TableHead class="w-[20%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kontak Distributor</TableHead>
+                            <TableHead class="w-[34%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alamat / Lokasi</TableHead>
+                            <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status</TableHead>
+                            <TableHead class="w-[7%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="!suppliers?.data || suppliers.data.length === 0">
-                            <TableCell colspan="5" class="px-6 py-12 text-center text-muted-foreground text-sm">
+                            <TableCell colspan="6" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
                                 Data Supplier Belum Tersedia.
                             </TableCell>
                         </TableRow>
-                        <TableRow v-for="s in (suppliers?.data || [])" :key="s.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                            <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
+                        <TableRow v-for="(s, index) in (suppliers?.data || [])" :key="s.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <!-- NO -->
+                            <TableCell class="py-2.5 px-3 text-center align-middle font-mono text-xs text-muted-foreground tabular-nums">
+                                {{ ((suppliers.current_page || 1) - 1) * (suppliers.per_page || 15) + index + 1 }}
+                            </TableCell>
+                            <!-- NAMA PBF -->
+                            <TableCell class="py-2.5 px-3 align-middle">
                                 <div class="flex flex-col">
                                     <span class="text-foreground font-medium text-sm leading-tight">{{ s.nama_pbf }}</span>
                                     <span class="text-xs text-muted-foreground leading-tight mt-0.5">Distributor Farmasi</span>
                                 </div>
                             </TableCell>
-                            <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
-                                <div class="flex items-center gap-2 text-xs">
-                                    <span class="font-mono text-foreground">{{ s.telepon || '-' }}</span>
-                                    <span v-if="s.email" class="text-muted-foreground">·</span>
-                                    <span v-if="s.email" class="text-muted-foreground">{{ s.email }}</span>
+                            <!-- KONTAK DISTRIBUTOR -->
+                            <TableCell class="py-2.5 px-3 text-center align-middle">
+                                <div class="flex flex-col items-center justify-center gap-0.5">
+                                    <span class="font-sans text-sm font-normal text-foreground tabular-nums leading-tight">{{ s.telepon || '-' }}</span>
+                                    <span v-if="s.email" class="font-sans text-xs text-muted-foreground leading-tight truncate max-w-full" :title="s.email">{{ s.email }}</span>
                                 </div>
                             </TableCell>
-                            <TableCell class="py-2 px-3 align-middle">
-                                <p class="text-xs text-muted-foreground max-w-[280px] truncate" :title="s.alamat">{{ s.alamat || '-' }}</p>
+                            <!-- ALAMAT / LOKASI -->
+                            <TableCell class="py-2.5 px-3 text-center align-middle">
+                                <p class="font-sans text-xs font-normal text-foreground leading-relaxed break-words" :title="s.alamat">{{ s.alamat || '-' }}</p>
                             </TableCell>
-                            <TableCell class="py-2 px-3 whitespace-nowrap text-center align-middle">
+                            <!-- STATUS -->
+                            <TableCell class="py-2.5 px-3 whitespace-nowrap text-center align-middle">
                                 <span :class="s.is_active ? 'text-emerald-600' : 'text-muted-foreground'" class="text-xs font-medium inline-flex items-center gap-1.5">
                                     <span class="w-1.5 h-1.5 rounded-full" :class="s.is_active ? 'bg-emerald-500' : 'bg-muted-foreground'"></span>
                                     {{ s.is_active ? 'Aktif' : 'Non-Aktif' }}
                                 </span>
                             </TableCell>
-                            <TableCell class="py-2 px-3 whitespace-nowrap text-center align-middle">
+                            <!-- AKSI -->
+                            <TableCell class="py-2.5 px-3 whitespace-nowrap text-center align-middle">
                                 <div class="flex items-center justify-center gap-1">
                                     <button @click="openEdit(s)" class="h-7 w-7 flex items-center justify-center bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground rounded-md transition-colors" title="Edit Data">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>

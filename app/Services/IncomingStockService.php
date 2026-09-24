@@ -18,7 +18,7 @@ class IncomingStockService
     public function store(array $data, ?UploadedFile $foto, int $userId): array
     {
         return DB::transaction(function () use ($data, $foto, $userId) {
-            $fotoPath = $foto ? $foto->store('faktur', 'public') : null;
+            $fotoPath = $foto ? $foto->store('faktur', 'local') : null;
             $createdStocks = [];
 
             foreach ($data['items'] as $item) {

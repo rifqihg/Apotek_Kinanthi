@@ -410,6 +410,8 @@ class ApotekerCompoundingController extends Controller
      */
     public function showSubmission(CompoundingSubmission $submission)
     {
+        abort_if($submission->user_id !== auth()->id() && auth()->user()->role !== 'admin', 403, 'Akses ditolak.');
+
         $submission->load(['details.medicine', 'label', 'formula', 'user', 'approver']);
         return Inertia::render('Control/Apoteker/SubmissionDetail', ['submission' => $submission]);
     }

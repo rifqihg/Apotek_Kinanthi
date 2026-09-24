@@ -143,32 +143,7 @@ class AdminMedicineController extends Controller
 
         return Inertia::render('Control/Admin/Medicines', [
             'fakturStocks' => $fakturStocks,
-            'racikanProducts' => ['data' => [], 'total' => 0],
-            'activeTab' => 'faktur',
             'title' => 'Katalog Obat dari Faktur',
-            'filters' => ['search' => $search]
-        ]);
-    }
-
-    public function medicinesRacikan(Request $request)
-    {
-        $search = $request->input('search');
-
-        // 2. Katalog Racikan (Produk Racikan yang selesai diverifikasi)
-        $query = CompoundedProduct::with(['submission.user', 'creator'])
-            ->latest();
-
-        if ($search) {
-            $query->where('nama_produk', 'like', "%{$search}%");
-        }
-
-        $racikanProducts = $query->paginate(15)->withQueryString();
-
-        return Inertia::render('Control/Admin/Medicines', [
-            'fakturStocks' => ['data' => [], 'total' => 0],
-            'racikanProducts' => $racikanProducts,
-            'activeTab' => 'racikan',
-            'title' => 'Katalog Racikan Apoteker',
             'filters' => ['search' => $search]
         ]);
     }
@@ -341,49 +316,6 @@ class AdminMedicineController extends Controller
         return redirect()->back()->with('success', 'Foto obat berhasil diperbarui.');
     }
 
-    /**
-     * Store a new medicine master record.
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'nama_obat' => 'required|string|max:255',
-            'kode_obat' => 'nullable|string|max:50|unique:medicines,kode_obat',
-            'kategori' => 'nullable|string|max:100',
-            'classification' => ['required', \Illuminate\Validation\Rule::in(['narkotika', 'psikotropika', 'prekursor', 'obat_keras', 'bebas_terbatas', 'bebas'])],
-            'satuan_stok' => 'required|string|max:50',
-            'satuan_besar' => 'nullable|string|max:50',
-            'satuan_menengah' => 'nullable|string|max:50',
-            'rasio_konversi' => 'nullable|integer|min:1',
-            'threshold_min' => 'required|integer|min:0',
-            'deskripsi' => 'nullable|string|max:1000',
-        ]);
-
-        $medicine = Medicine::create([
-            'nama_obat' => $validated['nama_obat'],
-            'kode_obat' => $validated['kode_obat'] ?? null,
-            'kategori' => $validated['kategori'] ?? null,
-            'classification' => $validated['classification'],
-            'satuan_stok' => $validated['satuan_stok'],
-            'satuan_besar' => $validated['satuan_besar'] ?? null,
-            'satuan_menengah' => $validated['satuan_menengah'] ?? null,
-            'rasio_konversi' => $validated['rasio_konversi'] ?? 1,
-            'threshold_min' => $validated['threshold_min'],
-            'deskripsi' => $validated['deskripsi'] ?? null,
-            'status' => 'active',
-            'stok_total' => 0,
-        ]);
-
-        AuditTrail::log(
-            $request->user()->id,
-            'CREATE_MEDICINE',
-            "Menambah master obat baru: {$medicine->nama_obat}",
-            Medicine::class,
-            $medicine->id
-        );
-
-        return redirect()->back()->with('success', 'Obat baru berhasil ditambahkan.');
-    }
 
     /**
      * Update medicine metadata only (threshold, description, classification). Stock is READ-ONLY.

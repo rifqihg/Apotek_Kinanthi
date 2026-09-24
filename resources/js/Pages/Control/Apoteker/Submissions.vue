@@ -81,7 +81,6 @@ const form = useForm({
         nama_bahan: '',
         qty_taken_pcs: '', 
         qty_neto_mass: 0,
-        wastage_percentage: 2,
         original_stock: 0, 
         fefo_info: null 
     }],
@@ -118,9 +117,18 @@ const calculateItemNeto = (item) => {
     const isMed = item.source_type === 'medicine';
     const density = isMed ? 1 : (Number(rawMaterialsMap.value[item.id_batch]?.density_factor) || 1);
     const gross = Number(item.qty_taken_pcs) || 0;
-    const waste = Number(item.wastage_percentage) || 0;
-    const neto = (gross * density) * (1 - waste / 100);
+    const neto = gross * density;
     return Number(neto.toFixed(2));
+};
+
+const getItemUnit = (detail) => {
+    if (!detail?.id_batch) return '';
+    if (detail.source_type === 'medicine') {
+        const med = medicinesMap.value[detail.id_batch];
+        return med?.satuan_terkecil || med?.satuan_stok || 'Pcs';
+    }
+    const rm = rawMaterialsMap.value[detail.id_batch];
+    return rm?.satuan_ukur || 'g';
 };
 
 const total_massa_neto_bahan = computed(() => {
@@ -265,7 +273,6 @@ function addDetail() {
         nama_bahan: '', 
         qty_taken_pcs: '', 
         qty_neto_mass: 0, 
-        wastage_percentage: 2, 
         original_stock: 0, 
         fefo_info: null 
     }); 
@@ -303,7 +310,7 @@ function submit() {
             form.reset(); 
             form.label.tanggal_racik = new Date().toISOString().split('T')[0];
             // Re-initialize with one empty item
-            form.bahan_baku = [{ source_type: 'raw_material', id_batch: '', nama_bahan: '', qty_taken_pcs: '', qty_neto_mass: 0, wastage_percentage: 2, original_stock: 0, fefo_info: null }]; 
+            form.bahan_baku = [{ source_type: 'raw_material', id_batch: '', nama_bahan: '', qty_taken_pcs: '', qty_neto_mass: 0, original_stock: 0, fefo_info: null }]; 
             form.prescription_id = null;
             form.prescription_item_id = null;
         } 
@@ -423,7 +430,7 @@ if (prefillItemId) {
             <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                 Daftar Riwayat Pengajuan Racikan
             </h2>
-            <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,wastage_percentage:2,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
+            <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Buat Racikan Baru
             </button>
@@ -568,7 +575,7 @@ if (prefillItemId) {
     <Teleport to="body">
         <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity" @click="showModal=false"></div>
-            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-border">
+            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-border">
                 <div class="sticky top-0 z-10 px-6 py-4 border-b border-border bg-card flex items-center justify-between">
                     <h3 class="text-foreground font-semibold text-base">Submit Racikan Baru</h3>
                     <button @click="showModal=false" class="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
@@ -620,12 +627,12 @@ if (prefillItemId) {
                                 </span>
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                            <div class="sm:col-span-1">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Jumlah Unit <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">Jumlah Unit <span class="text-red-500">*</span></label>
                                 <input v-model.number="form.jumlah_unit" type="number" min="1" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring" required />
                             </div>
-                            <div class="sm:col-span-1">
+                            <div class="sm:col-span-5">
                                 <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Satuan</label>
                                 <select v-model="form.target_unit" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring" required>
                                     <option value="Kapsul">Kapsul (Serbuk Terbagi / Kapsul)</option>
@@ -635,14 +642,14 @@ if (prefillItemId) {
                                     <option value="Tube">Tube (Gel / Pasta Luar)</option>
                                 </select>
                             </div>
-                            <div class="sm:col-span-1">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">
                                     Berat/Unit (g)
                                     <span v-if="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2" class="text-red-500 ml-1" title="Peringatan: Berat melebihi kapasitas rata-rata cangkang kapsul (Max 1.2g)">⚠️</span>
                                 </label>
                                 <input v-model.number="form.berat_per_unit" type="number" step="0.01" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors" :class="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2 ? 'border-red-500 text-red-500' : ''" placeholder="Target berat" />
                             </div>
-                            <div class="sm:col-span-1 bg-background border border-border rounded-md p-2 flex flex-col justify-center text-center">
+                            <div class="sm:col-span-3 bg-background border border-border rounded-md p-2 flex flex-col justify-center text-center">
                                 <p class="text-xs text-muted-foreground uppercase">Estimasi Hasil</p>
                                 <p class="text-sm font-semibold text-foreground">{{ yieldStats.yield }} {{ form.target_unit }}</p>
                                 <p v-if="yieldStats.remainder > 0" class="text-xs text-muted-foreground mt-0.5">Sisa: {{ yieldStats.remainder }}g</p>
@@ -682,44 +689,53 @@ if (prefillItemId) {
                             <div v-for="(d,i) in form.bahan_baku" :key="'detail-'+i" class="bg-card border border-border rounded-md p-4 shadow-sm relative overflow-hidden group">
                                 <!-- Overstock Alert Overlay -->
                                 <div v-if="isOverstock(d)" class="absolute inset-0 bg-red-500/10 pointer-events-none border border-red-500 rounded-md z-20"></div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end relative z-10">
-                                    <div class="md:col-span-3">
-                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tipe Bahan</label>
+
+                                <div class="flex flex-col md:flex-row gap-2.5 items-end relative z-10">
+                                    <div class="w-full md:w-[190px] md:shrink-0">
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">Tipe Bahan</label>
                                         <select v-model="d.source_type" @change="d.id_batch=''; d.fefo_info=null; d.original_stock=0;" class="w-full bg-background border border-input rounded-md h-9 px-2 text-foreground text-xs font-medium focus:ring-1 focus:ring-ring outline-none transition-colors">
                                             <option value="raw_material">Bahan Baku (Murni)</option>
                                             <option value="medicine">Obat Jadi (Tablet/Kapsul)</option>
                                         </select>
                                     </div>
-                                    <div class="md:col-span-3">
-                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
+                                    <div class="w-full md:flex-1 md:min-w-0">
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 truncate">
                                             {{ d.source_type === 'medicine' ? 'Pilih Obat Jadi' : 'Pilih Bahan Baku' }}
                                         </label>
-                                        <select v-if="d.source_type === 'medicine'" v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-background border border-input rounded-md h-9 px-2 text-foreground text-xs focus:ring-1 focus:ring-ring outline-none transition-colors" required>
+                                        <select v-if="d.source_type === 'medicine'" v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-background border border-input rounded-md h-9 px-2.5 text-foreground text-xs focus:ring-1 focus:ring-ring outline-none transition-colors" required>
                                             <option value="">Pilih Obat Jadi...</option>
                                             <option v-for="med in (medicines || [])" :key="med.id" :value="med.id">{{ med.nama_obat }} ({{ med.satuan_terkecil || med.satuan_stok || 'Pcs' }})</option>
                                         </select>
-                                        <select v-else v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-background border border-input rounded-md h-9 px-2 text-foreground text-xs focus:ring-1 focus:ring-ring outline-none transition-colors" required>
+                                        <select v-else v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-background border border-input rounded-md h-9 px-2.5 text-foreground text-xs focus:ring-1 focus:ring-ring outline-none transition-colors" required>
                                             <option value="">Pilih Bahan Baku...</option>
                                             <option v-for="rm in (rawMaterials || [])" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }} ({{ rm.satuan_ukur }})</option>
                                         </select>
                                     </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Qty Butuh</label>
-                                        <input v-model.number="d.qty_taken_pcs" type="number" step="0.01" min="0" class="w-full bg-background border border-input rounded-md h-9 px-2 text-foreground text-xs font-semibold focus:ring-1 focus:ring-ring outline-none" required />
+                                    <div class="w-full md:w-[80px] md:shrink-0">
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 truncate" :title="'Qty Butuh' + (getItemUnit(d) ? ' (' + getItemUnit(d) + ')' : '')">
+                                            Qty <span v-if="getItemUnit(d)" class="text-primary font-normal text-[10px] lowercase">({{ getItemUnit(d) }})</span>
+                                        </label>
+                                        <input 
+                                            v-model.number="d.qty_taken_pcs" 
+                                            type="number" 
+                                            :step="d.source_type === 'medicine' ? '1' : 'any'" 
+                                            min="0" 
+                                            class="w-full bg-background border border-input rounded-md h-9 pl-2 pr-1 text-foreground text-xs font-semibold focus:ring-1 focus:ring-ring outline-none" 
+                                            placeholder="0"
+                                            required 
+                                        />
                                     </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Susut (%)</label>
-                                        <input v-model.number="d.wastage_percentage" type="number" step="0.1" min="0" max="100" class="w-full bg-background border border-input rounded-md h-9 px-2 text-foreground text-xs font-semibold focus:ring-1 focus:ring-ring outline-none" required />
-                                    </div>
-                                    <div class="md:col-span-1">
-                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 truncate" title="Qty Neto (Mass)">Neto(g)</label>
-                                        <div class="w-full bg-muted border border-border rounded-md h-9 px-1 text-foreground font-semibold text-center text-xs flex items-center justify-center truncate">
-                                            {{ calculateItemNeto(d).toFixed(2) }}
+                                    <div class="w-full md:w-[80px] md:shrink-0">
+                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap" title="Massa Neto Bahan (Gram)">
+                                            Massa (g)
+                                        </label>
+                                        <div class="w-full bg-muted border border-border rounded-md h-9 px-2 text-foreground font-semibold text-xs flex items-center justify-between">
+                                            <span>{{ calculateItemNeto(d).toFixed(2) }}</span>
+                                            <span class="text-muted-foreground font-normal text-[10px]">g</span>
                                         </div>
                                     </div>
-                                    <div class="md:col-span-1 flex justify-center pb-0.5">
-                                        <button type="button" @click="removeDetail(i)" class="text-muted-foreground hover:text-red-500 transition-colors p-2 rounded-md hover:bg-red-500/10">
+                                    <div class="w-full md:w-9 md:shrink-0 flex justify-center pb-0.5">
+                                        <button type="button" @click="removeDetail(i)" class="h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors" title="Hapus bahan">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                         </button>
                                     </div>
@@ -835,12 +851,6 @@ if (prefillItemId) {
 </template>
 
 <style scoped>
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
 .scrollbar-v-minimal::-webkit-scrollbar { width: 5px; }
 .scrollbar-v-minimal::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-v-minimal::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 10px; }

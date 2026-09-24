@@ -175,16 +175,16 @@ const calculateHargaJual = (product) => {
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
-                        <Table>
+                        <Table class="w-full table-fixed">
                         <TableHeader>
                             <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Produk / Batch</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">HPP Bahan Baku</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-28">Jasa Racik</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-28">Kemasan</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right w-24">Margin (%)</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-36 text-right">Harga Jual Baru</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 text-right">Aksi</TableHead>
+                                <TableHead class="w-[26%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Produk / Batch</TableHead>
+                                <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Bahan Baku</TableHead>
+                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jasa Racik</TableHead>
+                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Kemasan</TableHead>
+                                <TableHead class="w-[11%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
+                                <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Baru</TableHead>
+                                <TableHead class="w-[9%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -192,11 +192,11 @@ const calculateHargaJual = (product) => {
                                 <TableCell colspan="7" class="py-8 px-3 text-center text-muted-foreground text-xs">Semua produk racikan sudah ditetapkan harganya.</TableCell>
                             </TableRow>
                             <TableRow v-for="product in pendingProducts" :key="product.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                                <TableCell class="py-2 px-3 align-middle">
+                                <TableCell class="py-2 px-3 align-middle break-words">
                                     <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-foreground leading-tight">{{ product.nama_produk }}</span>
+                                        <span class="text-sm font-medium text-foreground leading-snug break-words">{{ product.nama_produk }}</span>
                                         <div class="flex items-center gap-1.5 mt-0.5 text-xs">
-                                            <span class="font-mono text-foreground">{{ product.batch_no }}</span>
+                                            <span class="font-medium text-foreground/80">{{ product.batch_no }}</span>
                                             <span class="text-muted-foreground/40">·</span>
                                             <span class="text-muted-foreground">Qty: {{ Number(product.qty_hasil).toLocaleString('id-ID') }} {{ product.satuan }}</span>
                                         </div>
@@ -211,13 +211,13 @@ const calculateHargaJual = (product) => {
                                 <TableCell class="py-2 px-3 align-middle text-right">
                                     <input type="number" v-model="product.biaya_kemasan" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right">
-                                    <input type="number" v-model="product.margin_percentage" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                <TableCell class="py-2 px-3 align-middle text-center">
+                                    <input type="number" v-model="product.margin_percentage" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-center border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right">
                                     <input type="number" v-model="product.temp_harga_jual" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="Input harga">
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right">
+                                <TableCell class="py-2 px-3 align-middle text-center">
                                     <button @click="submitCompoundedPrice(product)" class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-7 px-3 rounded text-xs transition-colors w-full shadow-sm">Tetapkan</button>
                                 </TableCell>
                             </TableRow>
@@ -275,15 +275,15 @@ const calculateHargaJual = (product) => {
 
                     <!-- TABLE CONTENT -->
                     <div class="overflow-x-auto">
-                        <Table>
+                        <Table class="w-full table-fixed">
                             <TableHeader class="sticky top-0 bg-muted/90 backdrop-blur z-10">
                                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kemasan</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">HPP Modal (Netto)</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Jual Saat Ini</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Margin (%)</TableHead>
-                                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24 text-center">Aksi</TableHead>
+                                    <TableHead class="w-[24%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Obat</TableHead>
+                                    <TableHead class="w-[16%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Kemasan</TableHead>
+                                    <TableHead class="w-[17%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Modal (Netto)</TableHead>
+                                    <TableHead class="w-[18%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Saat Ini</TableHead>
+                                    <TableHead class="w-[16%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
+                                    <TableHead class="w-[9%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -299,13 +299,13 @@ const calculateHargaJual = (product) => {
                                 </TableRow>
                                 <TableRow v-for="med in filteredMedicines" :key="med.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
                                     <!-- NAMA OBAT -->
-                                    <TableCell class="py-2 px-3 align-top">
+                                    <TableCell class="py-2.5 px-3 align-top break-words">
                                         <div class="flex flex-col">
-                                            <span class="text-sm font-medium text-foreground leading-tight">{{ med.nama_obat }}</span>
-                                            <div class="flex flex-wrap gap-1.5 items-center mt-1">
-                                                <span v-if="med.kode_obat" class="font-mono text-xs text-foreground tracking-tight">{{ med.kode_obat }}</span>
+                                            <span class="text-sm font-medium text-foreground leading-snug break-words">{{ med.nama_obat }}</span>
+                                            <div class="flex flex-wrap gap-1.5 items-center mt-1 text-xs text-muted-foreground leading-tight">
+                                                <span v-if="med.kode_obat">{{ med.kode_obat }}</span>
                                                 <span v-if="med.kode_obat && med.latest_batch_no" class="text-muted-foreground/40">·</span>
-                                                <span v-if="med.latest_batch_no" class="font-mono text-xs text-foreground tracking-tight">{{ med.latest_batch_no }}</span>
+                                                <span v-if="med.latest_batch_no">{{ med.latest_batch_no }}</span>
                                                 <span v-if="isMedicineLoss(med)" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
                                                     <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                                     Jual Rugi
@@ -315,72 +315,72 @@ const calculateHargaJual = (product) => {
                                     </TableCell>
 
                                     <!-- KEMASAN -->
-                                    <TableCell class="py-2 px-3 align-top text-xs text-foreground">
+                                    <TableCell class="py-2.5 px-3 align-top">
                                         <div class="flex flex-col gap-1">
-                                            <div v-if="med.satuan_besar" class="h-5 flex items-center gap-1 font-medium">
-                                                <span>{{ med.satuan_besar }}</span>
-                                                <span class="text-[11px] text-muted-foreground font-normal">(Tersier)</span>
+                                            <div v-if="med.satuan_besar" class="h-6 flex items-center gap-1.5 whitespace-nowrap">
+                                                <span class="text-sm font-medium text-foreground">{{ med.satuan_besar }}</span>
+                                                <span class="text-xs text-muted-foreground font-normal">(Tersier)</span>
                                             </div>
-                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center gap-1 font-medium">
-                                                <span>{{ med.satuan_menengah }}</span>
-                                                <span class="text-[11px] text-muted-foreground font-normal">(Sekunder)</span>
-                                                <span v-if="med.mid_to_big_ratio" class="text-[11px] text-muted-foreground font-normal">(1={{ med.mid_to_big_ratio }})</span>
+                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center gap-1.5 whitespace-nowrap">
+                                                <span class="text-sm font-medium text-foreground">{{ med.satuan_menengah }}</span>
+                                                <span class="text-xs text-muted-foreground font-normal">(Sekunder)</span>
+                                                <span v-if="med.mid_to_big_ratio" class="text-xs text-muted-foreground font-normal">(1={{ med.mid_to_big_ratio }})</span>
                                             </div>
-                                            <div v-if="med.base_unit" class="h-5 flex items-center gap-1 font-medium">
-                                                <span>{{ med.base_unit }}</span>
-                                                <span class="text-[11px] text-muted-foreground font-normal">(Primer)</span>
-                                                <span v-if="med.small_to_mid_ratio && med.satuan_menengah" class="text-[11px] text-muted-foreground font-normal">(1={{ med.small_to_mid_ratio }})</span>
-                                                <span v-else-if="med.small_to_mid_ratio && !med.satuan_menengah && med.satuan_besar" class="text-[11px] text-muted-foreground font-normal">(1={{ med.small_to_mid_ratio }})</span>
+                                            <div v-if="med.base_unit" class="h-6 flex items-center gap-1.5 whitespace-nowrap">
+                                                <span class="text-sm font-medium text-foreground">{{ med.base_unit }}</span>
+                                                <span class="text-xs text-muted-foreground font-normal">(Primer)</span>
+                                                <span v-if="med.small_to_mid_ratio && med.satuan_menengah" class="text-xs text-muted-foreground font-normal">(1={{ med.small_to_mid_ratio }})</span>
+                                                <span v-else-if="med.small_to_mid_ratio && !med.satuan_menengah && med.satuan_besar" class="text-xs text-muted-foreground font-normal">(1={{ med.small_to_mid_ratio }})</span>
                                             </div>
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center text-muted-foreground text-xs italic">
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center text-muted-foreground text-xs italic">
                                                 Belum diset
                                             </div>
                                         </div>
                                     </TableCell>
 
                                     <!-- HPP MODAL (NETTO) -->
-                                    <TableCell class="py-2 px-3 align-top text-right">
+                                    <TableCell class="py-2.5 px-3 align-top text-right">
                                         <div class="flex flex-col gap-1">
-                                            <div v-if="med.satuan_besar" class="h-5 flex items-center justify-end text-xs text-muted-foreground font-medium tabular-nums">
+                                            <div v-if="med.satuan_besar" class="h-6 flex items-center justify-end text-sm text-foreground font-medium tabular-nums">
                                                 <span v-if="med.hpp_besar > 0">{{ formatCurrency(med.hpp_besar) }}</span>
                                                 <span v-else class="text-muted-foreground/40">-</span>
                                             </div>
-                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center justify-end text-xs text-muted-foreground font-medium tabular-nums">
+                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-end text-sm text-foreground font-medium tabular-nums">
                                                 <span v-if="med.hpp_menengah > 0">{{ formatCurrency(med.hpp_menengah) }}</span>
                                                 <span v-else class="text-muted-foreground/40">-</span>
                                             </div>
-                                            <div v-if="med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground font-medium tabular-nums">
+                                            <div v-if="med.base_unit" class="h-6 flex items-center justify-end text-sm text-foreground font-medium tabular-nums">
                                                 <span v-if="med.hpp_kecil > 0">{{ formatCurrency(med.hpp_kecil) }}</span>
                                                 <span v-else class="text-muted-foreground/40">-</span>
                                             </div>
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
                                         </div>
                                     </TableCell>
 
                                     <!-- HARGA JUAL SAAT INI -->
-                                    <TableCell class="py-2 px-3 align-top text-right font-medium">
+                                    <TableCell class="py-2.5 px-3 align-top text-right">
                                         <div class="flex flex-col gap-1">
-                                            <div v-if="med.satuan_besar" class="h-5 flex items-center justify-end text-xs tabular-nums">
-                                                <span v-if="med.selling_price_large > 0" class="text-foreground">{{ formatCurrency(med.selling_price_large) }}</span>
-                                                <span v-else class="text-[11px] text-amber-600 dark:text-amber-400 italic">Belum diset</span>
+                                            <div v-if="med.satuan_besar" class="h-6 flex items-center justify-end text-sm tabular-nums">
+                                                <span v-if="med.selling_price_large > 0" class="text-foreground font-medium">{{ formatCurrency(med.selling_price_large) }}</span>
+                                                <span v-else class="text-xs text-amber-600 dark:text-amber-400 italic font-normal">Belum diset</span>
                                             </div>
-                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center justify-end text-xs tabular-nums">
-                                                <span v-if="med.selling_price_mid > 0" class="text-foreground">{{ formatCurrency(med.selling_price_mid) }}</span>
-                                                <span v-else class="text-[11px] text-amber-600 dark:text-amber-400 italic">Belum diset</span>
+                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-end text-sm tabular-nums">
+                                                <span v-if="med.selling_price_mid > 0" class="text-foreground font-medium">{{ formatCurrency(med.selling_price_mid) }}</span>
+                                                <span v-else class="text-xs text-amber-600 dark:text-amber-400 italic font-normal">Belum diset</span>
                                             </div>
-                                            <div v-if="med.base_unit" class="h-5 flex items-center justify-end text-xs tabular-nums">
-                                                <span v-if="med.selling_price > 0" class="text-foreground">{{ formatCurrency(med.selling_price) }}</span>
-                                                <span v-else class="text-[11px] text-amber-600 dark:text-amber-400 italic">Belum diset</span>
+                                            <div v-if="med.base_unit" class="h-6 flex items-center justify-end text-sm tabular-nums">
+                                                <span v-if="med.selling_price > 0" class="text-foreground font-medium">{{ formatCurrency(med.selling_price) }}</span>
+                                                <span v-else class="text-xs text-amber-600 dark:text-amber-400 italic font-normal">Belum diset</span>
                                             </div>
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
                                         </div>
                                     </TableCell>
 
                                     <!-- MARGIN (%) -->
-                                    <TableCell class="py-2 px-3 align-top text-right">
+                                    <TableCell class="py-2.5 px-3 align-top text-center">
                                         <div class="flex flex-col gap-1">
                                             <!-- Margin Tersier -->
-                                            <div v-if="med.satuan_besar" class="h-5 flex items-center justify-end">
+                                            <div v-if="med.satuan_besar" class="h-6 flex items-center justify-center">
                                                 <span v-if="getMarginBadge(med.selling_price_large, med.hpp_besar)"
                                                       class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
                                                       :class="getMarginBadge(med.selling_price_large, med.hpp_besar).cls">
@@ -391,7 +391,7 @@ const calculateHargaJual = (product) => {
                                             </div>
 
                                             <!-- Margin Sekunder -->
-                                            <div v-if="med.satuan_menengah" class="h-5 flex items-center justify-end">
+                                            <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-center">
                                                 <span v-if="getMarginBadge(med.selling_price_mid, med.hpp_menengah)"
                                                       class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
                                                       :class="getMarginBadge(med.selling_price_mid, med.hpp_menengah).cls">
@@ -402,7 +402,7 @@ const calculateHargaJual = (product) => {
                                             </div>
 
                                             <!-- Margin Primer -->
-                                            <div v-if="med.base_unit" class="h-5 flex items-center justify-end">
+                                            <div v-if="med.base_unit" class="h-6 flex items-center justify-center">
                                                 <span v-if="getMarginBadge(med.selling_price, med.hpp_kecil)"
                                                       class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
                                                       :class="getMarginBadge(med.selling_price, med.hpp_kecil).cls">
@@ -412,14 +412,14 @@ const calculateHargaJual = (product) => {
                                                 <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>
 
-                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-5 flex items-center justify-end text-xs text-muted-foreground/40">-</div>
+                                            <div v-if="!med.satuan_besar && !med.satuan_menengah && !med.base_unit" class="h-6 flex items-center justify-center text-xs text-muted-foreground/40">-</div>
                                         </div>
                                     </TableCell>
 
                                     <!-- AKSI -->
-                                    <TableCell class="py-2 px-3 align-middle text-center">
+                                    <TableCell class="py-2.5 px-3 align-middle text-center">
                                         <button @click="openPriceModal(med)" 
-                                                class="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-medium h-7 px-2.5 rounded text-xs transition-colors flex items-center justify-center gap-1 w-full">
+                                                class="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-medium h-7 px-2.5 rounded text-xs transition-colors inline-flex items-center justify-center gap-1 w-full max-w-[80px]">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                             Atur
                                         </button>

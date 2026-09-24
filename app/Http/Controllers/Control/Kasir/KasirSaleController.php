@@ -155,8 +155,12 @@ class KasirSaleController extends Controller
 
     public function receipt($saleId)
     {
+        $sale = Sale::with(['kasir', 'prescription.patient', 'saleItems.medicine', 'saleItems.compoundedProduct'])->findOrFail($saleId);
+
+        abort_if($sale->kasir_id !== auth()->id() && auth()->user()->role !== 'admin', 403, 'Akses ditolak: Anda hanya dapat mencetak struk transaksi milik sendiri.');
+
         return Inertia::render('Control/Kasir/Receipt', [
-            'sale' => Sale::with(['kasir', 'prescription.patient', 'saleItems.medicine', 'saleItems.compoundedProduct'])->findOrFail($saleId)
+            'sale' => $sale,
         ]);
     }
 
@@ -477,7 +481,7 @@ class KasirSaleController extends Controller
             ->first();
 
         if (!$adminUser || !Hash::check($v['admin_password'], $adminUser->password)) {
-            return back()->withErrors(['admin_password' => 'Otorisasi gagal: Kredensial Admin tidak valid.'])->with('error', 'Otorisasi gagal: Username atau password Admin salah.');
+            return back()->withErrors(['admin_password' => 'Otorisasi gagal: Kredensial Admin tidak valid.'])->with('error', 'Otorisasi gagal: Email/Nama atau password Admin salah.');
         }
 
         try {

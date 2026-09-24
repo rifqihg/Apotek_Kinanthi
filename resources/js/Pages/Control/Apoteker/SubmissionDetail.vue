@@ -114,10 +114,6 @@ function printLabel() {
                                         <span class="text-xs text-muted-foreground uppercase">Awal:</span>
                                         <span class="text-xs font-semibold text-foreground">{{ Number(d.qty_needed).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }}</span>
                                     </div>
-                                    <div class="flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">
-                                        <span class="text-xs text-red-500 uppercase">Loss:</span>
-                                        <span class="text-xs font-semibold text-red-600 dark:text-red-400">{{ Number(d.wastage_percentage).toLocaleString('id-ID', { maximumFractionDigits: 1 }) }}%</span>
-                                    </div>
                                 </div>
                                 <div v-if="d.suggested_batch_no" class="inline-flex items-center gap-2 bg-muted px-2.5 py-1 rounded-md border border-border text-xs">
                                     <span class="uppercase font-semibold text-xs bg-background px-1.5 py-0.5 border border-border rounded text-foreground">FEFO</span> 

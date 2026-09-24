@@ -32,7 +32,7 @@ class AdminUserController extends Controller
             'inventory.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,base_unit,rasio_konversi', 
             'inventory.incomingStock:id,satuan_input,mid_unit,unit_conversion_factor,mid_to_big_ratio,small_to_mid_ratio',
             'rawMaterialStock:id,raw_material_id,batch_no', 
-            'rawMaterialStock.rawMaterial:id,nama_bahan,satuan', 
+            'rawMaterialStock.rawMaterial:id,nama_bahan,satuan_ukur', 
             'item'
         ])->where('quantity', '>', 0);
 
@@ -112,7 +112,6 @@ class AdminUserController extends Controller
     {
         $v = $request->validate([
             'name' => 'required|string|max:255',
-            'username' => 'required|string|max:50|unique:users',
             'email' => 'required|email|max:255|unique:users',
             'role' => 'required|in:admin,apoteker,kasir',
             'password' => 'required|string|min:8|confirmed',
@@ -120,7 +119,6 @@ class AdminUserController extends Controller
 
         $user = User::create([
             'name' => $v['name'],
-            'username' => $v['username'],
             'email' => $v['email'],
             'role' => $v['role'],
             'password' => Hash::make($v['password']),
@@ -138,7 +136,6 @@ class AdminUserController extends Controller
     {
         $v = $request->validate([
             'name' => 'required|string|max:255',
-            'username' => 'required|string|max:50|unique:users,username,' . $user->id,
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'role' => 'required|in:admin,apoteker,kasir',
             'password' => 'nullable|string|min:8|confirmed',
@@ -147,7 +144,6 @@ class AdminUserController extends Controller
         $old = $user->toArray();
         $user->update([
             'name' => $v['name'],
-            'username' => $v['username'],
             'email' => $v['email'],
             'role' => $v['role'],
         ]);

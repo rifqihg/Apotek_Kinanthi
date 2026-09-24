@@ -46,8 +46,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
 
     // ─── MASTER DATA ─────────────────────────────────────────
     Route::get('/medicines/faktur', [AdminMedicineController::class, 'medicinesFaktur'])->name('medicines.faktur');
-    Route::get('/medicines/racikan', [AdminMedicineController::class, 'medicinesRacikan'])->name('medicines.racikan');
-    Route::post('/medicines', [AdminMedicineController::class, 'store'])->name('medicines.store');
     Route::post('/medicines/{medicine}/photo', [AdminMedicineController::class, 'updateMedicinePhoto'])->name('medicines.updatePhoto');
     Route::put('/medicines/{medicine}', [AdminMedicineController::class, 'updateMedicine'])->name('medicines.update');
     Route::get('/compounded-products', [AdminMedicineController::class, 'compoundedProducts'])->name('compounded-products');
@@ -90,12 +88,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
     Route::get('/reports/cashier-monitoring/export-pdf', [AdminCashierExportController::class, 'exportCashierMonitoringPdf'])->name('reports.cashier-monitoring.export-pdf');
 });
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/control/reports/sales/export', [AdminSalesExportController::class, 'exportSales'])->name('control.reports.sales.export');
-    Route::get('/control/reports/sales/export-pdf', [AdminSalesExportController::class, 'exportSalesPdf'])->name('control.reports.sales.export-pdf');
-    Route::get('/control/reports/cashier-monitoring/export', [AdminCashierExportController::class, 'exportCashierMonitoring'])->name('control.reports.cashier-monitoring.export');
-    Route::get('/control/reports/cashier-monitoring/export-pdf', [AdminCashierExportController::class, 'exportCashierMonitoringPdf'])->name('control.reports.cashier-monitoring.export-pdf');
-});
 
 // Shared Master Bahan Baku (Accessible by Admin & Apoteker)
 Route::middleware(['auth', 'role:admin,apoteker'])->prefix('control/admin')->name('control.admin.')->group(function () {
@@ -103,6 +95,9 @@ Route::middleware(['auth', 'role:admin,apoteker'])->prefix('control/admin')->nam
     Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
     Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
     Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
+
+    // Secure Faktur File Access (Admin & Apoteker)
+    Route::get('/incoming-stocks/{incomingStock}/faktur', [AdminProcurementController::class, 'showFakturFile'])->name('incoming-stocks.faktur-file');
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -130,11 +125,6 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
     // Stock Check
     Route::get('/stock-check', [ApotekerInventoryController::class, 'stockCheck'])->name('stock-check');
 
-    // Katalog Bahan Baku & CRUD by Apoteker
-    Route::get('/raw-materials', [ApotekerInventoryController::class, 'rawMaterials'])->name('raw-materials');
-    Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
-    Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
-    Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
 
     // BUD Tracker
     Route::get('/bud-tracker', [ApotekerCompoundingController::class, 'budTracker'])->name('bud-tracker');
@@ -164,7 +154,7 @@ Route::middleware(['auth', 'role:kasir'])->prefix('control/kasir')->name('contro
     Route::get('/checkout/{prescription}', [KasirSaleController::class, 'show'])->name('checkout');
     Route::post('/sales', [KasirSaleController::class, 'store'])->name('sales.store');
     Route::get('/sales/{sale}/receipt', [KasirSaleController::class, 'receipt'])->name('sales.receipt');
-    Route::post('/sales/{sale}/void', [KasirSaleController::class, 'voidSale'])->name('sales.void');
+    Route::post('/sales/{sale}/void', [KasirSaleController::class, 'voidSale'])->middleware('throttle:5,1')->name('sales.void');
 
     Route::get('/otc', [KasirSaleController::class, 'otcIndex'])->name('otc.index');
     Route::post('/otc', [KasirSaleController::class, 'otcStore'])->name('otc.store');

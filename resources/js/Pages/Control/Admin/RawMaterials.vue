@@ -235,49 +235,62 @@ const deleteMaterial = (m) => {
 
     <!-- Table -->
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <Table>
+        <Table class="w-full table-fixed">
             <TableHeader>
                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Bahan</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Kode</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Satuan</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Beli</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Stok Total</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Threshold</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status Stok</TableHead>
-                    <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</TableHead>
+                    <TableHead class="w-[4%] min-w-10 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                    <TableHead class="w-[24%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Bahan</TableHead>
+                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kode</TableHead>
+                    <TableHead class="w-[8%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</TableHead>
+                    <TableHead class="w-[16%] text-right tabular-nums py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Beli</TableHead>
+                    <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Stok Total</TableHead>
+                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Threshold</TableHead>
+                    <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status Stok</TableHead>
+                    <TableHead class="w-[6%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 <TableRow v-if="!materials?.data || materials.data.length === 0">
-                    <TableCell colspan="8" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada bahan baku terdaftar.</TableCell>
+                    <TableCell colspan="9" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada bahan baku terdaftar.</TableCell>
                 </TableRow>
-                <TableRow v-for="m in (materials?.data || [])" :key="m.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                    <TableCell class="py-2 px-3 whitespace-nowrap align-middle">
+                <TableRow v-for="(m, index) in (materials?.data || [])" :key="m.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                    <!-- NO -->
+                    <TableCell class="py-2 px-3 text-center align-middle text-xs text-muted-foreground tabular-nums">
+                        {{ ((materials.current_page || 1) - 1) * (materials.per_page || 15) + index + 1 }}
+                    </TableCell>
+                    <!-- NAMA BAHAN -->
+                    <TableCell class="py-2 px-3 break-words whitespace-normal align-middle">
                         <div class="flex flex-col">
-                            <span class="font-medium text-foreground text-sm leading-tight">{{ m.nama_bahan }}</span>
+                            <span class="font-medium text-foreground text-sm leading-snug break-words">{{ m.nama_bahan }}</span>
                             <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ m.bentuk_sediaan || '-' }}</span>
                         </div>
                     </TableCell>
-                    <TableCell class="py-2 px-3 text-center text-xs font-mono text-muted-foreground align-middle">{{ m.kode_bahan || '-' }}</TableCell>
-                    <TableCell class="py-2 px-3 text-center text-xs text-muted-foreground uppercase align-middle">
+                    <!-- KODE -->
+                    <TableCell class="py-2 px-3 text-center text-xs font-medium text-foreground/80 align-middle">{{ m.kode_bahan || '-' }}</TableCell>
+                    <!-- SATUAN -->
+                    <TableCell class="py-2 px-3 text-center text-xs font-medium text-foreground/80 uppercase align-middle">
                         {{ m.satuan_ukur }}
                     </TableCell>
-                    <TableCell class="py-2 px-3 text-right font-medium text-foreground text-xs tabular-nums align-middle">
+                    <!-- HARGA BELI -->
+                    <TableCell class="py-2 px-3 text-right font-medium text-foreground text-sm tabular-nums align-middle">
                         Rp {{ Number(m.harga_beli_satuan || 0).toLocaleString('id-ID') }}
                     </TableCell>
-                    <TableCell class="py-2 px-3 text-right align-middle">
+                    <!-- STOK TOTAL -->
+                    <TableCell class="py-2 px-3 text-center align-middle">
                         <span :class="m.stok_total < m.threshold_min ? 'text-destructive font-semibold' : 'text-foreground font-medium'" class="text-sm tabular-nums">
                             {{ Number(m.stok_total).toLocaleString('id-ID') }}
                         </span>
                     </TableCell>
-                    <TableCell class="py-2 px-3 text-right text-xs text-muted-foreground tabular-nums align-middle">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</TableCell>
-                    <TableCell class="py-2 px-3 text-center align-middle">
+                    <!-- THRESHOLD -->
+                    <TableCell class="py-2 px-3 text-center text-xs font-medium text-muted-foreground tabular-nums align-middle">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</TableCell>
+                    <!-- STATUS STOK -->
+                    <TableCell class="py-2 px-3 text-center align-middle whitespace-nowrap">
                         <span :class="m.stok_total < m.threshold_min ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full" :class="m.stok_total < m.threshold_min ? 'bg-destructive' : 'bg-emerald-500'"></span>
                             {{ m.stok_total < m.threshold_min ? 'Kritis' : 'Aman' }}
                         </span>
                     </TableCell>
+                    <!-- AKSI -->
                     <TableCell class="py-2 px-3 text-center align-middle">
                         <div class="flex items-center justify-center gap-1">
                             <button @click="openEdit(m)" class="h-7 w-7 rounded-md bg-background border border-input hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Edit">
