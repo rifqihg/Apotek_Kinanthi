@@ -198,12 +198,12 @@ const finalizeOpname = () => {
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-muted/50 border-b border-border h-10">
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Item</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch & ED</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Stok Sistem</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[350px]">Qty Fisik</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Selisih</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[220px]">Alasan Selisih</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Item</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Batch & ED</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Stok Sistem</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[350px] whitespace-nowrap">Qty Fisik</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Selisih</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[220px] whitespace-nowrap">Alasan Selisih</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -216,7 +216,7 @@ const finalizeOpname = () => {
                         <!-- Item Name & Type -->
                         <td class="py-2.5 px-3 align-middle">
                             <div class="flex flex-col gap-0.5">
-                                <span class="font-semibold text-foreground text-xs">
+                                <span class="font-medium text-foreground text-sm leading-snug">
                                     {{ row.raw_item.medicine?.nama_obat || row.raw_item.raw_material?.nama_bahan || '-' }}
                                 </span>
                                 <span v-if="row.medicine_id" class="text-[10px] text-muted-foreground uppercase font-medium tracking-wide">
@@ -231,10 +231,10 @@ const finalizeOpname = () => {
                         <!-- Batch & ED -->
                         <td class="py-2.5 px-3 align-middle text-xs">
                             <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class="font-mono font-semibold text-foreground px-1.5 py-0.5 rounded bg-muted text-[11px] border border-border">
+                                <span class="font-medium text-foreground px-1.5 py-0.5 rounded bg-muted text-xs border border-border">
                                     {{ row.raw_item.batch_no || row.raw_item.product_batch?.batch_no || row.raw_item.raw_material_batch?.batch_no || '-' }}
                                 </span>
-                                <span v-if="row.raw_item.product_batch?.expired_date || row.raw_item.raw_material_batch?.expired_date" class="text-[11px] text-muted-foreground font-normal">
+                                <span v-if="row.raw_item.product_batch?.expired_date || row.raw_item.raw_material_batch?.expired_date" class="text-xs text-muted-foreground font-normal">
                                     ED: {{ formatDate(row.raw_item.product_batch?.expired_date || row.raw_item.raw_material_batch?.expired_date) }}
                                 </span>
                             </div>
@@ -243,7 +243,7 @@ const finalizeOpname = () => {
                         <!-- System Stock -->
                         <td class="py-2.5 px-3 align-middle text-right">
                             <div class="flex flex-col items-end gap-0.5">
-                                <span class="text-xs font-semibold text-foreground tabular-nums">
+                                <span class="text-sm font-semibold text-foreground tabular-nums">
                                     {{ Number(row.system_stock).toLocaleString('id-ID') }}
                                     <span class="text-[10px] text-muted-foreground font-normal lowercase">{{ getPackaging(row.raw_item).satuan_stok }}</span>
                                 </span>
@@ -303,7 +303,7 @@ const finalizeOpname = () => {
 
                             <!-- Readonly in Completed -->
                             <div v-else class="flex flex-col items-end gap-0.5">
-                                <span class="text-xs font-semibold text-foreground tabular-nums">
+                                <span class="text-sm font-semibold text-foreground tabular-nums">
                                     {{ Number(row.physical_stock).toLocaleString('id-ID') }}
                                     <span class="text-[10px] text-muted-foreground font-normal lowercase">{{ getPackaging(row.raw_item).satuan_stok }}</span>
                                 </span>
@@ -316,14 +316,14 @@ const finalizeOpname = () => {
                         </td>
 
                         <!-- Difference -->
-                        <td class="py-2.5 px-3 align-middle text-right text-xs">
-                            <span v-if="row.difference < 0" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-destructive bg-destructive/10 border border-destructive/20 tabular-nums">
+                        <td class="py-2.5 px-3 align-middle text-right">
+                            <span v-if="row.difference < 0" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-destructive bg-destructive/10 border border-destructive/20 tabular-nums">
                                 {{ Number(row.difference).toLocaleString('id-ID') }}
                             </span>
-                            <span v-else-if="row.difference > 0" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 tabular-nums">
+                            <span v-else-if="row.difference > 0" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 tabular-nums">
                                 +{{ Number(row.difference).toLocaleString('id-ID') }}
                             </span>
-                            <span v-else class="text-muted-foreground tabular-nums font-medium text-xs">0</span>
+                            <span v-else class="text-muted-foreground tabular-nums font-medium text-sm">0</span>
                         </td>
 
                         <!-- Discrepancy Reason -->

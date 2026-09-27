@@ -42,15 +42,56 @@ class AdminMedicineController extends Controller
                 $liveStock = (float) ($stock->warehouse_inventories_sum_stock_on_hand ?? 0);
                 $stock->qty_converted = $liveStock;
 
-                $hppKecil = $stock->calculateHppSatuan();
-                $sellingKecil = $stock->medicine ? $stock->medicine->selling_price : 0;
-
-                $prices = [];
                 $baseUnit = $stock->medicine ? $stock->medicine->satuan_stok : 'Pcs';
+                $hasPackaging = ($stock->satuan_input && strtolower($stock->satuan_input) !== strtolower($baseUnit))
+                    || ($stock->mid_unit && strtolower($stock->mid_unit) !== strtolower($baseUnit));
+
+                // 1. ANCHOR PRICE (SATUAN BESAR / INPUT)
+                // Harga beli original dari faktur (Pre-PPN netto setelah diskon)
+                $diskonFactor = 1 - ((float) $stock->diskon_persen / 100);
+                $anchorHargaBeliBesar = (float) $stock->harga_beli_satuan * $diskonFactor;
+                $ppnFactor = 1 + ((float) $stock->ppn_persen / 100);
+                $biayaPerInputUnit = (!empty($stock->biaya_tambahan) && $stock->biaya_tambahan > 0)
+                    ? (float) $stock->biaya_tambahan / (float) ($stock->qty_masuk ?: 1)
+                    : 0;
+                $anchorHppBesar = round(($anchorHargaBeliBesar * $ppnFactor) + $biayaPerInputUnit, 2);
+
+                $totalKonversiBesar = $stock->mid_unit
+                    ? (($stock->mid_to_big_ratio ?: 1) * ($stock->small_to_mid_ratio ?: 1))
+                    : ($stock->unit_conversion_factor ?: 1);
+                $totalKonversiBesar = $totalKonversiBesar > 0 ? (float) $totalKonversiBesar : 1.0;
+
+                // 2. TOP-DOWN UI CALCULATION (Menghindari anomali pembulatan visual pada satuan besar)
+                if ($hasPackaging) {
+                    $hargaBeliBesar = round($anchorHargaBeliBesar, 2);
+                    $hppBesar = $anchorHppBesar;
+
+                    if ($stock->mid_unit) {
+                        $midToBig = (float) ($stock->mid_to_big_ratio ?: 1);
+                        $smallToMid = (float) ($stock->small_to_mid_ratio ?: 1);
+                        $hargaBeliMenengah = $midToBig > 0 ? round($anchorHargaBeliBesar / $midToBig, 2) : 0;
+                        $hppMenengah = $midToBig > 0 ? round($anchorHppBesar / $midToBig, 2) : 0;
+
+                        $hargaBeliKecil = round($anchorHargaBeliBesar / $totalKonversiBesar, 2);
+                        $hppKecil = round($anchorHppBesar / $totalKonversiBesar, 2);
+                    } else {
+                        $hargaBeliKecil = round($anchorHargaBeliBesar / $totalKonversiBesar, 2);
+                        $hppKecil = round($anchorHppBesar / $totalKonversiBesar, 2);
+                    }
+                } else {
+                    $hargaBeliKecil = $stock->calculateHargaBeliSatuan();
+                    $hppKecil = $stock->calculateHppSatuan();
+                    $hargaBeliBesar = $hargaBeliKecil;
+                    $hppBesar = $hppKecil;
+                }
+
+                $sellingKecil = $stock->medicine ? $stock->medicine->selling_price : 0;
+                $prices = [];
 
                 // KECIL (Base Unit) is ALWAYS present
                 $prices['kecil'] = [
                     'unit' => $baseUnit,
+                    'harga_beli' => $hargaBeliKecil,
                     'hpp' => $hppKecil,
                     'selling' => $sellingKecil,
                     'profit' => ($hppKecil > 0 && $sellingKecil > 0) ? round((($sellingKecil - $hppKecil) / $hppKecil) * 100, 2) : 0
@@ -58,20 +99,20 @@ class AdminMedicineController extends Controller
 
                 // MENENGAH & BESAR Logic
                 if ($stock->mid_unit) {
-                    $hppMenengah = $hppKecil * ($stock->small_to_mid_ratio ?: 1);
                     $sellingMenengah = $stock->medicine ? $stock->medicine->selling_price_mid : 0;
                     $prices['menengah'] = [
                         'unit' => $stock->mid_unit,
+                        'harga_beli' => $hargaBeliMenengah,
                         'hpp' => $hppMenengah,
                         'selling' => $sellingMenengah,
                         'profit' => ($hppMenengah > 0 && $sellingMenengah > 0) ? round((($sellingMenengah - $hppMenengah) / $hppMenengah) * 100, 2) : 0
                     ];
 
                     if ($stock->satuan_input && strtolower($stock->satuan_input) !== strtolower($stock->mid_unit)) {
-                        $hppBesar = $hppMenengah * ($stock->mid_to_big_ratio ?: 1);
                         $sellingBesar = $stock->medicine ? $stock->medicine->selling_price_large : 0;
                         $prices['besar'] = [
                             'unit' => $stock->satuan_input,
+                            'harga_beli' => $hargaBeliBesar,
                             'hpp' => $hppBesar,
                             'selling' => $sellingBesar,
                             'profit' => ($hppBesar > 0 && $sellingBesar > 0) ? round((($sellingBesar - $hppBesar) / $hppBesar) * 100, 2) : 0
@@ -79,10 +120,10 @@ class AdminMedicineController extends Controller
                     }
                 } else {
                     if ($stock->satuan_input && strtolower($stock->satuan_input) !== strtolower($baseUnit)) {
-                        $hppBesar = $hppKecil * ($stock->unit_conversion_factor ?: 1);
                         $sellingBesar = $stock->medicine ? $stock->medicine->selling_price_large : 0;
                         $prices['besar'] = [
                             'unit' => $stock->satuan_input,
+                            'harga_beli' => $hargaBeliBesar,
                             'hpp' => $hppBesar,
                             'selling' => $sellingBesar,
                             'profit' => ($hppBesar > 0 && $sellingBesar > 0) ? round((($sellingBesar - $hppBesar) / $hppBesar) * 100, 2) : 0
@@ -109,6 +150,7 @@ class AdminMedicineController extends Controller
                         'satuan' => $orderedPrices['besar']['unit'],
                         'isi_konversi' => (float) $totalKonversiBesar,
                         'tipe' => 'tersier',
+                        'harga_beli' => $orderedPrices['besar']['harga_beli'],
                         'hpp' => $orderedPrices['besar']['hpp'],
                         'harga_jual' => $orderedPrices['besar']['selling'],
                         'margin_persen' => $orderedPrices['besar']['profit'],
@@ -119,6 +161,7 @@ class AdminMedicineController extends Controller
                         'satuan' => $orderedPrices['menengah']['unit'],
                         'isi_konversi' => (float) ($stock->small_to_mid_ratio ?: 1),
                         'tipe' => 'sekunder',
+                        'harga_beli' => $orderedPrices['menengah']['harga_beli'],
                         'hpp' => $orderedPrices['menengah']['hpp'],
                         'harga_jual' => $orderedPrices['menengah']['selling'],
                         'margin_persen' => $orderedPrices['menengah']['profit'],
@@ -128,6 +171,7 @@ class AdminMedicineController extends Controller
                     'satuan' => $orderedPrices['kecil']['unit'],
                     'isi_konversi' => 1,
                     'tipe' => 'primer',
+                    'harga_beli' => $orderedPrices['kecil']['harga_beli'],
                     'hpp' => $orderedPrices['kecil']['hpp'],
                     'harga_jual' => $orderedPrices['kecil']['selling'],
                     'margin_persen' => $orderedPrices['kecil']['profit'],
@@ -135,6 +179,7 @@ class AdminMedicineController extends Controller
                 $stock->kemasan_tersedia = $kemasanTersedia;
 
                 $stock->calculated_hpp = $hppKecil;
+                $stock->calculated_harga_beli = $hargaBeliKecil;
                 $stock->current_selling_price = $sellingKecil;
                 $stock->profit_percentage = ($hppKecil > 0 && $sellingKecil > 0) ? round((($sellingKecil - $hppKecil) / $hppKecil) * 100, 2) : 0;
 

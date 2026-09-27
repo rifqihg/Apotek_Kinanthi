@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -60,13 +60,7 @@ const activePagination = computed(() => {
     return (t && !Array.isArray(t) && t.links) ? t : null;
 });
 
-const goToPage = (url) => {
-    if (!url) return;
-    router.visit(url, {
-        preserveState: true,
-        preserveScroll: true,
-    });
-};
+
 
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
@@ -76,14 +70,14 @@ const exportToExcel = () => {
     const url = new URL(route('control.admin.reports.cashier-monitoring.export'));
     if (startDate.value) url.searchParams.append('start_date', startDate.value);
     if (endDate.value) url.searchParams.append('end_date', endDate.value);
-    window.location.href = url.toString();
+    window.open(url.toString(), '_blank');
 };
 
 const exportToPdf = () => {
     const url = new URL(route('control.admin.reports.cashier-monitoring.export-pdf'));
     if (startDate.value) url.searchParams.append('start_date', startDate.value);
     if (endDate.value) url.searchParams.append('end_date', endDate.value);
-    window.location.href = url.toString();
+    window.open(url.toString(), '_blank');
 };
 </script>
 
@@ -193,11 +187,11 @@ const exportToPdf = () => {
                                         </svg>
                                     </div>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-xs font-mono text-muted-foreground tabular-nums">{{ formatDate(data.created_at) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-sm font-medium text-foreground tabular-nums">{{ formatDate(data.created_at) }}</TableCell>
                                 <TableCell class="py-2 px-3 align-middle">
                                     <div class="flex flex-col">
                                         <div class="flex items-center gap-2">
-                                            <span class="font-mono text-xs font-semibold text-foreground leading-tight">{{ data.sale_number }}</span>
+                                            <span class="text-sm font-semibold text-foreground leading-tight">{{ data.sale_number }}</span>
                                             <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/60 uppercase">
                                                 {{ data.sale_type }}
                                             </span>
@@ -218,14 +212,14 @@ const exportToPdf = () => {
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground text-sm tabular-nums">{{ formatRupiah(data.subtotal) }}</TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right tabular-nums">
-                                    <span v-if="data.discount_amount > 0" class="font-semibold text-destructive text-sm tabular-nums">
+                                    <span v-if="data.discount_amount > 0" class="font-medium text-destructive text-sm tabular-nums">
                                         {{ formatRupiah(data.discount_amount) }}
                                     </span>
-                                    <span v-else class="text-xs text-muted-foreground">Rp0</span>
+                                    <span v-else class="text-sm font-medium text-foreground tabular-nums">Rp0</span>
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right font-semibold text-foreground text-sm tabular-nums">{{ formatRupiah(data.total_amount) }}</TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right text-xs text-muted-foreground tabular-nums">{{ formatRupiah(data.paid_amount) }}</TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right text-xs text-muted-foreground tabular-nums">{{ formatRupiah(data.change_amount) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right text-sm font-medium text-foreground tabular-nums">{{ formatRupiah(data.paid_amount) }}</TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right text-sm font-medium text-foreground tabular-nums">{{ formatRupiah(data.change_amount) }}</TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-center">
                                     <span v-if="data.status === 'paid'" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -269,7 +263,7 @@ const exportToPdf = () => {
                                                         <TableCell class="py-1.5 px-3 align-middle text-center">
                                                             <span class="font-semibold text-sm text-foreground tabular-nums">{{ item.quantity }}</span> <span class="text-xs text-muted-foreground">{{ item.unit }}</span>
                                                         </TableCell>
-                                                        <TableCell class="py-1.5 px-3 align-middle text-right text-xs text-muted-foreground tabular-nums font-medium">{{ formatRupiah(item.unit_price) }}</TableCell>
+                                                        <TableCell class="py-1.5 px-3 align-middle text-right text-sm text-foreground tabular-nums font-medium">{{ formatRupiah(item.unit_price) }}</TableCell>
                                                         <TableCell class="py-1.5 px-3 align-middle text-right text-sm font-medium text-foreground tabular-nums">{{ formatRupiah(item.subtotal) }}</TableCell>
                                                     </TableRow>
                                                 </TableBody>
@@ -294,16 +288,27 @@ const exportToPdf = () => {
                 </span>
                 
                 <div class="flex items-center gap-1">
-                    <button v-for="(link, i) in activePagination.links" :key="i"
-                        type="button"
-                        @click="goToPage(link.url)"
-                        v-html="link.label"
-                        :class="[
-                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                            link.active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted',
-                            !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-                        ]"
-                    />
+                    <template v-for="(link, i) in activePagination.links" :key="i">
+                        <Link 
+                            v-if="link.url"
+                            :href="link.url"
+                            preserve-state
+                            preserve-scroll
+                            v-html="link.label"
+                            :class="[
+                                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                link.active ? 'bg-primary text-primary-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:bg-muted',
+                            ]"
+                        />
+                        <span 
+                            v-else
+                            v-html="link.label"
+                            :class="[
+                                'px-3 py-1.5 text-xs font-medium rounded-md opacity-50 cursor-not-allowed',
+                                'text-muted-foreground'
+                            ]"
+                        />
+                    </template>
                 </div>
             </div>
         </div>

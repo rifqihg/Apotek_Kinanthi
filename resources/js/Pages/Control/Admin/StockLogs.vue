@@ -412,16 +412,16 @@ const formatAuditDate = (dateStr) => {
         <!-- Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <Table>
+                <Table class="w-full table-fixed">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jenis</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Item (Obat / Bahan)</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Referensi</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Qty Mutasi</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Sisa Stok</TableHead>
+                            <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="w-[13%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Jenis</TableHead>
+                            <TableHead class="w-[24%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Item (Obat / Bahan)</TableHead>
+                            <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
+                            <TableHead class="w-[14%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
+                            <TableHead class="w-[11%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Mutasi</TableHead>
+                            <TableHead class="w-[11%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Sisa Stok</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -435,19 +435,19 @@ const formatAuditDate = (dateStr) => {
                         </TableRow>
                         <TableRow v-for="l in (activeLogs.data || [])" :key="l.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <!-- Waktu -->
-                            <TableCell class="py-2 px-3 align-middle text-muted-foreground text-xs font-mono whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-foreground text-sm font-medium tabular-nums whitespace-nowrap">
                                 {{ new Date(l.created_at).toLocaleString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) }}
                             </TableCell>
                             <!-- Jenis -->
-                            <TableCell class="py-2 px-3 align-middle">
-                                <span :class="getLogTypeClass(displayType(l))" class="px-2 py-0.5 rounded text-xs font-medium border inline-block">
+                            <TableCell class="py-2.5 px-3 align-middle">
+                                <span :class="getLogTypeClass(displayType(l))" class="px-2.5 py-0.5 rounded-md text-xs font-medium border inline-block">
                                     {{ displayType(l) }}
                                 </span>
                             </TableCell>
                             <!-- Item -->
-                            <TableCell class="py-2 px-3 align-middle">
-                                <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-foreground leading-tight">
+                            <TableCell class="py-2.5 px-3 align-middle">
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-sm font-medium text-foreground leading-tight truncate">
                                         {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || '-' }}
                                     </span>
                                     <span class="text-xs text-muted-foreground leading-tight mt-0.5">
@@ -456,18 +456,18 @@ const formatAuditDate = (dateStr) => {
                                 </div>
                             </TableCell>
                             <!-- Batch -->
-                            <TableCell class="py-2 px-3 align-middle font-mono text-sm font-normal text-foreground tracking-tight">
+                            <TableCell class="py-2.5 px-3 align-middle text-center text-sm font-medium text-foreground tracking-tight truncate">
                                 {{ l.inventory?.batch_no || l.rawMaterialStock?.batch_no || '-' }}
                             </TableCell>
                             <!-- Referensi -->
-                            <TableCell class="py-2 px-3 align-middle">
+                            <TableCell class="py-2.5 px-3 align-middle">
                                 <div class="flex flex-col">
                                     <span class="text-xs font-medium text-foreground leading-tight">{{ formatReference(l).title }}</span>
-                                    <span class="text-[11px] text-muted-foreground font-mono leading-tight mt-0.5">{{ formatReference(l).id }}</span>
+                                    <span class="text-[11px] text-muted-foreground leading-tight mt-0.5">{{ formatReference(l).id }}</span>
                                 </div>
                             </TableCell>
                             <!-- Qty Mutasi -->
-                            <TableCell class="py-2 px-3 align-middle text-center tabular-nums">
+                            <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
                                 <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getMutationUnits(l.quantity, l.inventory)" :key="i">
@@ -486,7 +486,7 @@ const formatAuditDate = (dateStr) => {
                                 </div>
                             </TableCell>
                             <!-- Sisa Stok -->
-                            <TableCell class="py-2 px-3 align-middle text-center tabular-nums">
+                            <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
                                 <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getMutationUnits(l.balance_after, l.inventory)" :key="i">
@@ -510,7 +510,7 @@ const formatAuditDate = (dateStr) => {
             <!-- Pagination -->
             <div v-if="activeLogs.links && activeLogs.links.length > 3" class="px-5 py-3 border-t border-border flex items-center justify-center gap-1 bg-muted/30">
                 <template v-for="(l, index) in activeLogs.links" :key="index">
-                    <Link v-if="l.url" :href="l.url" :class="l.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border border-input text-foreground hover:bg-accent font-medium'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs transition-colors" v-html="l.label" />
+                    <Link v-if="l.url" :href="l.url" preserve-scroll preserve-state :class="l.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border border-input text-foreground hover:bg-accent font-medium'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs transition-colors" v-html="l.label" />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium" v-html="l.label"></span>
                 </template>
             </div>
@@ -624,7 +624,7 @@ const formatAuditDate = (dateStr) => {
             <!-- Audit Pagination -->
             <div v-if="activeAudits.links && activeAudits.links.length > 3" class="px-5 py-3 border-t border-border flex items-center justify-center gap-1 bg-muted/30">
                 <template v-for="(l, index) in activeAudits.links" :key="index">
-                    <Link v-if="l.url" :href="l.url" :class="l.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border border-input text-foreground hover:bg-accent font-medium'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs transition-colors" v-html="l.label" />
+                    <Link v-if="l.url" :href="l.url" preserve-scroll preserve-state :class="l.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border border-input text-foreground hover:bg-accent font-medium'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs transition-colors" v-html="l.label" />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium" v-html="l.label"></span>
                 </template>
             </div>

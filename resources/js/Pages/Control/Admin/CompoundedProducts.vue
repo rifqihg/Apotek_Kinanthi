@@ -179,13 +179,13 @@ const budLabel = (bud) => {
             <TableHeader>
                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                     <TableHead class="w-[4%] min-w-10 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                    <TableHead class="w-[25%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Produk</TableHead>
+                    <TableHead class="w-[24%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Produk</TableHead>
                     <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">No Batch</TableHead>
-                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Racik</TableHead>
-                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">BUD</TableHead>
-                    <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty</TableHead>
-                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status BUD</TableHead>
-                    <TableHead class="w-[9%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
+                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Racik</TableHead>
+                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">BUD</TableHead>
+                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty</TableHead>
+                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status BUD</TableHead>
+                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -197,32 +197,32 @@ const budLabel = (bud) => {
                 <template v-for="(p, index) in products.data" :key="p.id">
                     <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors group cursor-pointer" @click="toggle(p.id)">
                         <!-- NO -->
-                        <TableCell class="py-2 px-3 text-center align-middle text-xs text-muted-foreground tabular-nums">
+                        <TableCell class="py-2.5 px-3 text-center align-middle text-xs font-medium text-muted-foreground tabular-nums">
                             {{ ((products.current_page || 1) - 1) * (products.per_page || 15) + index + 1 }}
                         </TableCell>
                         <!-- NAMA PRODUK -->
-                        <TableCell class="py-2 px-3 align-middle text-left break-words whitespace-normal">
+                        <TableCell class="py-2.5 px-3 align-middle text-left break-words whitespace-normal">
                             <span class="font-medium text-foreground text-sm leading-snug break-words">{{ p.nama_produk }}</span>
                         </TableCell>
                         <!-- NO BATCH -->
-                        <TableCell class="py-2 px-3 text-center align-middle text-xs font-medium text-foreground/90 tabular-nums whitespace-nowrap">
+                        <TableCell class="py-2.5 px-3 text-center align-middle text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
                             {{ p.batch_no }}
                         </TableCell>
                         <!-- TGL RACIK -->
-                        <TableCell class="py-2 px-3 text-center text-xs font-medium text-muted-foreground tabular-nums align-middle whitespace-nowrap">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</TableCell>
+                        <TableCell class="py-2.5 px-3 text-center text-sm font-medium text-foreground tabular-nums align-middle whitespace-nowrap">{{ new Date(p.tanggal_racik).toLocaleDateString('id-ID') }}</TableCell>
                         <!-- BUD -->
-                        <TableCell class="py-2 px-3 text-center text-foreground font-medium text-xs tabular-nums align-middle whitespace-nowrap">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</TableCell>
+                        <TableCell class="py-2.5 px-3 text-center text-foreground font-medium text-sm tabular-nums align-middle whitespace-nowrap">{{ new Date(p.bud_date).toLocaleDateString('id-ID') }}</TableCell>
                         <!-- QTY (RATA TENGAH) -->
-                        <TableCell class="py-2 px-3 text-center font-medium text-foreground text-sm tabular-nums align-middle whitespace-nowrap">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} <span class="text-xs text-muted-foreground">{{ p.satuan }}</span></TableCell>
+                        <TableCell class="py-2.5 px-3 text-center font-medium text-foreground text-sm tabular-nums align-middle whitespace-nowrap">{{ Number(p.qty_hasil).toLocaleString('id-ID') }} <span class="text-xs text-muted-foreground uppercase">{{ p.satuan }}</span></TableCell>
                         <!-- STATUS BUD -->
-                        <TableCell class="py-2 px-3 text-center align-middle whitespace-nowrap">
+                        <TableCell class="py-2.5 px-3 text-center align-middle whitespace-nowrap">
                             <span :class="getDiff(p.bud_date) < 30 ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full" :class="getDiff(p.bud_date) < 30 ? 'bg-destructive' : 'bg-emerald-500'"></span>
                                 {{ budLabel(p.bud_date) }}
                             </span>
                         </TableCell>
                         <!-- AKSI -->
-                        <TableCell class="py-2 px-3 text-center align-middle whitespace-nowrap">
+                        <TableCell class="py-2.5 px-3 text-center align-middle whitespace-nowrap">
                             <div class="inline-flex items-center justify-center gap-1 text-xs font-medium text-primary group-hover:underline">
                                 <span>Rincian</span>
                                 <svg class="w-3.5 h-3.5 shrink-0 transition-transform duration-200" :class="expandedId===p.id?'rotate-180 text-primary':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -257,9 +257,9 @@ const budLabel = (bud) => {
             <p class="text-xs font-medium text-muted-foreground">Halaman {{ products.current_page || 1 }} dari {{ products.last_page || 1 }} (Total {{ products.total || 0 }} produk racikan)</p>
             <div class="flex items-center gap-1">
                 <template v-for="(link, i) in products.links" :key="i">
-                    <button v-if="link.url" @click="router.visit(link.url, { preserveState: true, preserveScroll: true })" 
-                        :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" 
-                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label"></button>
+                    <Link v-if="link.url" :href="link.url" preserve-state preserve-scroll 
+                        :class="link.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" 
+                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label" />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
                 </template>
             </div>

@@ -13,7 +13,7 @@ import {
 } from '@/Components/ui/dropdown-menu';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
-import { Alert, AlertTitle, AlertDescription } from '@/Components/ui/alert';
+import { Toaster, toast } from '@/Components/ui/toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/Components/ui/avatar';
 
 const page = usePage();
@@ -250,20 +250,28 @@ watch(() => page.url, () => {
     checkActiveAccordions();
 }, { immediate: true });
 
-// Flash Messages
-const showFlash = ref(false);
-const showErrorFlash = ref(false);
-
+// Flash Messages (Global Shadcn Floating Toast Listener)
 watch(() => page.props.flash?.success, (newVal) => {
     if (newVal) {
-        showFlash.value = true;
-        setTimeout(() => { showFlash.value = false; }, 4000);
+        toast.success('Berhasil', { description: newVal });
     }
 }, { immediate: true });
 
 watch(() => page.props.flash?.error, (newVal) => {
     if (newVal) {
-        showErrorFlash.value = true;
+        toast.error('Gagal', { description: newVal });
+    }
+}, { immediate: true });
+
+watch(() => page.props.flash?.warning, (newVal) => {
+    if (newVal) {
+        toast.warning('Peringatan', { description: newVal });
+    }
+}, { immediate: true });
+
+watch(() => page.props.flash?.info, (newVal) => {
+    if (newVal) {
+        toast.info('Informasi', { description: newVal });
     }
 }, { immediate: true });
 </script>
@@ -531,9 +539,9 @@ watch(() => page.props.flash?.error, (newVal) => {
         </Sheet>
 
         <!-- ═══ MAIN CONTENT AREA ═══ -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 relative">
             <!-- Top Bar / Application Header -->
-            <header class="h-16 md:h-[72px] lg:h-[76px] bg-[#FFFFFF] border-b border-[#E8EEF6] shadow-[0_4px_20px_rgba(15,23,42,0.02)] flex items-center justify-between px-4 sm:px-5 md:px-6 lg:px-8 shrink-0 sticky top-0 z-20 transition-all">
+            <header class="h-16 md:h-[72px] lg:h-[76px] bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-slate-200/80 dark:border-border/80 shadow-xs flex items-center justify-between px-4 sm:px-5 md:px-6 lg:px-8 shrink-0 sticky top-0 z-20 transition-all">
                 <!-- Left: Title / Mobile Toggle -->
                 <div class="flex items-center gap-3 min-w-0">
                     <Button
@@ -563,26 +571,12 @@ watch(() => page.props.flash?.error, (newVal) => {
             <!-- Page Content -->
             <main id="main-content-scroll" class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-background">
                 <div class="max-w-[1600px] mx-auto">
-                    <!-- Flash Messages -->
-                    <Alert v-if="$page.props.flash?.success && showFlash" class="mb-6 border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200">
-                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <AlertTitle class="text-sm font-semibold">Berhasil</AlertTitle>
-                        <AlertDescription class="text-sm">{{ $page.props.flash.success }}</AlertDescription>
-                    </Alert>
-                    
-                    <Alert v-if="$page.props.flash?.error && showErrorFlash" variant="destructive" class="mb-6">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <AlertTitle class="text-sm font-semibold">Gagal</AlertTitle>
-                        <AlertDescription class="text-sm">{{ $page.props.flash.error }}</AlertDescription>
-                    </Alert>
-
                     <slot></slot>
                 </div>
             </main>
         </div>
+
+        <!-- Global Shadcn Floating Toast System -->
+        <Toaster />
     </div>
 </template>

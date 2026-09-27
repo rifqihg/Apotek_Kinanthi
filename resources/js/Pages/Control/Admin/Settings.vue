@@ -11,7 +11,7 @@ const form = useForm({
     default_margin: props.settings.default_margin,
 });
 
-const submit = () => form.put(route('control.admin.settings.update'));
+const submit = () => form.put(route('control.admin.settings.update'), { preserveScroll: true });
 </script>
 
 <template>

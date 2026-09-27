@@ -282,7 +282,7 @@ const submitEditMedicine = () => {
                                 <template v-for="(item, index) in activeFakturStocks.data" :key="item.id">
                                 <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors" :class="expandedRows.includes(item.id) ? 'bg-muted/20' : ''">
                                     <!-- NO -->
-                                    <TableCell class="py-2 px-3 text-center align-middle font-mono text-xs text-muted-foreground tabular-nums">
+                                    <TableCell class="py-2 px-3 text-center align-middle text-xs font-medium text-muted-foreground tabular-nums">
                                         {{ ((activeFakturStocks.current_page || 1) - 1) * (activeFakturStocks.per_page || 15) + index + 1 }}
                                     </TableCell>
                                     <!-- IDENTITAS -->
@@ -312,7 +312,7 @@ const submitEditMedicine = () => {
                                     </TableCell>
                                     <!-- BATCH NO -->
                                     <TableCell class="py-2 px-3 text-center align-middle">
-                                        <span class="font-mono text-sm font-normal text-foreground tracking-tight whitespace-nowrap">{{ item.batch_no || '-' }}</span>
+                                        <span class="text-sm font-medium text-foreground tracking-tight whitespace-nowrap">{{ item.batch_no || '-' }}</span>
                                     </TableCell>
                                     <!-- EXP DATE -->
                                     <TableCell class="py-2 px-3 text-center align-middle">
@@ -323,7 +323,7 @@ const submitEditMedicine = () => {
                                             <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                             {{ item.expired_date ? new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) : '-' }}
                                         </span>
-                                        <span v-else class="text-xs font-mono text-muted-foreground tabular-nums whitespace-nowrap">
+                                        <span v-else class="text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
                                             {{ item.expired_date ? new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) : '-' }}
                                         </span>
                                     </TableCell>
@@ -370,20 +370,20 @@ const submitEditMedicine = () => {
                                                     <Table class="w-full table-fixed">
                                                         <TableHeader>
                                                             <TableRow class="h-8 bg-muted/15 hover:bg-muted/15 border-b border-border/60">
-                                                                <TableHead class="w-[12%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Satuan</TableHead>
-                                                                <TableHead class="w-[24%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Isi Konversi</TableHead>
-                                                                <TableHead class="w-[20%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">HPP</TableHead>
+                                                                <TableHead class="w-[14%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Satuan</TableHead>
+                                                                <TableHead class="w-[18%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Isi Konversi</TableHead>
+                                                                <TableHead class="w-[26%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">HPP</TableHead>
                                                                 <TableHead class="w-[24%] py-1.5 px-3 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">Harga Jual</TableHead>
-                                                                <TableHead class="w-[20%] py-1.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Margin</TableHead>
+                                                                <TableHead class="w-[18%] py-1.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Margin</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
                                                             <template v-for="(priceData, level) in item.prices" :key="level">
-                                                                <TableRow v-if="priceData" class="h-8 hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0">
-                                                                    <TableCell class="py-1.5 px-3 text-xs align-middle">
+                                                                <TableRow v-if="priceData" class="hover:bg-muted/20 transition-colors border-b border-border/30 last:border-0">
+                                                                    <TableCell class="py-2 px-3 text-xs align-middle">
                                                                         <span class="font-semibold text-foreground uppercase">{{ priceData.unit }}</span>
                                                                     </TableCell>
-                                                                    <TableCell class="py-1.5 px-3 text-xs text-muted-foreground whitespace-nowrap align-middle">
+                                                                    <TableCell class="py-2 px-3 text-xs text-muted-foreground whitespace-nowrap align-middle text-center">
                                                                         <template v-if="level === 'besar' && item.mid_unit">
                                                                             1 {{ priceData.unit }} = {{ item.mid_to_big_ratio }} {{ item.mid_unit }}
                                                                         </template>
@@ -397,14 +397,21 @@ const submitEditMedicine = () => {
                                                                             -
                                                                         </template>
                                                                     </TableCell>
-                                                                    <TableCell class="py-1.5 px-3 text-xs text-muted-foreground text-right whitespace-nowrap tabular-nums align-middle">{{ formatCurrency(priceData.hpp) }}</TableCell>
-                                                                    <TableCell class="py-1.5 px-3 text-right whitespace-nowrap align-middle">
+                                                                    <TableCell class="py-2 px-3 text-right whitespace-nowrap tabular-nums align-middle">
+                                                                        <span class="text-sm font-semibold text-foreground block">
+                                                                            {{ formatCurrency(priceData.hpp) }}
+                                                                        </span>
+                                                                        <span v-if="priceData.harga_beli !== undefined && priceData.harga_beli !== null" class="text-[11px] text-muted-foreground block mt-0.5">
+                                                                            Pre-PPN: {{ formatCurrency(priceData.harga_beli) }}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                    <TableCell class="py-2 px-3 text-right whitespace-nowrap align-middle">
                                                                         <span class="text-sm font-medium text-foreground tabular-nums">
                                                                             {{ priceData.selling > 0 ? formatCurrency(priceData.selling) : 'Rp 0' }}
                                                                         </span>
                                                                         <span v-if="level === 'kecil'" class="text-[10px] text-primary ml-1">(utama)</span>
                                                                     </TableCell>
-                                                                    <TableCell class="py-1.5 px-3 text-center whitespace-nowrap align-middle">
+                                                                    <TableCell class="py-2 px-3 text-right whitespace-nowrap align-middle">
                                                                         <span v-if="priceData.selling > 0" 
                                                                               class="text-xs font-medium tabular-nums"
                                                                               :class="priceData.profit >= 0 ? 'text-emerald-600' : 'text-destructive'">
@@ -433,61 +440,74 @@ const submitEditMedicine = () => {
                                 Menampilkan {{ activeFakturStocks.data.length }} Obat Faktur
                             </span>
                             <div v-if="activeFakturStocks.links && activeFakturStocks.links.length > 3" class="flex items-center gap-1">
-                                <button v-for="(link, i) in activeFakturStocks.links" :key="i"
-                                    type="button"
-                                    @click="link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })"
-                                    v-html="link.label"
-                                    :class="[
-                                        'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-                                        link.active ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-muted',
-                                        !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-                                    ]"
-                                />
+                                <template v-for="(link, i) in activeFakturStocks.links" :key="i">
+                                    <Link 
+                                        v-if="link.url"
+                                        :href="link.url"
+                                        preserve-state
+                                        preserve-scroll
+                                        v-html="link.label"
+                                        :class="[
+                                            'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                                            link.active ? 'bg-primary text-primary-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:bg-muted',
+                                        ]"
+                                    />
+                                    <span 
+                                        v-else
+                                        v-html="link.label"
+                                        :class="[
+                                            'px-2.5 py-1 text-xs font-medium rounded-md opacity-50 cursor-not-allowed',
+                                            'text-muted-foreground'
+                                        ]"
+                                    />
+                                </template>
                             </div>
                         </div>
                     </div>
                 </div>
 
             <!-- MODAL EDIT PENGATURAN GOLONGAN OBAT -->
-            <div v-if="editingMedicine" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
-                <div class="bg-card border border-border rounded-xl p-6 shadow-xl max-w-md w-full space-y-4">
-                    <div class="flex items-center justify-between border-b pb-3">
-                        <h3 class="font-bold text-sm text-foreground">Pengaturan Master Obat</h3>
-                        <button @click="closeEditModal" class="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
-                    </div>
-                    <div>
-                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</p>
-                        <p class="font-semibold text-sm text-foreground mt-0.5">{{ editingMedicine.nama_obat }}</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Klasifikasi Golongan Obat (BPOM / SIPNAP)</label>
-                        <select v-model="editForm.classification" class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                            <option value="obat_keras">Obat Keras (Lingkaran Merah K)</option>
-                            <option value="narkotika">Narkotika (Palang Merah - Wajib SIPNAP)</option>
-                            <option value="psikotropika">Psikotropika (Lingkaran Biru K - Wajib SIPNAP)</option>
-                            <option value="prekursor">Prekursor Farmasi</option>
-                            <option value="bebas_terbatas">Obat Bebas Terbatas (Lingkaran Biru)</option>
-                            <option value="bebas">Obat Bebas (Lingkaran Hijau)</option>
-                        </select>
-                        <p class="text-[11px] text-muted-foreground mt-1">Obat bertipe Narkotika/Psikotropika mewajibkan input No. SIP Dokter pada resep dan tercatat di mutasi SIPNAP.</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Batas Minimum Stok (Threshold Alert)</label>
-                        <input type="number" v-model="editForm.threshold_min" min="0" class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Deskripsi / Catatan Khusus</label>
-                        <textarea v-model="editForm.deskripsi" rows="2" class="w-full rounded-md border border-input bg-background p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Catatan penyimpanan, suhu, atau regulasi..."></textarea>
-                    </div>
-                    <div class="flex items-center justify-end gap-2 pt-3 border-t">
-                        <button type="button" @click="closeEditModal" class="px-3.5 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted text-foreground transition-colors">
-                            Batal
-                        </button>
-                        <button type="button" @click="submitEditMedicine" :disabled="editForm.processing" class="px-4 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors">
-                            {{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}
-                        </button>
+            <Teleport to="body">
+                <div v-if="editingMedicine" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+                    <div class="bg-card border border-border rounded-xl p-6 shadow-xl max-w-md w-full space-y-4">
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <h3 class="font-bold text-sm text-foreground">Pengaturan Master Obat</h3>
+                            <button @click="closeEditModal" class="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</p>
+                            <p class="font-semibold text-sm text-foreground mt-0.5">{{ editingMedicine.nama_obat }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1">Klasifikasi Golongan Obat (BPOM / SIPNAP)</label>
+                            <select v-model="editForm.classification" class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                                <option value="obat_keras">Obat Keras (Lingkaran Merah K)</option>
+                                <option value="narkotika">Narkotika (Palang Merah - Wajib SIPNAP)</option>
+                                <option value="psikotropika">Psikotropika (Lingkaran Biru K - Wajib SIPNAP)</option>
+                                <option value="prekursor">Prekursor Farmasi</option>
+                                <option value="bebas_terbatas">Obat Bebas Terbatas (Lingkaran Biru)</option>
+                                <option value="bebas">Obat Bebas (Lingkaran Hijau)</option>
+                            </select>
+                            <p class="text-[11px] text-muted-foreground mt-1">Obat bertipe Narkotika/Psikotropika mewajibkan input No. SIP Dokter pada resep dan tercatat di mutasi SIPNAP.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1">Batas Minimum Stok (Threshold Alert)</label>
+                            <input type="number" v-model="editForm.threshold_min" min="0" class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1">Deskripsi / Catatan Khusus</label>
+                            <textarea v-model="editForm.deskripsi" rows="2" class="w-full rounded-md border border-input bg-background p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Catatan penyimpanan, suhu, atau regulasi..."></textarea>
+                        </div>
+                        <div class="flex items-center justify-end gap-2 pt-3 border-t">
+                            <button type="button" @click="closeEditModal" class="px-3.5 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted text-foreground transition-colors">
+                                Batal
+                            </button>
+                            <button type="button" @click="submitEditMedicine" :disabled="editForm.processing" class="px-4 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors">
+                                {{ editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan' }}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </Teleport>
     </div>
 </template>

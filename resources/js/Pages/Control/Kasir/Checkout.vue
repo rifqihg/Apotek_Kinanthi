@@ -1,8 +1,8 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { computed, watch } from 'vue';
-import Swal from 'sweetalert2';
+import { computed } from 'vue';
+import { toast } from '@/Components/ui/toast';
 
 defineOptions({ layout: ControlLayout });
 
@@ -49,43 +49,21 @@ const isPaidValid = computed(() => (Number(form.paid_amount) || 0) >= finalTotal
 
 const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-// Graceful alert for backend session flash errors
-watch(() => page.props.flash?.error, (errMsg) => {
-    if (errMsg) {
-        Swal.fire({
-            title: 'Transaksi Ditolak',
-            text: errMsg,
-            icon: 'error',
-            confirmButtonColor: '#DC2626',
-            confirmButtonText: 'Tutup'
-        });
-    }
-}, { immediate: true });
-
 const submit = () => {
     if (!isPaidValid.value) {
         if (hasInvalidPrice.value) {
-            Swal.fire({
-                title: 'Harga Belum Ditetapkan',
-                text: 'Item racikan di resep ini belum divalidasi harganya oleh Admin. Transaksi tidak dapat dilanjutkan.',
-                icon: 'warning',
-                confirmButtonColor: '#D97706',
-                confirmButtonText: 'Mengerti'
+            toast.warning('Harga Belum Ditetapkan', {
+                description: 'Item racikan di resep ini belum divalidasi harganya oleh Admin. Transaksi tidak dapat dilanjutkan.'
             });
         }
         return;
     }
 
     form.post(route('control.kasir.sales.store'), {
+        preserveScroll: true,
         onError: (errors) => {
             const msg = errors.error || errors.message || Object.values(errors)[0] || 'Terjadi kesalahan saat memproses transaksi pembayaran.';
-            Swal.fire({
-                title: 'Transaksi Gagal',
-                text: msg,
-                icon: 'error',
-                confirmButtonColor: '#DC2626',
-                confirmButtonText: 'Tutup'
-            });
+            toast.error('Transaksi Gagal', { description: msg });
         }
     });
 };

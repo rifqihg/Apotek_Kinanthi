@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import Swal from 'sweetalert2';
+import { toast } from '@/Components/ui/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -104,32 +104,20 @@ const submitMedicinePrices = () => {
         preserveScroll: true,
         onSuccess: () => {
             closePriceModal();
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: 'Harga jual obat jadi berhasil disimpan.',
-                confirmButtonColor: '#4f46e5',
-                customClass: { popup: 'rounded-lg' }
-            });
         },
         onError: (errs) => {
             formErrors.value = errs;
-            const firstKey = Object.keys(errs)[0];
-            const firstMsg = errs[firstKey];
-            Swal.fire({
-                icon: 'error',
-                title: 'Peringatan Margin Tidak Wajar!',
-                text: firstMsg || 'Terdapat kesalahan input harga jual.',
-                confirmButtonColor: '#ef4444',
-                customClass: { popup: 'rounded-lg' }
-            });
+            const firstMsg = Object.values(errs)[0];
+            if (firstMsg) {
+                toast.error('Peringatan Margin', { description: firstMsg });
+            }
         }
     });
 };
 
 const submitCompoundedPrice = (product) => {
     if (!product.temp_harga_jual || product.temp_harga_jual < 1) {
-        alert('Harga jual harus lebih dari 0');
+        toast.warning('Peringatan', { description: 'Harga jual harus lebih dari 0' });
         return;
     }
     
@@ -433,7 +421,8 @@ const calculateHargaJual = (product) => {
         </div>
 
         <!-- MODAL ATUR HARGA -->
-        <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <Teleport to="body">
+            <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-background/80 backdrop-blur-sm" @click="closePriceModal"></div>
             <div class="relative bg-card rounded-lg shadow-lg w-full max-w-md overflow-hidden flex flex-col border border-border">
                 <div class="p-6 border-b border-border bg-muted/30">
@@ -485,6 +474,7 @@ const calculateHargaJual = (product) => {
                     <button @click="submitMedicinePrices" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9 rounded-md text-sm transition-colors shadow-sm">Simpan Harga</button>
                 </div>
             </div>
-        </div>
+            </div>
+        </Teleport>
 </template>
 

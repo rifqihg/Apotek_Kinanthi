@@ -239,6 +239,7 @@ const removeItem = (index) => {
 
 const submit = () => {
     form.post(route('control.admin.stock-opname.store'), {
+        preserveScroll: true,
         onSuccess: () => {
             showModal.value = false;
             form.reset();
@@ -423,15 +424,15 @@ const submit = () => {
 
         <!-- Table -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <Table>
+            <Table class="w-full table-fixed">
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tanggal</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Keterangan / ID</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Penanggung Jawab</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Item</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</TableHead>
+                        <TableHead class="w-[16%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Tanggal</TableHead>
+                        <TableHead class="w-[28%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Keterangan / ID</TableHead>
+                        <TableHead class="w-[20%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Penanggung Jawab</TableHead>
+                        <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jumlah Item</TableHead>
+                        <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Status</TableHead>
+                        <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Aksi</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -449,32 +450,32 @@ const submit = () => {
                         </TableCell>
                     </TableRow>
                     <TableRow v-for="op in opnames.data" :key="op.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                        <TableCell class="py-2 px-3 align-middle font-medium text-foreground text-sm">
+                        <TableCell class="py-2.5 px-3 align-middle font-medium text-foreground text-sm tabular-nums">
                             {{ new Date(op.opname_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle">
+                        <TableCell class="py-2.5 px-3 align-middle">
                             <div class="flex flex-col">
-                                <span class="text-xs font-semibold text-foreground">#SO-{{ op.id }}</span>
+                                <span class="text-sm font-semibold text-foreground">#SO-{{ op.id }}</span>
                                 <span class="text-xs text-muted-foreground line-clamp-1">{{ op.catatan || '-' }}</span>
                             </div>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle text-xs text-muted-foreground">
+                        <TableCell class="py-2.5 px-3 align-middle text-sm font-medium text-foreground">
                             {{ op.creator?.name || 'Admin' }}
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle text-center">
-                            <span class="text-xs font-mono text-muted-foreground tabular-nums">{{ op.items_count || 0 }} item</span>
+                        <TableCell class="py-2.5 px-3 align-middle text-center">
+                            <span class="text-sm font-medium text-foreground tabular-nums">{{ op.items_count || 0 }} item</span>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle text-center">
-                            <span v-if="op.status === 'completed'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <TableCell class="py-2.5 px-3 align-middle text-center">
+                            <span v-if="op.status === 'completed'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 Selesai
                             </span>
-                            <span v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            <span v-else class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                 Draft
                             </span>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle text-right">
+                        <TableCell class="py-2.5 px-3 align-middle text-right">
                             <Link :href="route('control.admin.stock-opname.show', op.id)" class="inline-flex items-center justify-center text-foreground bg-background border border-input hover:bg-accent h-7 px-2.5 rounded text-xs font-medium transition-colors">Lihat Detail</Link>
                         </TableCell>
                     </TableRow>
@@ -486,7 +487,7 @@ const submit = () => {
                 </span>
                 <div class="flex items-center gap-1.5">
                     <template v-for="l in opnames.links" :key="l.label">
-                        <button v-if="l.url" @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label"></button>
+                        <Link v-if="l.url" :href="l.url" preserve-state preserve-scroll :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label" />
                         <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                     </template>
                 </div>

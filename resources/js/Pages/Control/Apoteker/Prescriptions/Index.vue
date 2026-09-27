@@ -280,13 +280,15 @@ const isControlledRx = (rx) => {
                 <span class="text-xs text-muted-foreground font-medium">Halaman {{ prescriptions?.current_page || 1 }} dari {{ prescriptions?.last_page || 1 }} (Total {{ prescriptions?.total || 0 }} resep)</span>
                 <div v-if="prescriptions?.links?.length > 3" class="flex items-center gap-1">
                     <template v-for="(l, i) in (prescriptions?.links || [])" :key="i">
-                        <button 
+                        <Link 
                             v-if="l.url" 
-                            @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" 
+                            :href="l.url"
+                            preserve-state 
+                            preserve-scroll 
                             :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
                             class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                             v-html="l.label"
-                        ></button>
+                        />
                         <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                     </template>
                 </div>

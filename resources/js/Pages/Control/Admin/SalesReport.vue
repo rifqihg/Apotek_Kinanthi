@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
@@ -46,26 +46,20 @@ watch([startDate, endDate], () => {
 const activeMedicines = computed(() => props.medicines || { data: [], links: [] });
 const activeSummary = computed(() => props.summary || { total_items: 0, total_amount: 0, total_laba: 0 });
 
-const goToPage = (url) => {
-    if (!url) return;
-    router.visit(url, {
-        preserveState: true,
-        preserveScroll: true,
-    });
-};
+
 
 const exportToExcel = () => {
     const url = new URL(route('control.admin.reports.sales.export'));
     if (startDate.value) url.searchParams.append('start_date', startDate.value);
     if (endDate.value) url.searchParams.append('end_date', endDate.value);
-    window.location.href = url.toString();
+    window.open(url.toString(), '_blank');
 };
 
 const exportToPdf = () => {
     const url = new URL(route('control.admin.reports.sales.export-pdf'));
     if (startDate.value) url.searchParams.append('start_date', startDate.value);
     if (endDate.value) url.searchParams.append('end_date', endDate.value);
-    window.location.href = url.toString();
+    window.open(url.toString(), '_blank');
 };
 
 const formatCurrency = (amount) => {
@@ -173,29 +167,29 @@ const formatCurrency = (amount) => {
                     </TableRow>
                     <template v-for="(med, index) in activeMedicines.data" :key="med.id">
                         <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs font-mono">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs font-medium tabular-nums">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle">
                                 <div class="flex flex-col">
                                     <span class="font-medium text-sm text-foreground leading-tight">{{ med.nama_produk }}</span>
                                     <div class="flex items-center gap-1.5 mt-0.5">
-                                        <span class="font-mono text-xs text-muted-foreground">{{ med.kode_obat || '-' }}</span>
+                                        <span class="text-xs text-muted-foreground">{{ med.kode_obat || '-' }}</span>
                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/60">
                                             {{ med.kategori || 'Obat Jadi' }}
                                         </span>
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs">{{ med.satuan }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right text-muted-foreground tabular-nums text-xs">{{ formatCurrency(med.modal) }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center text-foreground font-medium text-sm">{{ med.satuan }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-right text-foreground font-medium tabular-nums text-sm">{{ formatCurrency(med.modal) }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle text-right text-foreground font-medium tabular-nums text-sm">{{ formatCurrency(med.harga_jual) }}</TableCell>
                             
-                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground tabular-nums text-xs">{{ med.qty_awal }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center font-semibold text-foreground tabular-nums text-sm">{{ med.terjual }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground tabular-nums text-xs">{{ med.sisa_stok }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center text-foreground font-medium tabular-nums text-sm">{{ med.qty_awal }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center font-semibold text-primary tabular-nums text-sm">{{ med.terjual }}</TableCell>
+                            <TableCell class="py-2 px-3 align-middle text-center text-foreground font-medium tabular-nums text-sm">{{ med.sisa_stok }}</TableCell>
                             
                             <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground tabular-nums text-sm">{{ formatCurrency(med.total_penjualan) }}</TableCell>
                             <TableCell class="py-2 px-3 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm">{{ formatCurrency(med.laba) }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center tabular-nums text-xs font-medium" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'">
+                            <TableCell class="py-2 px-3 align-middle text-right tabular-nums text-sm font-medium" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
                                 {{ med.margin_percentage }}%
                             </TableCell>
                             <TableCell class="py-2 px-3 align-middle text-center">
@@ -224,16 +218,27 @@ const formatCurrency = (amount) => {
                 </span>
                 
                 <div class="flex items-center gap-1">
-                    <button v-for="(link, i) in activeMedicines.links" :key="i"
-                        type="button"
-                        @click="goToPage(link.url)"
-                        v-html="link.label"
-                        :class="[
-                            'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                            link.active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted',
-                            !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-                        ]"
-                    />
+                    <template v-for="(link, i) in activeMedicines.links" :key="i">
+                        <Link 
+                            v-if="link.url"
+                            :href="link.url"
+                            preserve-state
+                            preserve-scroll
+                            v-html="link.label"
+                            :class="[
+                                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                                link.active ? 'bg-primary text-primary-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:bg-muted',
+                            ]"
+                        />
+                        <span 
+                            v-else
+                            v-html="link.label"
+                            :class="[
+                                'px-3 py-1.5 text-xs font-medium rounded-md opacity-50 cursor-not-allowed',
+                                'text-muted-foreground'
+                            ]"
+                        />
+                    </template>
                 </div>
             </div>
         </div>

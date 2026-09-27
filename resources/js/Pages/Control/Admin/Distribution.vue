@@ -1,9 +1,29 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useDebounceFn } from '@vueuse/core';
-import Swal from 'sweetalert2';
+import { toast } from '@/Components/ui/toast';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogDescription, 
+    DialogFooter, 
+    DialogHeader, 
+    DialogTitle 
+} from '@/Components/ui/dialog';
+import { 
+    AlertDialog, 
+    AlertDialogAction, 
+    AlertDialogCancel, 
+    AlertDialogContent, 
+    AlertDialogDescription, 
+    AlertDialogFooter, 
+    AlertDialogHeader, 
+    AlertDialogTitle 
+} from '@/Components/ui/alert-dialog';
 
 defineOptions({ layout: ControlLayout });
 
@@ -64,49 +84,58 @@ const clearSearch = () => {
 
 const activeMedicines = computed(() => props.medicines || { data: [], links: [] });
 
-// --- CART LOGIC ---
+// --- CART & DIALOG LOGIC ---
 const cart = ref([]);
 
-const openQtyPrompt = async (medicine, action) => {
+const isQtyDialogOpen = ref(false);
+const selectedMedicine = ref(null);
+const qtyDialogAction = ref('transfer');
+const inputQty = ref(1);
+const qtyValidationError = ref('');
+
+const selectedUnit = computed(() => {
+    if (!selectedMedicine.value) return 'Item';
+    return selectedMedicine.value.satuan_terkecil || selectedMedicine.value.satuan_stok || 'Item';
+});
+
+const maxAllowedQty = computed(() => {
+    if (!selectedMedicine.value) return 0;
+    return qtyDialogAction.value === 'transfer' 
+        ? (selectedMedicine.value.stok_gudang || 0) 
+        : (selectedMedicine.value.stok_kasir || 0);
+});
+
+const openQtyPrompt = (medicine, action) => {
     let actionText = action === 'transfer' ? 'Transfer ke Kasir' : 'Return ke Gudang';
     let maxQty = action === 'transfer' ? medicine.stok_gudang : medicine.stok_kasir;
-    let unit = medicine.satuan_terkecil || medicine.satuan_stok || 'Item';
     
     if (maxQty <= 0) {
-        Swal.fire('Stok Kosong', `Tidak ada stok yang tersedia untuk di-${actionText.toLowerCase()}.`, 'warning');
+        toast.warning('Stok Kosong', {
+            description: `Tidak ada stok yang tersedia untuk di-${actionText.toLowerCase()}.`
+        });
         return;
     }
 
-    const kemasanInfo = medicine.kemasan && medicine.kemasan !== unit 
-        ? `<div class="mb-3 inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-700 text-xs font-semibold"> Kemasan: ${medicine.kemasan}</div><br>` 
-        : '';
+    selectedMedicine.value = medicine;
+    qtyDialogAction.value = action;
+    inputQty.value = 1;
+    qtyValidationError.value = '';
+    isQtyDialogOpen.value = true;
+};
 
-    const { value: quantity } = await Swal.fire({
-        title: actionText,
-        html: `Berapa banyak <b>${medicine.nama_obat}</b> yang ingin dipindahkan?<br><br>${kemasanInfo}<span class="text-sm text-gray-500 font-medium">Maksimal: <b class="text-slate-800">${formatNumber(maxQty)} ${unit}</b></span>`,
-        input: 'number',
-        inputAttributes: {
-            min: 1,
-            max: maxQty,
-            step: 1
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Tambahkan ke Keranjang',
-        cancelButtonText: 'Batal',
-        confirmButtonColor: '#4F46E5',
-        inputValidator: (value) => {
-            if (!value || value <= 0) {
-                return 'Kuantitas harus lebih dari 0';
-            }
-            if (parseFloat(value) > maxQty) {
-                return `Kuantitas melebihi stok maksimal (${maxQty} ${unit})`;
-            }
-        }
-    });
-
-    if (quantity) {
-        addToCart(medicine, action, parseFloat(quantity));
+const confirmAddQty = () => {
+    const qty = parseFloat(inputQty.value);
+    if (!qty || qty <= 0) {
+        qtyValidationError.value = 'Kuantitas harus lebih dari 0.';
+        return;
     }
+    if (qty > maxAllowedQty.value) {
+        qtyValidationError.value = `Kuantitas melebihi stok maksimal (${formatNumber(maxAllowedQty.value)} ${selectedUnit.value}).`;
+        return;
+    }
+
+    addToCart(selectedMedicine.value, qtyDialogAction.value, qty);
+    isQtyDialogOpen.value = false;
 };
 
 const addToCart = (medicine, action, quantity) => {
@@ -140,78 +169,70 @@ const removeFromCart = (index) => {
     cart.value.splice(index, 1);
 };
 
+const isSubmitDialogOpen = ref(false);
+const isProcessingSubmit = ref(false);
+
 const submitCart = () => {
     if (cart.value.length === 0) return;
+    isSubmitDialogOpen.value = true;
+};
 
-    Swal.fire({
-        title: 'Proses Distribusi?',
-        text: `Anda akan memproses ${cart.value.length} item. Lanjutkan?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Ya, Proses Sekarang!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            router.post(route('control.admin.inventory.distribution.process'), {
-                kasir_id: form.kasir_id,
-                items: cart.value.map(item => ({
-                    medicine_id: item.medicine_id,
-                    action: item.action,
-                    quantity: item.quantity
-                }))
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    cart.value = []; // empty cart on success
-                    Swal.fire('Berhasil!', 'Semua distribusi stok berhasil diproses secara otomatis (FEFO).', 'success');
-                }
-            });
+const confirmSubmitCart = () => {
+    isSubmitDialogOpen.value = false;
+    isProcessingSubmit.value = true;
+
+    router.post(route('control.admin.inventory.distribution.process'), {
+        kasir_id: form.kasir_id,
+        items: cart.value.map(item => ({
+            medicine_id: item.medicine_id,
+            action: item.action,
+            quantity: item.quantity
+        }))
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            cart.value = []; // empty cart on success
+            isProcessingSubmit.value = false;
+        },
+        onError: () => {
+            isProcessingSubmit.value = false;
+        },
+        onFinish: () => {
+            isProcessingSubmit.value = false;
         }
     });
 };
 
 const formatNumber = (num) => parseFloat(num).toLocaleString('id-ID');
 
-const uploadPhoto = async (medicine) => {
-    const { value: file } = await Swal.fire({
-        title: 'Upload Foto Obat',
-        text: `Pilih foto untuk ${medicine.nama_obat}`,
-        input: 'file',
-        inputAttributes: {
-            'accept': 'image/*',
-            'aria-label': 'Upload foto obat'
+const photoFileInput = ref(null);
+const selectedMedicineForPhoto = ref(null);
+
+const uploadPhoto = (medicine) => {
+    selectedMedicineForPhoto.value = medicine;
+    if (photoFileInput.value) {
+        photoFileInput.value.value = '';
+        photoFileInput.value.click();
+    }
+};
+
+const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedMedicineForPhoto.value) return;
+
+    router.post(route('control.admin.medicines.updatePhoto', selectedMedicineForPhoto.value.id), {
+        _method: 'post',
+        foto_obat: file
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            router.reload({ preserveScroll: true });
+            toast.success('Berhasil', { description: 'Foto obat berhasil diperbarui.' });
         },
-        showCancelButton: true,
-        confirmButtonColor: '#4F46E5',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Upload',
-        showLoaderOnConfirm: true,
-        preConfirm: (file) => {
-            if (!file) {
-                Swal.showValidationMessage('Anda belum memilih file!');
-                return false;
-            }
-            return new Promise((resolve) => {
-                router.post(route('control.admin.medicines.updatePhoto', medicine.id), {
-                    _method: 'post',
-                    foto_obat: file
-                }, {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        refetch();
-                        resolve(true);
-                        Swal.fire('Berhasil!', 'Foto obat berhasil diperbarui.', 'success');
-                    },
-                    onError: (errors) => {
-                        const msg = typeof errors === 'object' ? Object.values(errors)[0] : 'Gagal mengupload foto';
-                        Swal.showValidationMessage(msg || 'Gagal mengupload foto');
-                        resolve(false);
-                    }
-                });
-            });
-        },
-        allowOutsideClick: () => !Swal.isLoading()
+        onError: (errors) => {
+            const msg = typeof errors === 'object' ? Object.values(errors)[0] : 'Gagal mengupload foto';
+            toast.error('Gagal', { description: msg || 'Gagal mengupload foto' });
+        }
     });
 };
 </script>
@@ -346,13 +367,14 @@ const uploadPhoto = async (medicine) => {
                     <div v-if="activeMedicines.links && activeMedicines.data.length > 0" class="mt-8 pb-8 flex justify-center">
                         <div class="flex gap-1 bg-card p-1 rounded-md shadow-2xs border border-border">
                             <template v-for="(link, idx) in activeMedicines.links" :key="idx">
-                                <button 
+                                <Link 
                                     v-if="link.url"
-                                    type="button"
+                                    :href="link.url"
+                                    preserve-state 
+                                    preserve-scroll 
                                     v-html="link.label"
                                     class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                                     :class="link.active ? 'bg-primary text-primary-foreground font-semibold' : 'text-foreground hover:bg-muted'"
-                                    @click="router.visit(link.url, { preserveState: true, preserveScroll: true })"
                                 />
                                 <span 
                                     v-else
@@ -427,4 +449,81 @@ const uploadPhoto = async (medicine) => {
 
             </div>
         </div>
+
+        <!-- HIDDEN FILE INPUT FOR PHOTO UPLOAD -->
+        <input 
+            type="file" 
+            ref="photoFileInput" 
+            class="hidden" 
+            accept="image/*" 
+            @change="handlePhotoUpload" 
+        />
+
+        <!-- MODAL INPUT KUANTITAS DISTRIBUSI -->
+        <Dialog v-model:open="isQtyDialogOpen">
+            <DialogContent class="sm:max-w-[420px]">
+                <DialogHeader>
+                    <DialogTitle>{{ qtyDialogAction === 'transfer' ? 'Transfer ke Kasir' : 'Return ke Gudang' }}</DialogTitle>
+                    <DialogDescription>
+                        Berapa banyak kuantitas <strong>{{ selectedMedicine?.nama_obat }}</strong> yang ingin dipindahkan?
+                    </DialogDescription>
+                </DialogHeader>
+                
+                <div class="space-y-4 py-2">
+                    <div v-if="selectedMedicine?.kemasan && selectedMedicine?.kemasan !== selectedUnit" 
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-md text-primary text-xs font-semibold">
+                        Kemasan: {{ selectedMedicine?.kemasan }}
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Jumlah Kuantitas ({{ selectedUnit }})</span>
+                            <span>Maksimal: <strong class="text-foreground">{{ formatNumber(maxAllowedQty) }} {{ selectedUnit }}</strong></span>
+                        </div>
+                        <Input 
+                            type="number" 
+                            v-model.number="inputQty" 
+                            min="1" 
+                            :max="maxAllowedQty" 
+                            step="1"
+                            placeholder="Masukkan jumlah..."
+                            class="h-10 text-sm"
+                            @keyup.enter="confirmAddQty"
+                            autofocus
+                        />
+                        <p v-if="qtyValidationError" class="text-xs text-destructive font-medium">
+                            {{ qtyValidationError }}
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2 sm:gap-0">
+                    <Button variant="outline" @click="isQtyDialogOpen = false">Batal</Button>
+                    <Button @click="confirmAddQty">Tambahkan ke Keranjang</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- ALERT DIALOG KONFIRMASI DISTRIBUSI -->
+        <AlertDialog v-model:open="isSubmitDialogOpen">
+            <AlertDialogContent class="sm:max-w-[420px]">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Proses Distribusi?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Anda akan memproses {{ cart.length }} item mutasi stok. Lanjutkan proses ini secara otomatis (FEFO)?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter class="gap-2 sm:gap-0">
+                    <AlertDialogCancel @click="isSubmitDialogOpen = false">Batal</AlertDialogCancel>
+                    <AlertDialogAction 
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        :disabled="isProcessingSubmit"
+                        @click="confirmSubmitCart"
+                    >
+                        {{ isProcessingSubmit ? 'Memproses...' : 'Ya, Proses Sekarang' }}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
 </template>

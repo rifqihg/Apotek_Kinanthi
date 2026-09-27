@@ -1,7 +1,7 @@
 <script setup>
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import Swal from 'sweetalert2';
+import { toast } from '@/Components/ui/toast';
 
 defineOptions({ layout: ControlLayout });
 
@@ -20,21 +20,13 @@ const updateProfile = () => {
         preserveScroll: true,
         onSuccess: () => {
             form.reset('current_password', 'password', 'password_confirmation');
-            Swal.fire({
-                title: 'Profil Diperbarui',
-                text: 'Informasi akun Anda telah berhasil diperbarui.',
-                icon: 'success',
-                confirmButtonColor: '#10b981',
-                customClass: { popup: 'rounded-lg' }
+            toast.success('Profil Diperbarui', {
+                description: 'Informasi akun Anda telah berhasil diperbarui.'
             });
         },
         onError: () => {
-            Swal.fire({
-                title: 'Gagal Memperbarui',
-                text: 'Mohon periksa kembali inputan Anda.',
-                icon: 'error',
-                confirmButtonColor: '#ef4444',
-                customClass: { popup: 'rounded-lg' }
+            toast.error('Gagal Memperbarui', {
+                description: 'Mohon periksa kembali inputan Anda.'
             });
         },
     });

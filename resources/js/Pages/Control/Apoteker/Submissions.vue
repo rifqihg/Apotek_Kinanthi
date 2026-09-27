@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useDebounceFn } from '@vueuse/core';
@@ -305,6 +305,7 @@ function submit() {
         item.qty_neto_mass = calculateItemNeto(item);
     });
     form.post(route('control.apoteker.submissions.store'), { 
+        preserveScroll: true,
         onSuccess: () => { 
             showModal.value = false; 
             form.reset(); 
@@ -322,6 +323,7 @@ function confirmCancel(id) { cancelModal.value = { show: true, id }; }
 function proceedCancel() {
     if (!cancelModal.value.id) return;
     router.post(route('control.apoteker.submissions.cancel', cancelModal.value.id), {}, {
+        preserveScroll: true,
         onFinish: () => cancelModal.value = { show: false, id: null }
     });
 }
@@ -541,9 +543,9 @@ if (prefillItemId) {
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                                     Etiket
                                 </button>
-                                <button @click="router.get(route('control.apoteker.submissions.show', s.id))" class="text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 h-8 rounded-md text-xs font-medium transition-colors">
+                                <Link :href="route('control.apoteker.submissions.show', s.id)" class="inline-flex items-center justify-center text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 h-8 rounded-md text-xs font-medium transition-colors">
                                     Detail
-                                </button>
+                                </Link>
                                 <button v-if="s.status === 'pending_final_verification'" @click="confirmCancel(s.id)" class="text-red-600 dark:text-red-400 hover:bg-red-500/10 border border-red-500/20 px-3 h-8 rounded-md text-xs font-medium transition-colors">
                                     Batalkan
                                 </button>
@@ -558,13 +560,15 @@ if (prefillItemId) {
             <span class="text-xs text-muted-foreground font-medium">Halaman {{ submissions?.current_page || 1 }} dari {{ submissions?.last_page || 1 }} (Total {{ submissions?.total || 0 }} pengajuan)</span>
             <div class="flex items-center gap-1">
                 <template v-for="(l, i) in (submissions?.links || [])" :key="i">
-                    <button 
+                    <Link 
                         v-if="l.url" 
-                        @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" 
+                        :href="l.url"
+                        preserve-state 
+                        preserve-scroll 
                         :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
                         class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                         v-html="l.label"
-                    ></button>
+                    />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                 </template>
             </div>

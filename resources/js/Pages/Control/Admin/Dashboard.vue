@@ -1,11 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import SalesTrendChart from '@/Components/SalesTrendChart.vue';
 import TopMedicinesChart from '@/Components/TopMedicinesChart.vue';
-import { useQuery } from '@tanstack/vue-query';
-import axios from 'axios';
+import { useDebounceFn, onClickOutside } from '@vueuse/core';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Button } from '@/Components/ui/button';
@@ -13,8 +12,12 @@ import { formatInventoryThreshold } from '@/lib/utils';
 
 defineOptions({ layout: ControlLayout });
 
+const filterDropdownRef = ref(null);
 const filterDropdownOpen = ref(false);
-const page = usePage();
+
+onClickOutside(filterDropdownRef, () => {
+    filterDropdownOpen.value = false;
+});
 
 const props = defineProps({
     stats: {
@@ -55,33 +58,36 @@ const props = defineProps({
 });
 
 const activeFilter = ref(props.currentFilter || '');
+const isFetching = ref(false);
 
-const { data: queryStocks, isFetching } = useQuery({
-    queryKey: computed(() => ['admin-dashboard-stocks', activeFilter.value]),
-    queryFn: async () => {
-        const res = await axios.get(route('control.admin.dashboard'), {
-            params: { filter: activeFilter.value },
-            headers: {
-                'X-Inertia': 'true',
-                'X-Inertia-Version': page.version,
-                'X-Inertia-Partial-Component': 'Control/Admin/Dashboard',
-                'X-Inertia-Partial-Data': 'tableStocks,currentFilter',
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        });
-        return res.data.props.tableStocks;
-    },
-    initialData: () => props.tableStocks,
-    staleTime: 60000,
-    gcTime: 300000,
-    refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
+watch(() => props.currentFilter, (newVal) => {
+    activeFilter.value = newVal || '';
 });
 
-const activeTableStocks = computed(() => queryStocks.value || props.tableStocks || { data: [], links: [] });
+const activeTableStocks = computed(() => props.tableStocks || { data: [], links: [] });
+
+// Debounced filter dispatch (300ms) preserving state, scroll, and active days period
+const executeFilter = useDebounceFn((filterName) => {
+    isFetching.value = true;
+    router.get(route('control.admin.dashboard'), {
+        filter: filterName || undefined,
+        days: props.currentDays || undefined,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ['tableStocks', 'currentFilter'],
+        onFinish: () => {
+            isFetching.value = false;
+        }
+    });
+}, 300);
 
 const applyFilter = (filterName) => {
+    // Optimistic UI: perbarui state lokal seketika tanpa delay
     activeFilter.value = filterName;
+    filterDropdownOpen.value = false;
+    executeFilter(filterName);
 };
 
 // Kemasan & Multi-unit breakdown helper (modulo berjenjang, selaras dengan Ambang Batas & Katalog Faktur)
@@ -313,64 +319,75 @@ const getStockUnits = (item) => {
                             Pantau stok fisik terkini, nomor batch, dan batas kedaluwarsa secara real-time.
                         </CardDescription>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <!-- Filter Dropdown -->
-                        <div class="relative">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <!-- Filter Dropdown Button with Perfectly Aligned Width -->
+                        <div ref="filterDropdownRef" class="relative w-44">
                             <Button 
                                 variant="outline" 
                                 size="sm" 
                                 @click="filterDropdownOpen = !filterDropdownOpen"
-                                @blur="setTimeout(() => filterDropdownOpen = false, 200)"
-                                class="h-8 text-sm font-medium gap-1.5"
+                                class="w-full h-8 text-xs font-medium px-2.5 flex items-center justify-between cursor-pointer border-border bg-background hover:bg-muted/60 transition-colors"
                             >
-                                <svg v-if="!isFetching" class="w-3.5 h-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                                </svg>
-                                <svg v-else class="animate-spin w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span v-if="activeFilter === 'qty'">Stok Kritis</span>
-                                <span v-else-if="activeFilter === 'exp'">EXP Terdekat</span>
-                                <span v-else>Semua Stok</span>
-                                <svg class="w-3 h-3 text-muted-foreground transition-transform" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <div class="flex items-center gap-1.5 truncate">
+                                    <svg v-if="!isFetching" class="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                    </svg>
+                                    <svg v-else class="animate-spin w-3.5 h-3.5 text-primary shrink-0" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="truncate">
+                                        {{ activeFilter === 'qty' ? 'Stok Kritis' : (activeFilter === 'exp' ? 'EXP Terdekat' : 'Semua Stok') }}
+                                    </span>
+                                </div>
+                                <svg class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-1" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                 </svg>
                             </Button>
 
-                            <div v-show="filterDropdownOpen" class="absolute right-0 top-full mt-1 w-44 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-30">
+                            <!-- Dropdown Options Panel (Width matched 100% to Trigger Button) -->
+                            <div 
+                                v-show="filterDropdownOpen" 
+                                class="absolute left-0 right-0 top-full mt-1.5 w-full rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg z-30 animate-in fade-in-0 zoom-in-95 duration-100"
+                            >
                                 <button 
-                                    v-if="activeFilter" 
+                                    type="button"
                                     @click="applyFilter('')" 
-                                    class="w-full text-left px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-sm flex items-center gap-1.5"
+                                    class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-sm flex items-center justify-between hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
+                                    :class="{'bg-accent text-accent-foreground font-semibold': !activeFilter}"
                                 >
-                                    <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                    Reset Filter
+                                    <span>Semua Stok</span>
+                                    <span v-if="!activeFilter" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
                                 </button>
-                                <div v-if="activeFilter" class="h-px bg-border my-1"></div>
                                 <button 
+                                    type="button"
                                     @click="applyFilter('qty')" 
-                                    class="w-full text-left px-2 py-1.5 text-sm font-medium rounded-sm flex items-center justify-between hover:bg-accent hover:text-accent-foreground"
+                                    class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-sm flex items-center justify-between hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                                     :class="{'bg-accent text-accent-foreground font-semibold': activeFilter === 'qty'}"
                                 >
-                                    Stok Kritis
-                                    <span v-if="activeFilter === 'qty'" class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                    <span class="flex items-center gap-1.5 truncate">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                        Stok Kritis
+                                    </span>
+                                    <span v-if="activeFilter === 'qty'" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
                                 </button>
                                 <button 
+                                    type="button"
                                     @click="applyFilter('exp')" 
-                                    class="w-full text-left px-2 py-1.5 text-sm font-medium rounded-sm flex items-center justify-between hover:bg-accent hover:text-accent-foreground"
+                                    class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-sm flex items-center justify-between hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                                     :class="{'bg-accent text-accent-foreground font-semibold': activeFilter === 'exp'}"
                                 >
-                                    EXP Terdekat
-                                    <span v-if="activeFilter === 'exp'" class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                    <span class="flex items-center gap-1.5 truncate">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+                                        EXP Terdekat
+                                    </span>
+                                    <span v-if="activeFilter === 'exp'" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
                                 </button>
                             </div>
                         </div>
 
                         <!-- Link Lihat Semua -->
-                        <Button variant="outline" size="sm" as-child class="h-8 text-sm font-medium">
+                        <Button variant="outline" size="sm" as-child class="h-8 text-xs font-medium shrink-0">
                             <Link :href="route('control.admin.incoming-stocks')">Lihat Semua</Link>
                         </Button>
                     </div>

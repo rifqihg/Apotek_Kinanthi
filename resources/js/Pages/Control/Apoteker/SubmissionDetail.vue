@@ -22,6 +22,7 @@ function confirmCancel() {
 
 function proceedCancel() {
     router.post(route('control.apoteker.submissions.cancel', props.submission.id), {}, {
+        preserveScroll: true,
         onFinish: () => showCancelModal.value = false
     });
 }

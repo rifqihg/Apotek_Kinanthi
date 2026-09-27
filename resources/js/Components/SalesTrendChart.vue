@@ -12,7 +12,7 @@
           </CardTitle>
         </div>
         <CardDescription class="text-xs text-muted-foreground mt-1">
-          {{ isHourly ? 'Dinamika omset per jam (Sumbu Kiri) dan frekuensi transaksi (Sumbu Kanan)' : 'Dinamika omset harian (Sumbu Kiri) dan frekuensi transaksi (Sumbu Kanan)' }}
+          {{ isHourly ? 'Dinamika omset per menit jam operasional 08:00 - 22:00 (Sumbu Kiri) dan frekuensi transaksi (Sumbu Kanan)' : 'Dinamika omset harian (Sumbu Kiri) dan frekuensi transaksi (Sumbu Kanan)' }}
         </CardDescription>
       </div>
 
@@ -279,9 +279,13 @@ const activeData = computed(() => {
   const source = props.data?.length ? props.data : props.salesTrend;
   if (Array.isArray(source) && source.length > 0) return source;
   if (isHourly.value) {
-    return Array.from({ length: 14 }, (_, i) => {
-      const h = 8 + i;
-      const label = `${String(h).padStart(2, '0')}:00`;
+    const start = new Date();
+    start.setHours(8, 0, 0, 0);
+    return Array.from({ length: 841 }, (_, i) => {
+      const d = new Date(start.getTime() + i * 60000);
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      const label = `${h}:${m}`;
       return {
         date: label,
         label,
@@ -385,8 +389,21 @@ function generateMonotoneSpline(pts, yKey) {
   return path;
 }
 
-const salesLinePath = computed(() => generateMonotoneSpline(chartPoints.value, 'ySales'));
-const txLinePath = computed(() => generateMonotoneSpline(chartPoints.value, 'yTx'));
+// Line Generator with high-density intraday support (Stockbit style)
+function generateLinePath(pts, yKey) {
+  if (!pts || pts.length === 0) return '';
+  if (isHourly.value && pts.length > 50) {
+    let path = `M ${pts[0].x.toFixed(1)} ${pts[0][yKey].toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      path += ` L ${pts[i].x.toFixed(1)} ${pts[i][yKey].toFixed(1)}`;
+    }
+    return path;
+  }
+  return generateMonotoneSpline(pts, yKey);
+}
+
+const salesLinePath = computed(() => generateLinePath(chartPoints.value, 'ySales'));
+const txLinePath = computed(() => generateLinePath(chartPoints.value, 'yTx'));
 
 const salesAreaPath = computed(() => {
   const line = salesLinePath.value;
@@ -396,10 +413,24 @@ const salesAreaPath = computed(() => {
   return `${line} L ${pts[pts.length - 1].x.toFixed(1)} ${baseLine.toFixed(1)} L ${pts[0].x.toFixed(1)} ${baseLine.toFixed(1)} Z`;
 });
 
+// Sumbu X: 08:00 - 22:00 untuk 1D, atau tanggal untuk harian
 const sampledXAxis = computed(() => {
   const pts = chartPoints.value;
+  if (!pts || pts.length === 0) return [];
+  if (isHourly.value) {
+    // Tampilkan penanda jam operasional apotek genap (08:00, 10:00, ..., 22:00)
+    const hours = pts.filter((p) => {
+      const lbl = p.data?.label || '';
+      if (!lbl.endsWith(':00')) return false;
+      const h = parseInt(lbl.split(':')[0], 10);
+      return h % 2 === 0;
+    });
+    if (hours.length > 0) {
+      return hours.map(p => ({ x: p.x, label: p.data.label }));
+    }
+  }
   if (pts.length <= 8) return pts.map(p => ({ x: p.x, label: p.data.label }));
-  const step = isHourly.value ? Math.ceil(pts.length / 5) : Math.ceil(pts.length / 7);
+  const step = Math.ceil(pts.length / 7);
   return pts.filter((_, i) => i % step === 0 || i === pts.length - 1).map(p => ({ x: p.x, label: p.data.label }));
 });
 
@@ -407,9 +438,17 @@ function onMouseMove(event) {
   if (!containerRef.value || chartPoints.value.length === 0) return;
   const rect = containerRef.value.getBoundingClientRect();
   const svgX = (event.clientX - rect.left) * (800 / rect.width);
-  hoveredPoint.value = chartPoints.value.reduce((prev, curr) =>
-    Math.abs(curr.x - svgX) < Math.abs(prev.x - svgX) ? curr : prev
-  );
+  const n = chartPoints.value.length;
+  if (isHourly.value && n > 1) {
+    const clampedX = Math.max(margin.left, Math.min(margin.left + innerWidth, svgX));
+    const ratio = (clampedX - margin.left) / innerWidth;
+    const index = Math.round(ratio * (n - 1));
+    hoveredPoint.value = chartPoints.value[Math.max(0, Math.min(n - 1, index))];
+  } else {
+    hoveredPoint.value = chartPoints.value.reduce((prev, curr) =>
+      Math.abs(curr.x - svgX) < Math.abs(prev.x - svgX) ? curr : prev
+    );
+  }
 }
 
 const tooltipStyle = computed(() => {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
@@ -174,13 +174,15 @@ const actionClass = (a) => ({
             </div>
             <div v-if="logs.links?.length > 3" class="flex justify-center gap-1.5 p-4 border-t border-border">
                 <template v-for="l in logs.links" :key="l.label">
-                    <button 
+                    <Link 
                         v-if="l.url" 
-                        @click="router.get(l.url)" 
-                        :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-muted-foreground hover:bg-muted hover:text-foreground'" 
+                        :href="l.url"
+                        preserve-scroll 
+                        preserve-state 
+                        :class="l.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border-input text-muted-foreground hover:bg-muted hover:text-foreground'" 
                         class="h-8 w-8 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                         v-html="l.label"
-                    ></button>
+                    />
                 </template>
             </div>
         </div>

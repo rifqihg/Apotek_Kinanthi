@@ -1,6 +1,6 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 defineOptions({ layout: ControlLayout });
@@ -27,10 +27,10 @@ const roleClass = (r) => ({
 function openCreate() { editing.value=null; form.reset(); form.clearErrors(); showModal.value=true; }
 function openEdit(u) { editing.value=u; form.name=u.name; form.email=u.email; form.role=u.role; form.password=''; form.password_confirmation=''; form.clearErrors(); showModal.value=true; }
 function submit() {
-    if (editing.value) form.put(route('control.admin.users.update',editing.value.id),{onSuccess:()=>showModal.value=false});
-    else form.post(route('control.admin.users.store'),{onSuccess:()=>showModal.value=false});
+    if (editing.value) form.put(route('control.admin.users.update', editing.value.id), { preserveScroll: true, onSuccess: () => showModal.value = false });
+    else form.post(route('control.admin.users.store'), { preserveScroll: true, onSuccess: () => showModal.value = false });
 }
-function destroy(u) { if(confirm(`Hapus user "${u.name}"?`)) router.delete(route('control.admin.users.destroy',u.id)); }
+function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(route('control.admin.users.destroy', u.id), { preserveScroll: true }); }
 </script>
 
 <template>
@@ -171,7 +171,7 @@ function destroy(u) { if(confirm(`Hapus user "${u.name}"?`)) router.delete(route
             </table>
             <div v-if="users.links?.length > 3" class="px-5 py-3 border-t border-border flex items-center justify-center gap-1 bg-muted/30">
                 <template v-for="l in users.links" :key="l.label">
-                    <button v-if="l.url" @click="router.get(l.url)" :class="l.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label"></button>
+                    <Link v-if="l.url" :href="l.url" preserve-scroll :class="l.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label" />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium" v-html="l.label"></span>
                 </template>
             </div>

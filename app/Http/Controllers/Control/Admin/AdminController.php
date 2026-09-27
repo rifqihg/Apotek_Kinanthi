@@ -45,38 +45,44 @@ class AdminController extends Controller
      */
     private function getSalesTrend(string $period): array
     {
-        // 1. FILTER 1D: HARI INI PER JAM (08:00 - 22:00 ATAU RANGE JAM OPERASIONAL)
+        // 1. FILTER 1D: HARI INI PER MENIT DALAM JAM OPERASIONAL APOTEK (08:00 - 22:00)
         if ($period === '1D') {
             $today = Carbon::today();
-            $salesGrouped = Sale::query()
-                ->where('status', 'paid')
-                ->where('created_at', '>=', $today->copy()->startOfDay())
-                ->where('created_at', '<=', $today->copy()->endOfDay())
-                ->selectRaw('HOUR(created_at) as sale_hour, COUNT(id) as total_tx, COALESCE(SUM(total_amount), 0) as total_nominal')
-                ->groupBy('sale_hour')
-                ->get()
-                ->keyBy('sale_hour');
+            $startOfDay = $today->copy()->setTime(8, 0, 0);
+            $endOfDay = $today->copy()->setTime(22, 0, 0);
 
-            $startHour = 8;
-            $endHour = max(21, Carbon::now()->hour);
-            if ($salesGrouped->isNotEmpty()) {
-                $minHour = (int) $salesGrouped->keys()->min();
-                $maxHour = (int) $salesGrouped->keys()->max();
-                $startHour = min($startHour, $minHour);
-                $endHour = max($endHour, $maxHour);
+            // Ambil seluruh penjualan kasir hari ini dalam rentang jam operasional
+            $salesToday = Sale::query()
+                ->where('status', 'paid')
+                ->where('created_at', '>=', $startOfDay)
+                ->where('created_at', '<=', $endOfDay)
+                ->get(['created_at', 'total_amount']);
+
+            $salesByMinute = [];
+            foreach ($salesToday as $sale) {
+                $m = $sale->created_at->format('H:i');
+                if (!isset($salesByMinute[$m])) {
+                    $salesByMinute[$m] = ['sales' => 0.0, 'tx' => 0];
+                }
+                $salesByMinute[$m]['sales'] += (float) $sale->total_amount;
+                $salesByMinute[$m]['tx'] += 1;
             }
 
+            // Bangun deret waktu per menit dari 08:00 hingga 22:00 (gaya chart intraday Stockbit)
             $trend = [];
-            for ($h = $startHour; $h <= $endHour; $h++) {
-                $record = $salesGrouped->get($h);
-                $timeLabel = sprintf('%02d:00', $h);
+            $cursor = $startOfDay->copy();
+            while ($cursor <= $endOfDay) {
+                $timeLabel = $cursor->format('H:i');
+                $hasData = isset($salesByMinute[$timeLabel]);
 
                 $trend[] = [
                     'date' => $today->format('Y-m-d') . ' ' . $timeLabel,
                     'label' => $timeLabel,
-                    'sales' => $record ? (float) $record->total_nominal : 0,
-                    'transactions' => $record ? (int) $record->total_tx : 0,
+                    'sales' => $hasData ? $salesByMinute[$timeLabel]['sales'] : 0,
+                    'transactions' => $hasData ? $salesByMinute[$timeLabel]['tx'] : 0,
                 ];
+
+                $cursor->addMinute();
             }
 
             return $trend;

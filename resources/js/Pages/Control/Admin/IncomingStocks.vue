@@ -1,6 +1,6 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 
 defineOptions({ layout: ControlLayout });
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -488,62 +488,62 @@ function submit() {
             <!-- Accordion Body (Table) -->
             <div v-show="openAccordions[group.faktur_no]" class="border-t border-border bg-muted/20">
                 <div class="w-full overflow-x-auto custom-scrollbar">
-                    <Table>
+                    <Table class="w-full table-fixed">
                         <TableHeader>
                             <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Barang</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batch</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Exp Date</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jumlah Barang (Qty)</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Beli</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Disc (%)</TableHead>
-                                <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Jumlah Harga</TableHead>
+                                <TableHead class="w-[18%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Obat</TableHead>
+                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
+                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Exp Date</TableHead>
+                                <TableHead class="w-[14%] py-2 pl-5 pr-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jumlah Barang (Qty)</TableHead>
+                                <TableHead class="w-[13%] py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Beli</TableHead>
+                                <TableHead class="w-[12%] py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Disc (%)</TableHead>
+                                <TableHead class="w-[19%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jumlah Harga</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             <TableRow v-for="item in group.items" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                                <TableCell class="py-2 px-3 align-middle">
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-foreground leading-tight">{{ item.medicine?.nama_obat }}</span>
+                                <TableCell class="py-2.5 px-3 align-middle overflow-hidden">
+                                    <div class="flex flex-col min-w-0">
+                                        <span class="text-sm font-medium text-foreground leading-tight truncate">{{ item.medicine?.nama_obat }}</span>
                                         <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ item.satuan_input }}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle">
-                                    <span class="font-mono text-sm font-normal text-foreground tracking-tight">{{ item.batch_no }}</span>
+                                <TableCell class="py-2.5 px-3 align-middle text-center overflow-hidden">
+                                    <span class="text-sm font-medium text-foreground tracking-tight truncate block text-center">{{ item.batch_no }}</span>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle">
-                                    <span class="text-xs font-mono text-muted-foreground tabular-nums">{{ new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) }}</span>
+                                <TableCell class="py-2.5 px-3 align-middle text-center">
+                                    <span class="text-sm font-medium text-foreground tabular-nums block text-center">{{ new Date(item.expired_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}) }}</span>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-center">
-                                    <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
+                                <TableCell class="py-2.5 pl-5 pr-1 align-middle text-center">
+                                    <div class="flex items-center justify-center">
+                                        <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
                                             <span class="font-semibold tabular-nums text-foreground">{{ item.qty_masuk }}</span>
                                             <span class="text-muted-foreground uppercase text-[11px] tracking-wide">{{ item.satuan_input }}</span>
                                         </div>
                                     </div>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right">
-                                    <span class="text-sm font-medium tabular-nums text-foreground text-right block">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</span>
+                                <TableCell class="py-2.5 px-3 pr-4 align-middle text-right">
+                                    <span class="text-sm font-medium tabular-nums text-foreground block">Rp {{ Number(item.harga_beli_satuan).toLocaleString('id-ID') }}</span>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-center">
-                                    <span class="text-xs font-medium tabular-nums text-muted-foreground text-center block">{{ Number(item.diskon_persen) }}%</span>
+                                <TableCell class="py-2.5 px-3 pr-4 align-middle text-right">
+                                    <span class="text-sm font-medium tabular-nums text-foreground block">{{ Number(item.diskon_persen) }}%</span>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right">
-                                    <span class="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 text-right block">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</span>
+                                <TableCell class="py-2.5 px-3 align-middle text-right">
+                                    <span class="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 block">Rp {{ Number(item.jumlah_harga).toLocaleString('id-ID') }}</span>
                                 </TableCell>
                             </TableRow>
                         </TableBody>
                         <TableFooter class="bg-card border-t border-border">
                             <TableRow class="h-9 border-b border-border/40">
-                                <TableCell colspan="6" class="py-1.5 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub Nota</TableCell>
+                                <TableCell colspan="6" class="py-1.5 px-3 pr-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sub Nota</TableCell>
                                 <TableCell class="py-1.5 px-3 text-right font-medium text-sm text-foreground tabular-nums">Rp {{ group.subtotal.toLocaleString('id-ID') }}</TableCell>
                             </TableRow>
                             <TableRow class="h-9 border-b border-border/40">
-                                <TableCell colspan="6" class="py-1.5 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">PPN ({{ group.ppn_persen }}%)</TableCell>
+                                <TableCell colspan="6" class="py-1.5 px-3 pr-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">PPN ({{ group.ppn_persen }}%)</TableCell>
                                 <TableCell class="py-1.5 px-3 text-right font-medium text-sm text-rose-600 dark:text-rose-400 tabular-nums">+ Rp {{ (group.subtotal * (group.ppn_persen/100)).toLocaleString('id-ID') }}</TableCell>
                             </TableRow>
                             <TableRow class="h-10 bg-muted/30">
-                                <TableCell colspan="6" class="py-2 px-3 text-right text-xs font-bold text-foreground uppercase tracking-wider">Total</TableCell>
+                                <TableCell colspan="6" class="py-2 px-3 pr-4 text-right text-xs font-bold text-foreground uppercase tracking-wider">Total</TableCell>
                                 <TableCell class="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">Rp {{ invoiceGrandTotal(group).toLocaleString('id-ID') }}</TableCell>
                             </TableRow>
                         </TableFooter>
@@ -557,9 +557,9 @@ function submit() {
             <p class="text-xs font-medium text-muted-foreground">Halaman {{ activeStocks.current_page || 1 }} dari {{ activeStocks.last_page || 1 }} (Total {{ activeStocks.total || 0 }} data faktur)</p>
             <div class="flex items-center gap-1">
                 <template v-for="(link, i) in activeStocks.links" :key="i">
-                    <button v-if="link.url" @click="router.visit(link.url, { preserveState: true, preserveScroll: true })" 
-                        :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" 
-                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label"></button>
+                    <Link v-if="link.url" :href="link.url" preserve-state preserve-scroll 
+                        :class="link.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" 
+                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label" />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
                 </template>
             </div>

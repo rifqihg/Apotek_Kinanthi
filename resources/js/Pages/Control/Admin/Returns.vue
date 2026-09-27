@@ -1,6 +1,6 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -329,15 +329,15 @@ const submitReturn = () => {
 
         <!-- TABLE: RIWAYAT RETUR -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <Table>
+            <Table class="w-full table-fixed">
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Retur</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Supplier</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Faktur & Obat</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Ekuivalen Stok Dasar</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alasan (Fisik Retur)</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Status</TableHead>
+                        <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Tgl Retur</TableHead>
+                        <TableHead class="w-[20%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Supplier</TableHead>
+                        <TableHead class="w-[25%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Faktur & Obat</TableHead>
+                        <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Ekuivalen Stok Dasar</TableHead>
+                        <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Alasan (Fisik Retur)</TableHead>
+                        <TableHead class="w-[10%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -356,37 +356,37 @@ const submitReturn = () => {
                         </TableCell>
                     </TableRow>
                     <TableRow v-for="item in returns.data" :key="item.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                        <TableCell class="py-2 px-3 align-middle">
+                        <TableCell class="py-2.5 px-3 align-middle">
                             <div class="flex flex-col">
                                 <span class="text-sm font-medium text-foreground leading-tight">{{ formatDate(item.created_at) }}</span>
                                 <span class="text-xs text-muted-foreground leading-tight mt-0.5">Oleh: {{ item.creator?.name || 'Sistem' }}</span>
                             </div>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle">
+                        <TableCell class="py-2.5 px-3 align-middle">
                             <span class="text-sm font-medium text-foreground">{{ item.supplier?.nama_pbf || '-' }}</span>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle">
+                        <TableCell class="py-2.5 px-3 align-middle">
                             <div class="flex flex-col">
                                 <span class="text-sm font-medium text-foreground leading-tight">{{ item.incoming_stock?.medicine?.nama_obat || '-' }}</span>
                                 <div class="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                                    <span class="font-mono">{{ item.incoming_stock?.faktur_no || '-' }}</span>
+                                    <span class="font-medium text-foreground/80">{{ item.incoming_stock?.faktur_no || '-' }}</span>
                                     <span>·</span>
-                                    <span class="font-mono">Batch: {{ item.incoming_stock?.batch_no || '-' }}</span>
+                                    <span>Batch: {{ item.incoming_stock?.batch_no || '-' }}</span>
                                 </div>
                             </div>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle text-center">
-                            <span class="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
+                        <TableCell class="py-2.5 px-3 align-middle text-center">
+                            <span class="text-sm font-semibold tabular-nums text-destructive">
                                 -{{ item.qty_retur }} <span class="text-xs font-normal uppercase">{{ item.incoming_stock?.medicine?.satuan_stok }}</span>
                             </span>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle">
+                        <TableCell class="py-2.5 px-3 align-middle">
                             <p class="text-xs text-muted-foreground max-w-[250px] truncate" :title="item.alasan_retur">
                                 {{ item.alasan_retur }}
                             </p>
                         </TableCell>
-                        <TableCell class="py-2 px-3 align-middle text-right">
-                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <TableCell class="py-2.5 px-3 align-middle text-right">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 SELESAI
                             </span>
@@ -402,7 +402,7 @@ const submitReturn = () => {
                 </span>
                 <div class="flex items-center gap-1.5">
                     <template v-for="l in returns.links" :key="l.label">
-                        <button v-if="l.url" @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label"></button>
+                        <Link v-if="l.url" :href="l.url" preserve-state preserve-scroll :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="l.label" />
                         <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                     </template>
                 </div>
@@ -416,7 +416,8 @@ const submitReturn = () => {
         </div>
 
     <!-- MODAL BUAT RETUR -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <Teleport to="body">
+        <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
         <form @submit.prevent="submitReturn" class="w-full max-w-lg bg-card rounded-lg shadow-lg flex flex-col max-h-[90vh] overflow-hidden border border-border animate-in zoom-in-95 duration-200">
             
             <!-- HEADER -->
@@ -521,5 +522,6 @@ const submitReturn = () => {
                 </button>
             </div>
         </form>
-    </div>
+        </div>
+    </Teleport>
 </template>

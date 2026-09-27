@@ -2,7 +2,17 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import Swal from 'sweetalert2';
+import { toast } from '@/Components/ui/toast';
+import { 
+    AlertDialog, 
+    AlertDialogAction, 
+    AlertDialogCancel, 
+    AlertDialogContent, 
+    AlertDialogDescription, 
+    AlertDialogFooter, 
+    AlertDialogHeader, 
+    AlertDialogTitle 
+} from '@/Components/ui/alert-dialog';
 
 defineOptions({ layout: ControlLayout });
 
@@ -53,20 +63,14 @@ const discountAmount = ref(0);
 const paidAmount = ref(0);
 const isPaymentModalOpen = ref(false);
 const isProcessingPayment = ref(false);
+const isClearCartDialogOpen = ref(false);
 
 const page = usePage();
 
-// Watch for flash error messages from server
+// Watch for flash error messages from server (notification handled globally by ControlLayout)
 watch(() => page.props.flash?.error, (errMsg) => {
     if (errMsg) {
         isProcessingPayment.value = false;
-        Swal.fire({
-            title: 'Transaksi Ditolak',
-            text: errMsg,
-            icon: 'error',
-            confirmButtonColor: '#DC2626',
-            confirmButtonText: 'Tutup'
-        });
     }
 });
 
@@ -149,11 +153,8 @@ const addToCart = (item, itemType) => {
     const maxStock = itemType === 'obat_jadi' ? (item.stok_kasir || 0) : 9999;
     
     if (itemType === 'obat_jadi' && maxStock <= 0) {
-        Swal.fire({
-            title: 'Stok Kasir Kosong',
-            text: `Stok ${item.nama_obat} di kasir Anda saat ini adalah 0. Silakan minta Admin melakukan distribusi stok terlebih dahulu.`,
-            icon: 'warning',
-            confirmButtonColor: '#2563EB'
+        toast.warning('Stok Kasir Kosong', {
+            description: `Stok ${item.nama_obat} di kasir Anda saat ini adalah 0. Silakan minta Admin melakukan distribusi stok terlebih dahulu.`
         });
         return;
     }
@@ -161,11 +162,8 @@ const addToCart = (item, itemType) => {
     const existing = cart.value.find(c => c.id === item.id && c.item_type === itemType);
     if (existing) {
         if (existing.quantity >= maxStock) {
-            Swal.fire({
-                title: 'Batas Stok Kasir Tercapai',
-                text: `Maksimal stok yang tersedia di etalase kasir Anda adalah ${maxStock} ${existing.satuan}.`,
-                icon: 'info',
-                confirmButtonColor: '#2563EB'
+            toast.info('Batas Stok Kasir Tercapai', {
+                description: `Maksimal stok yang tersedia di etalase kasir Anda adalah ${maxStock} ${existing.satuan}.`
             });
             return;
         }
@@ -195,7 +193,9 @@ const updateQuantity = (index, delta) => {
     if (newQty <= 0) {
         removeFromCart(index);
     } else if (newQty > item.maxStock) {
-        Swal.fire('Stok Terbatas', `Maksimal kuantitas tersedia di kasir adalah ${item.maxStock} ${item.satuan}`, 'warning');
+        toast.warning('Stok Terbatas', {
+            description: `Maksimal kuantitas tersedia di kasir adalah ${item.maxStock} ${item.satuan}`
+        });
     } else {
         item.quantity = newQty;
         item.subtotal = item.quantity * item.unit_price;
@@ -207,7 +207,9 @@ const setQuantity = (index, val) => {
     let qty = parseInt(val) || 1;
     if (qty > item.maxStock) {
         qty = item.maxStock;
-        Swal.fire('Stok Terbatas', `Maksimal kuantitas tersedia di kasir adalah ${item.maxStock} ${item.satuan}`, 'warning');
+        toast.warning('Stok Terbatas', {
+            description: `Maksimal kuantitas tersedia di kasir adalah ${item.maxStock} ${item.satuan}`
+        });
     }
     item.quantity = Math.max(1, qty);
     item.subtotal = item.quantity * item.unit_price;
@@ -219,28 +221,22 @@ const removeFromCart = (index) => {
 
 const clearCart = () => {
     if (cart.value.length === 0) return;
-    Swal.fire({
-        title: 'Kosongkan Keranjang?',
-        text: 'Semua item yang telah dipilih akan dihapus dari pesanan ini.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#64748B',
-        confirmButtonText: 'Ya, Kosongkan',
-        cancelButtonText: 'Batal'
-    }).then((res) => {
-        if (res.isConfirmed) {
-            cart.value = [];
-            discountAmount.value = 0;
-            paidAmount.value = 0;
-        }
-    });
+    isClearCartDialogOpen.value = true;
+};
+
+const confirmClearCart = () => {
+    cart.value = [];
+    discountAmount.value = 0;
+    paidAmount.value = 0;
+    isClearCartDialogOpen.value = false;
 };
 
 // --- PAYMENT MODAL & CHECKOUT ---
 const openPaymentModal = () => {
     if (cart.value.length === 0) {
-        Swal.fire('Keranjang Kosong', 'Pilih minimal 1 obat dari katalog terlebih dahulu.', 'warning');
+        toast.warning('Keranjang Kosong', {
+            description: 'Pilih minimal 1 obat dari katalog terlebih dahulu.'
+        });
         return;
     }
     // Default paid amount to exact grandTotal
@@ -263,7 +259,9 @@ const setQuickCash = (amount) => {
 const submitPayment = () => {
     if (cart.value.length === 0 || isProcessingPayment.value) return;
     if (paymentMethod.value === 'tunai' && paidAmount.value < grandTotal.value) {
-        Swal.fire('Uang Kurang', `Uang yang diterima kurang dari total tagihan (${formatRupiah(grandTotal.value)}).`, 'error');
+        toast.error('Uang Kurang', {
+            description: `Uang yang diterima kurang dari total tagihan (${formatRupiah(grandTotal.value)}).`
+        });
         return;
     }
 
@@ -286,24 +284,11 @@ const submitPayment = () => {
             cart.value = [];
             paidAmount.value = 0;
             discountAmount.value = 0;
-            Swal.fire({
-                title: 'Transaksi Berhasil!',
-                text: 'Pembayaran telah sukses diproses dan stok kasir telah diperbarui.',
-                icon: 'success',
-                confirmButtonColor: '#16A34A',
-                confirmButtonText: 'Selesai'
-            });
         },
         onError: (errors) => {
             isProcessingPayment.value = false;
             const msg = errors.error || errors.message || Object.values(errors)[0] || 'Terjadi kesalahan saat memproses transaksi OTC.';
-            Swal.fire({
-                title: 'Transaksi Ditolak',
-                text: msg,
-                icon: 'error',
-                confirmButtonColor: '#DC2626',
-                confirmButtonText: 'Tutup'
-            });
+            toast.error('Transaksi Ditolak', { description: msg });
         },
         onFinish: () => {
             isProcessingPayment.value = false;
@@ -844,6 +829,27 @@ onUnmounted(() => {
 
             </div>
         </div>
+
+        <!-- ALERT DIALOG KONFIRMASI KOSONGKAN KERANJANG -->
+        <AlertDialog v-model:open="isClearCartDialogOpen">
+            <AlertDialogContent class="sm:max-w-[420px]">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Kosongkan Keranjang?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Semua item yang telah dipilih akan dihapus dari pesanan ini. Tindakan ini tidak dapat dibatalkan.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter class="gap-2 sm:gap-0">
+                    <AlertDialogCancel @click="isClearCartDialogOpen = false">Batal</AlertDialogCancel>
+                    <AlertDialogAction 
+                        class="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                        @click="confirmClearCart"
+                    >
+                        Ya, Kosongkan
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
 </template>
 

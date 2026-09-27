@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property float|string|null $harga_jual_akhir
+ */
 class IncomingStock extends Model
 {
     protected $fillable = [
@@ -137,6 +140,21 @@ class IncomingStock extends Model
             : 0;
 
         return round($hbNettoSatuan + $biayaTambahanSatuan, 2);
+    }
+
+    public function calculateHargaBeliSatuan(): float
+    {
+        $initialPcs = $this->initial_total_pieces ?: 1;
+
+        if ($this->jumlah_harga > 0) {
+            $subtotalNetto = (float) $this->jumlah_harga;
+        } else {
+            $diskonFactor = 1 - ((float) $this->diskon_persen / 100);
+            $qtyMasuk = (float) ($this->qty_masuk ?: 1);
+            $subtotalNetto = (float) $this->harga_beli_satuan * $diskonFactor * $qtyMasuk;
+        }
+
+        return round($subtotalNetto / $initialPcs, 2);
     }
 
     public function calculateSellingPrice(): float

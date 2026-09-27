@@ -1,6 +1,6 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -77,12 +77,14 @@ function openEdit(supplier) {
 function submit() {
     if (editingSupplier.value) {
         form.put(route('control.admin.suppliers.update', editingSupplier.value.id), { 
+            preserveScroll: true,
             onSuccess: () => {
                 showModal.value = false;
             } 
         });
     } else {
         form.post(route('control.admin.suppliers.store'), { 
+            preserveScroll: true,
             onSuccess: () => {
                 showModal.value = false;
             } 
@@ -92,7 +94,7 @@ function submit() {
 
 function destroy(supplier) {
     if (confirm(`Hapus supplier "${supplier.nama_pbf}"?`)) {
-        router.delete(route('control.admin.suppliers.destroy', supplier.id));
+        router.delete(route('control.admin.suppliers.destroy', supplier.id), { preserveScroll: true });
     }
 }
 </script>
@@ -290,9 +292,9 @@ function destroy(supplier) {
                     <p class="text-xs font-medium text-muted-foreground">Halaman {{ suppliers.current_page || 1 }} dari {{ suppliers.last_page || 1 }} (Total {{ suppliers.total || 0 }} PBF)</p>
                     <div v-if="suppliers.links?.length > 3" class="flex items-center gap-1">
                         <template v-for="(link, i) in suppliers.links" :key="i">
-                            <button v-if="link.url" @click="router.visit(link.url, { preserveState: true, preserveScroll: true })" 
-                                :class="link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-accent'" 
-                                class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label"></button>
+                            <Link v-if="link.url" :href="link.url" preserve-state preserve-scroll 
+                                :class="link.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" 
+                                class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label" />
                             <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
                         </template>
                     </div>

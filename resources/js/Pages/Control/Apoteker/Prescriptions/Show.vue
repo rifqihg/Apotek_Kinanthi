@@ -35,18 +35,18 @@ const updateStatus = (newStatus) => {
     if (newStatus === 'siap_ambil' && !allItemsDone.value) return;
     
     if (confirm(`Ubah status resep menjadi ${newStatus.replace(/_/g, ' ')}?`)) {
-        router.patch(route('control.apoteker.prescriptions.updateStatus', props.prescription.id), { status: newStatus });
+        router.patch(route('control.apoteker.prescriptions.updateStatus', props.prescription.id), { status: newStatus }, { preserveScroll: true });
     }
 };
 
 const startCompounding = (itemId) => {
     if (confirm('Mulai kerjakan racikan untuk item ini?')) {
-        router.post(route('control.apoteker.prescriptions.items.start-compounding', itemId));
+        router.post(route('control.apoteker.prescriptions.items.start-compounding', itemId), {}, { preserveScroll: true });
     }
 };
 
 const completeItem = (itemId) => {
-    router.patch(route('control.apoteker.prescriptions.items.complete', itemId));
+    router.patch(route('control.apoteker.prescriptions.items.complete', itemId), {}, { preserveScroll: true });
 };
 </script>
 

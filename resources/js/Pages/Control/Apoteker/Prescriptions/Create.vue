@@ -94,7 +94,9 @@ const removeItem = (index) => {
 };
 
 const submit = () => {
-    form.post(route('control.apoteker.prescriptions.store'));
+    form.post(route('control.apoteker.prescriptions.store'), {
+        preserveScroll: true,
+    });
 };
 
 const savePatient = async () => {

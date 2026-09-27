@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
@@ -69,6 +69,7 @@ const stats = computed(() => {
 
 function submit() { 
     form.post(route('control.apoteker.formulas.store'), { 
+        preserveScroll: true,
         onSuccess: () => { 
             showModal.value = false; 
             form.reset(); 
@@ -274,13 +275,15 @@ function submit() {
             </span>
             <div class="flex items-center gap-1">
                 <template v-for="l in formulas.links" :key="l.label">
-                    <button 
+                    <Link 
                         v-if="l.url" 
-                        @click="router.visit(l.url, { preserveState: true, preserveScroll: true })" 
+                        :href="l.url"
+                        preserve-state 
+                        preserve-scroll 
                         :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
                         class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
                         v-html="l.label"
-                    ></button>
+                    />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                 </template>
             </div>
