@@ -262,15 +262,15 @@ const submitEditMedicine = () => {
 
                     <!-- TABLE: KATALOG FAKTUR -->
                     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
-                        <Table class="w-full table-fixed">
+                        <Table class="w-full min-w-[960px]">
                             <TableHeader>
                                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                    <TableHead class="w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                                    <TableHead class="w-[23%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
-                                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</TableHead>
-                                    <TableHead class="w-[14%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Exp Date</TableHead>
-                                    <TableHead class="w-[28%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty / Jumlah</TableHead>
-                                    <TableHead class="w-[18%] text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Jual</TableHead>
+                                    <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                                    <TableHead class="min-w-[260px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
+                                    <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</TableHead>
+                                    <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Exp Date</TableHead>
+                                    <TableHead class="min-w-[230px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty / Jumlah</TableHead>
+                                    <TableHead class="min-w-[160px] text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Jual</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -367,14 +367,14 @@ const submitEditMedicine = () => {
                                                 </div>
                                                 
                                                 <div class="w-full overflow-x-auto">
-                                                    <Table class="w-full table-fixed">
+                                                    <Table class="w-full min-w-[640px]">
                                                         <TableHeader>
                                                             <TableRow class="h-8 bg-muted/15 hover:bg-muted/15 border-b border-border/60">
-                                                                <TableHead class="w-[14%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Satuan</TableHead>
-                                                                <TableHead class="w-[18%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Isi Konversi</TableHead>
-                                                                <TableHead class="w-[26%] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">HPP</TableHead>
-                                                                <TableHead class="w-[24%] py-1.5 px-3 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">Harga Jual</TableHead>
-                                                                <TableHead class="w-[18%] py-1.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Margin</TableHead>
+                                                                <TableHead class="min-w-[90px] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-left">Satuan</TableHead>
+                                                                <TableHead class="min-w-[140px] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-center">Isi Konversi</TableHead>
+                                                                <TableHead class="min-w-[160px] py-1.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">HPP</TableHead>
+                                                                <TableHead class="min-w-[150px] py-1.5 px-3 text-xs font-semibold text-foreground uppercase tracking-wider whitespace-nowrap text-right tabular-nums">Harga Jual</TableHead>
+                                                                <TableHead class="min-w-[100px] py-1.5 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap text-right">Margin</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>

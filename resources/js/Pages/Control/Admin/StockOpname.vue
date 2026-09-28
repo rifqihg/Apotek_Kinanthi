@@ -424,15 +424,15 @@ const submit = () => {
 
         <!-- Table -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <Table class="w-full table-fixed">
+            <Table class="w-full min-w-[830px]">
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                        <TableHead class="w-[16%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Tanggal</TableHead>
-                        <TableHead class="w-[28%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Keterangan / ID</TableHead>
-                        <TableHead class="w-[20%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Penanggung Jawab</TableHead>
-                        <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jumlah Item</TableHead>
-                        <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Status</TableHead>
-                        <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Aksi</TableHead>
+                        <TableHead class="min-w-[130px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Tanggal</TableHead>
+                        <TableHead class="min-w-[220px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Keterangan / ID</TableHead>
+                        <TableHead class="min-w-[160px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Penanggung Jawab</TableHead>
+                        <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jumlah Item</TableHead>
+                        <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Status</TableHead>
+                        <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Aksi</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

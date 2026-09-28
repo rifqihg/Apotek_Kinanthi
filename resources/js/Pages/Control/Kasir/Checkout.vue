@@ -88,14 +88,14 @@ const submit = () => {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-sm">
+                    <table class="w-full text-left border-collapse text-sm min-w-[700px]">
                         <thead class="bg-muted/50 border-b border-border">
                             <tr>
-                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Item</th>
-                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jenis</th>
-                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Qty</th>
-                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Harga Satuan</th>
-                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Subtotal</th>
+                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[220px] whitespace-nowrap">Nama Item</th>
+                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Jenis</th>
+                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[90px] whitespace-nowrap">Qty</th>
+                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[160px] whitespace-nowrap">Harga Satuan</th>
+                                <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[130px] whitespace-nowrap">Subtotal</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">

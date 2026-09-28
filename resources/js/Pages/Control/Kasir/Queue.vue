@@ -196,15 +196,15 @@ const submitVoid = () => {
             </div>
 
             <div v-else class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
+                <table class="w-full text-left text-sm min-w-[790px]">
                     <thead class="bg-muted/50 border-b border-border">
                         <tr>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No Resep</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pasien</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dokter & Tgl</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jml Item</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Usia Resep</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[140px] whitespace-nowrap">No Resep</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[160px] whitespace-nowrap">Pasien</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[180px] whitespace-nowrap">Dokter & Tgl</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[80px] whitespace-nowrap">Jml Item</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[120px] whitespace-nowrap">Usia Resep</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -332,16 +332,16 @@ const submitVoid = () => {
             </div>
 
             <div v-else class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
+                <table class="w-full text-left text-sm min-w-[800px]">
                     <thead class="bg-muted/50 border-b border-border">
                         <tr>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No Invoice</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pasien</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Metode</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</th>
-                            <th class="no-print px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Aksi</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[150px] whitespace-nowrap">No Invoice</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[150px] whitespace-nowrap">Pasien</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[120px] whitespace-nowrap">Total</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[90px] whitespace-nowrap">Metode</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Status</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[90px] whitespace-nowrap">Waktu</th>
+                            <th class="no-print px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[100px] whitespace-nowrap">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">

@@ -161,19 +161,19 @@ const exportToPdf = () => {
                 <p class="text-xs text-muted-foreground mt-0.5">Audit akuntabilitas transaksi, setoran tunai laci, dan pembatalan nota.</p>
             </div>
             <div class="overflow-x-auto">
-                <Table>
+                <Table class="w-full min-w-[1070px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-10 py-2 px-3 text-center"></TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No. Faktur & Kasir</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Metode Bayar</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Subtotal</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Diskon</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Total Bayar</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Uang Diterima</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Kembalian</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</TableHead>
+                            <TableHead class="w-10 min-w-10 py-2 px-3 text-center"></TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[130px] whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[180px] whitespace-nowrap">No. Faktur & Kasir</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Metode Bayar</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Subtotal</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[90px] whitespace-nowrap">Diskon</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Total Bayar</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Uang Diterima</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[100px] whitespace-nowrap">Kembalian</TableHead>
+                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[90px] whitespace-nowrap">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -243,15 +243,15 @@ const exportToPdf = () => {
                                     <div class="p-3 sm:p-4 border-y border-border/60">
                                         <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Rincian Item Nota Penjualan</h3>
                                         
-                                        <div class="bg-card border border-border rounded-md overflow-hidden">
-                                            <Table>
+                                        <div class="bg-card border border-border rounded-md overflow-x-auto">
+                                            <Table class="w-full min-w-[630px]">
                                                 <TableHeader>
                                                     <TableRow class="h-9 border-b border-border/60 hover:bg-transparent">
-                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Item Terjual</TableHead>
-                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">Kategori</TableHead>
-                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center">Qty Keluar</TableHead>
-                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">Harga Satuan</TableHead>
-                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right">Subtotal</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider min-w-[200px] whitespace-nowrap">Item Terjual</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center min-w-[110px] whitespace-nowrap">Kategori</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-center min-w-[90px] whitespace-nowrap">Qty Keluar</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Harga Satuan</TableHead>
+                                                        <TableHead class="py-1.5 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider text-right min-w-[120px] whitespace-nowrap">Subtotal</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>

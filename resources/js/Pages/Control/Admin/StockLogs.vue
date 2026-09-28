@@ -35,6 +35,7 @@ const search = ref(props.filters?.search || '');
 const startDate = ref(props.filters?.start_date || '');
 const endDate = ref(props.filters?.end_date || '');
 const filterType = ref(props.filters?.type || 'all');
+const isControlled = ref(props.filters?.is_controlled === '1' || props.filters?.is_controlled === true);
 const filterDropdownOpen = ref(false);
 const isFilteringLogs = ref(false);
 
@@ -46,6 +47,7 @@ const applyMutationFilters = () => {
         start_date: startDate.value || undefined,
         end_date: endDate.value || undefined,
         type: filterType.value !== 'all' ? filterType.value : undefined,
+        is_controlled: isControlled.value ? true : undefined,
         mutations_page: 1,
     }, {
         preserveState: true,
@@ -65,7 +67,7 @@ watch(search, (newVal, oldVal) => {
     }
 });
 
-watch([startDate, endDate, filterType], () => {
+watch([startDate, endDate, filterType, isControlled], () => {
     applyMutationFilters();
 });
 
@@ -77,6 +79,7 @@ const clearFilters = () => {
     startDate.value = '';
     endDate.value = '';
     filterType.value = 'all';
+    isControlled.value = false;
     applyMutationFilters();
 };
 
@@ -404,24 +407,35 @@ const formatAuditDate = (dateStr) => {
                 <span class="text-muted-foreground text-xs">-</span>
                 <input v-model="endDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
             </div>
-            <button v-if="search || startDate || endDate || filterType !== 'all'" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
+            <button v-if="search || startDate || endDate || filterType !== 'all' || isControlled" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
                 Reset
             </button>
+            <div class="flex items-center gap-2 border-l border-border pl-3 ml-auto">
+                <button 
+                    @click="isControlled = !isControlled" 
+                    type="button" 
+                    class="h-9 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 border cursor-pointer"
+                    :class="isControlled ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800/40' : 'bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground'"
+                >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    Filter Mutasi Terkontrol
+                </button>
+            </div>
         </div>
 
         <!-- Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <Table class="w-full table-fixed">
+                <Table class="w-full min-w-[960px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
-                            <TableHead class="w-[13%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Jenis</TableHead>
-                            <TableHead class="w-[24%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Item (Obat / Bahan)</TableHead>
-                            <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
-                            <TableHead class="w-[14%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
-                            <TableHead class="w-[11%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Mutasi</TableHead>
-                            <TableHead class="w-[11%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Sisa Stok</TableHead>
+                            <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Jenis</TableHead>
+                            <TableHead class="min-w-[220px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Item (Obat / Bahan)</TableHead>
+                            <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
+                            <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
+                            <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Mutasi</TableHead>
+                            <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Sisa Stok</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -447,9 +461,18 @@ const formatAuditDate = (dateStr) => {
                             <!-- Item -->
                             <TableCell class="py-2.5 px-3 align-middle">
                                 <div class="flex flex-col min-w-0">
-                                    <span class="text-sm font-medium text-foreground leading-tight truncate">
-                                        {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || '-' }}
-                                    </span>
+                                    <div class="flex items-center gap-2 truncate">
+                                        <span class="text-sm font-medium text-foreground leading-tight truncate">
+                                            {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || '-' }}
+                                        </span>
+                                        <span v-if="l.inventory?.medicine?.classification === 'narkotika' || l.inventory?.medicine?.classification === 'psikotropika'" 
+                                            class="inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0"
+                                            :class="l.inventory?.medicine?.classification === 'narkotika' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'"
+                                            :title="'Golongan ' + l.inventory?.medicine?.classification.toUpperCase()">
+                                            <svg v-if="l.inventory?.medicine?.classification === 'narkotika'" class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                            <span v-else class="text-[9px] font-bold">K</span>
+                                        </span>
+                                    </div>
                                     <span class="text-xs text-muted-foreground leading-tight mt-0.5">
                                         {{ l.inventory?.medicine ? 'Obat Jadi' : (l.rawMaterialStock ? 'Bahan Baku Racikan' : 'Item') }}
                                     </span>

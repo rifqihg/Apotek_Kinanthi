@@ -91,13 +91,13 @@ defineProps({
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left">
+                <table class="w-full text-left min-w-[720px]">
                     <thead>
                         <tr class="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
-                            <th class="px-4 py-3">Nama Racikan</th>
-                            <th class="px-4 py-3">Resep / Formula</th>
-                            <th class="px-4 py-3">Komposisi Bahan</th>
-                            <th class="px-4 py-3 text-center">Status</th>
+                            <th class="px-4 py-3 min-w-[200px] whitespace-nowrap">Nama Racikan</th>
+                            <th class="px-4 py-3 min-w-[150px] whitespace-nowrap">Resep / Formula</th>
+                            <th class="px-4 py-3 min-w-[240px] whitespace-nowrap">Komposisi Bahan</th>
+                            <th class="px-4 py-3 text-center min-w-[130px] whitespace-nowrap">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">

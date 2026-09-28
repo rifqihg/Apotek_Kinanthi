@@ -175,23 +175,29 @@ const budLabel = (bud) => {
     </div>
 
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <Table class="w-full table-fixed">
+        <Table class="w-full min-w-[930px]">
             <TableHeader>
                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                    <TableHead class="w-[4%] min-w-10 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                    <TableHead class="w-[24%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Produk</TableHead>
-                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">No Batch</TableHead>
-                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Racik</TableHead>
-                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">BUD</TableHead>
-                    <TableHead class="w-[12%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty</TableHead>
-                    <TableHead class="w-[13%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status BUD</TableHead>
-                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
+                    <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                    <TableHead class="min-w-[220px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Produk</TableHead>
+                    <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">No Batch</TableHead>
+                    <TableHead class="min-w-[110px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Racik</TableHead>
+                    <TableHead class="min-w-[110px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">BUD</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty</TableHead>
+                    <TableHead class="min-w-[120px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status BUD</TableHead>
+                    <TableHead class="min-w-[90px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 <TableRow v-if="!products.data || products.data.length === 0">
-                    <TableCell colspan="8" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
-                        Belum ada data produk racikan terdaftar.
+                    <TableCell colspan="8" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center justify-center space-y-3">
+                            <div class="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-lg border border-border text-muted-foreground">🧪</div>
+                            <div class="space-y-1">
+                                <h4 class="text-sm font-semibold text-foreground">Belum Ada Produk Racikan</h4>
+                                <p class="text-xs text-muted-foreground max-w-sm mx-auto">Produk racikan akan muncul di sini setelah proses peracikan diselesaikan oleh Apoteker dan dikonfirmasi oleh sistem.</p>
+                            </div>
+                        </div>
                     </TableCell>
                 </TableRow>
                 <template v-for="(p, index) in products.data" :key="p.id">
@@ -242,15 +248,6 @@ const budLabel = (bud) => {
                 </template>
             </TableBody>
         </Table>
-
-        <!-- Empty State -->
-        <div v-if="!products.data?.length" class="p-12 flex flex-col items-center justify-center text-center space-y-4">
-            <div class="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-xl border border-border text-muted-foreground">🧪</div>
-            <div class="space-y-1">
-                <h4 class="text-base font-semibold text-foreground">Belum Ada Produk Racikan</h4>
-                <p class="text-muted-foreground text-xs max-w-sm mx-auto">Produk racikan akan muncul di sini setelah proses peracikan diselesaikan oleh Apoteker dan dikonfirmasi oleh sistem.</p>
-            </div>
-        </div>
 
         <!-- Pagination Footer -->
         <div v-if="products.links && products.links.length > 3" class="px-5 py-3 bg-muted/30 border-t border-border flex items-center justify-between">

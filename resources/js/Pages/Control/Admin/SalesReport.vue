@@ -142,21 +142,21 @@ const formatCurrency = (amount) => {
     <!-- Table Data -->
     <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <Table>
+            <Table class="w-full min-w-[940px] xl:min-w-full">
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-12">No</TableHead>
-                        <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Produk & Kategori</TableHead>
-                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Satuan</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">HPP Modal</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Harga Jual</TableHead>
-                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Qty Awal</TableHead>
-                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Terjual</TableHead>
-                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sisa Stok</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Omzet</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Laba Kotor</TableHead>
-                        <TableHead class="py-2 px-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Margin %</TableHead>
-                        <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                        <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-10 min-w-10 whitespace-nowrap">No</TableHead>
+                        <TableHead class="py-2.5 px-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[170px] whitespace-nowrap">Produk & Kategori</TableHead>
+                        <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 min-w-16 whitespace-nowrap">Satuan</TableHead>
+                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[85px] whitespace-nowrap">HPP Modal</TableHead>
+                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[85px] whitespace-nowrap">Harga Jual</TableHead>
+                        <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14 min-w-14 whitespace-nowrap">Qty Awal</TableHead>
+                        <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14 min-w-14 whitespace-nowrap">Terjual</TableHead>
+                        <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14 min-w-14 whitespace-nowrap">Sisa Stok</TableHead>
+                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[95px] whitespace-nowrap">Total Omzet</TableHead>
+                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[95px] whitespace-nowrap">Laba Kotor</TableHead>
+                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 min-w-16 whitespace-nowrap">Margin %</TableHead>
+                        <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-20 min-w-20 whitespace-nowrap">Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -167,41 +167,41 @@ const formatCurrency = (amount) => {
                     </TableRow>
                     <template v-for="(med, index) in activeMedicines.data" :key="med.id">
                         <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
-                            <TableCell class="py-2 px-3 align-middle text-center text-muted-foreground text-xs font-medium tabular-nums">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle">
+                            <TableCell class="py-2.5 px-2 align-middle text-center text-muted-foreground text-xs font-medium tabular-nums whitespace-nowrap">{{ (activeMedicines.current_page - 1) * activeMedicines.per_page + index + 1 }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle min-w-[170px]">
                                 <div class="flex flex-col">
                                     <span class="font-medium text-sm text-foreground leading-tight">{{ med.nama_produk }}</span>
                                     <div class="flex items-center gap-1.5 mt-0.5">
                                         <span class="text-xs text-muted-foreground">{{ med.kode_obat || '-' }}</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/60">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border/60 whitespace-nowrap">
                                             {{ med.kategori || 'Obat Jadi' }}
                                         </span>
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center text-foreground font-medium text-sm">{{ med.satuan }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right text-foreground font-medium tabular-nums text-sm">{{ formatCurrency(med.modal) }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right text-foreground font-medium tabular-nums text-sm">{{ formatCurrency(med.harga_jual) }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-center text-foreground font-medium text-sm whitespace-nowrap">{{ med.satuan }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-right text-foreground font-medium tabular-nums text-sm whitespace-nowrap">{{ formatCurrency(med.modal) }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-right text-foreground font-medium tabular-nums text-sm whitespace-nowrap">{{ formatCurrency(med.harga_jual) }}</TableCell>
                             
-                            <TableCell class="py-2 px-3 align-middle text-center text-foreground font-medium tabular-nums text-sm">{{ med.qty_awal }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center font-semibold text-primary tabular-nums text-sm">{{ med.terjual }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center text-foreground font-medium tabular-nums text-sm">{{ med.sisa_stok }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-center text-foreground font-medium tabular-nums text-sm whitespace-nowrap">{{ med.qty_awal }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-center font-semibold text-primary tabular-nums text-sm whitespace-nowrap">{{ med.terjual }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-center text-foreground font-medium tabular-nums text-sm whitespace-nowrap">{{ med.sisa_stok }}</TableCell>
                             
-                            <TableCell class="py-2 px-3 align-middle text-right font-medium text-foreground tabular-nums text-sm">{{ formatCurrency(med.total_penjualan) }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm">{{ formatCurrency(med.laba) }}</TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-right tabular-nums text-sm font-medium" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
+                            <TableCell class="py-2.5 px-2 align-middle text-right font-medium text-foreground tabular-nums text-sm whitespace-nowrap">{{ formatCurrency(med.total_penjualan) }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums text-sm whitespace-nowrap">{{ formatCurrency(med.laba) }}</TableCell>
+                            <TableCell class="py-2.5 px-2 align-middle text-right tabular-nums text-sm font-medium whitespace-nowrap" :class="med.margin_percentage >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
                                 {{ med.margin_percentage }}%
                             </TableCell>
-                            <TableCell class="py-2 px-3 align-middle text-center">
-                                <span v-if="med.status === 'Aman'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <TableCell class="py-2.5 px-2 align-middle text-center whitespace-nowrap">
+                                <span v-if="med.status === 'Aman'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     Aman
                                 </span>
-                                <span v-else-if="med.status === 'Menipis'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <span v-else-if="med.status === 'Menipis'" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
                                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                     Menipis
                                 </span>
-                                <span v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                <span v-else class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 whitespace-nowrap">
                                     <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                     Habis
                                 </span>

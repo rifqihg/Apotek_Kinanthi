@@ -29,7 +29,7 @@ class AdminUserController extends Controller
         // 1. Mutasi Fisik Stok
         $mutationQuery = StockMutation::with([
             'inventory:id,medicine_id,incoming_stock_id,batch_no', 
-            'inventory.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,base_unit,rasio_konversi', 
+            'inventory.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,base_unit,rasio_konversi,classification', 
             'inventory.incomingStock:id,satuan_input,mid_unit,unit_conversion_factor,mid_to_big_ratio,small_to_mid_ratio',
             'rawMaterialStock:id,raw_material_id,batch_no', 
             'rawMaterialStock.rawMaterial:id,nama_bahan,satuan_ukur', 
@@ -47,6 +47,12 @@ class AdminUserController extends Controller
                 'Jual'  => $mutationQuery->where(fn($q) => $q->whereIn('type', ['Keluar', 'Penjualan', 'Penyesuaian Keluar'])->where(fn($q2) => $q2->whereNull('reference_type')->orWhere('reference_type', '!=', ReturnForm::class))),
                 default => null,
             };
+        }
+
+        if ($request->boolean('is_controlled')) {
+            $mutationQuery->whereHas('inventory.medicine', function($q) {
+                $q->whereIn('classification', ['narkotika', 'psikotropika']);
+            });
         }
 
         if ($request->filled('search')) {
@@ -91,7 +97,7 @@ class AdminUserController extends Controller
                 'out' => (int) ($kpiCounts->count_out ?? 0),
                 'total' => $logs->total()
             ],
-            'filters' => $request->only(['search', 'start_date', 'end_date', 'type', 'role', 'audit_search', 'tab'])
+            'filters' => $request->only(['search', 'start_date', 'end_date', 'type', 'role', 'audit_search', 'tab', 'is_controlled'])
         ]);
     }
 

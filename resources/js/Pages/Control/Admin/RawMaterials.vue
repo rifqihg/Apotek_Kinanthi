@@ -235,18 +235,18 @@ const deleteMaterial = (m) => {
 
     <!-- Table -->
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <Table class="w-full table-fixed">
+        <Table class="w-full min-w-[980px]">
             <TableHeader>
                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                    <TableHead class="w-[4%] min-w-10 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                    <TableHead class="w-[24%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Bahan</TableHead>
-                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kode</TableHead>
-                    <TableHead class="w-[8%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</TableHead>
-                    <TableHead class="w-[16%] text-right tabular-nums py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Beli</TableHead>
-                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Stok Total</TableHead>
-                    <TableHead class="w-[10%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Threshold</TableHead>
-                    <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status Stok</TableHead>
-                    <TableHead class="w-[7%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
+                    <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                    <TableHead class="min-w-[220px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Bahan</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kode</TableHead>
+                    <TableHead class="min-w-[80px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</TableHead>
+                    <TableHead class="min-w-[130px] text-right tabular-nums py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Beli</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Stok Total</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Threshold</TableHead>
+                    <TableHead class="min-w-[110px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status Stok</TableHead>
+                    <TableHead class="min-w-[90px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>

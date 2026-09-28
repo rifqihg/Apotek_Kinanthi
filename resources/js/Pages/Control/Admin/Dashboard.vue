@@ -393,14 +393,14 @@ const getStockUnits = (item) => {
                     </div>
                 </CardHeader>
 
-                <Table>
+                <Table class="w-full min-w-[780px]">
                     <TableHeader>
                         <TableRow class="hover:bg-transparent border-b border-border/60">
-                            <TableHead class="w-[280px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat & Kategori</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nomor Batch</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stok Fisik</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Batas Aman</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tgl Kedaluwarsa</TableHead>
+                            <TableHead class="min-w-[260px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Obat & Kategori</TableHead>
+                            <TableHead class="min-w-[120px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</TableHead>
+                            <TableHead class="min-w-[160px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Stok Fisik</TableHead>
+                            <TableHead class="min-w-[100px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Batas Aman</TableHead>
+                            <TableHead class="min-w-[140px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tgl Kedaluwarsa</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

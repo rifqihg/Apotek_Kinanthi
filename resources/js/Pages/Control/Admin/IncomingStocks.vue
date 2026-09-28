@@ -488,16 +488,16 @@ function submit() {
             <!-- Accordion Body (Table) -->
             <div v-show="openAccordions[group.faktur_no]" class="border-t border-border bg-muted/20">
                 <div class="w-full overflow-x-auto custom-scrollbar">
-                    <Table class="w-full table-fixed">
+                    <Table class="w-full min-w-[1000px]">
                         <TableHeader>
                             <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                <TableHead class="w-[18%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Obat</TableHead>
-                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
-                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Exp Date</TableHead>
-                                <TableHead class="w-[14%] py-2 pl-5 pr-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jumlah Barang (Qty)</TableHead>
-                                <TableHead class="w-[13%] py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Beli</TableHead>
-                                <TableHead class="w-[12%] py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Disc (%)</TableHead>
-                                <TableHead class="w-[19%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jumlah Harga</TableHead>
+                                <TableHead class="min-w-[240px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Obat</TableHead>
+                                <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
+                                <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Exp Date</TableHead>
+                                <TableHead class="min-w-[140px] py-2 pl-5 pr-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jumlah Barang (Qty)</TableHead>
+                                <TableHead class="min-w-[140px] py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Beli</TableHead>
+                                <TableHead class="min-w-[90px] py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Disc (%)</TableHead>
+                                <TableHead class="min-w-[150px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jumlah Harga</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

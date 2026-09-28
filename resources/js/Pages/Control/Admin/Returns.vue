@@ -329,15 +329,15 @@ const submitReturn = () => {
 
         <!-- TABLE: RIWAYAT RETUR -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <Table class="w-full table-fixed">
+            <Table class="w-full min-w-[920px]">
                 <TableHeader>
                     <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                        <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Tgl Retur</TableHead>
-                        <TableHead class="w-[20%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Supplier</TableHead>
-                        <TableHead class="w-[25%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Faktur & Obat</TableHead>
-                        <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Ekuivalen Stok Dasar</TableHead>
-                        <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Alasan (Fisik Retur)</TableHead>
-                        <TableHead class="w-[10%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Status</TableHead>
+                        <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Tgl Retur</TableHead>
+                        <TableHead class="min-w-[180px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Supplier</TableHead>
+                        <TableHead class="min-w-[240px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Faktur & Obat</TableHead>
+                        <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Ekuivalen Stok Dasar</TableHead>
+                        <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Alasan (Fisik Retur)</TableHead>
+                        <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right whitespace-nowrap">Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

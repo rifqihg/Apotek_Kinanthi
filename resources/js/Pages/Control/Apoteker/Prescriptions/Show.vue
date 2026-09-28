@@ -117,17 +117,17 @@ const completeItem = (itemId) => {
         <!-- Section 2: Items -->
         <div class="bg-card border border-border rounded-lg p-6 shadow-sm overflow-x-auto">
             <h2 class="text-foreground font-semibold text-sm mb-4">Daftar Item Obat</h2>
-            <table class="w-full text-sm text-left border-collapse min-w-[700px]">
+            <table class="w-full text-sm text-left border-collapse min-w-[870px]">
                 <thead class="bg-muted/50 border-y border-border">
                     <tr>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Jenis</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat/Racikan</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Qty</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Satuan</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Instruksi</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status Item</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[40px] whitespace-nowrap">No</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[100px] whitespace-nowrap">Jenis</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[220px] whitespace-nowrap">Nama Obat/Racikan</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[60px] whitespace-nowrap">Qty</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[70px] whitespace-nowrap">Satuan</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[180px] whitespace-nowrap">Instruksi</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[110px] whitespace-nowrap">Status Item</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[90px] whitespace-nowrap">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">

@@ -224,16 +224,16 @@ const isControlledRx = (rx) => {
 
         <!-- Table View -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table class="w-full text-sm text-left">
+            <table class="w-full text-sm text-left min-w-[970px]">
                 <thead class="bg-muted/50 border-b border-border">
                     <tr>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">No. Resep</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pasien</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dokter</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Tgl Resep</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Jml Item</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[260px] whitespace-nowrap">No. Resep</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[160px] whitespace-nowrap">Pasien</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[160px] whitespace-nowrap">Dokter</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[110px] whitespace-nowrap">Tgl Resep</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[80px] whitespace-nowrap">Jml Item</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[120px] whitespace-nowrap">Status</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[80px] whitespace-nowrap">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">

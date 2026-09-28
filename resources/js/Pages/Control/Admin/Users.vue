@@ -132,13 +132,13 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
 
         <!-- Table -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table class="w-full text-sm text-left">
+            <table class="w-full text-sm text-left min-w-[650px]">
                 <thead class="bg-muted/50 border-b border-border">
                     <tr>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama User</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Role / Akses</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
+                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[190px] whitespace-nowrap">Nama User</th>
+                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px] whitespace-nowrap">Email</th>
+                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Role / Akses</th>
+                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">

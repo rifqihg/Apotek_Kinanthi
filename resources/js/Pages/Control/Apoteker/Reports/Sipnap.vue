@@ -118,17 +118,17 @@ const formatMonthLabel = (m) => {
 
         <!-- TABLE SECTION -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table class="w-full text-sm text-left border-collapse">
+            <table class="w-full text-sm text-left border-collapse min-w-[890px]">
                 <thead class="bg-muted/50 border-b border-border">
                     <tr>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center w-12">No</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Identitas Obat</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Golongan</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Satuan</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Stok Awal</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right text-emerald-600">Pemasukan</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right text-rose-600">Pengeluaran</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-foreground uppercase tracking-wider text-right">Stok Akhir</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center w-12 min-w-12 whitespace-nowrap">No</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[220px] whitespace-nowrap">Identitas Obat</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Golongan</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[80px] whitespace-nowrap">Satuan</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[100px] whitespace-nowrap">Stok Awal</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right text-emerald-600 min-w-[100px] whitespace-nowrap">Pemasukan</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right text-rose-600 min-w-[100px] whitespace-nowrap">Pengeluaran</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Stok Akhir</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">

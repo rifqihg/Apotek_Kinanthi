@@ -496,15 +496,15 @@ if (prefillItemId) {
 
         <!-- Table View -->
         <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table class="w-full text-sm text-left border-collapse">
+            <table class="w-full text-sm text-left border-collapse min-w-[880px]">
                 <thead class="bg-muted/50 border-b border-border">
                     <tr>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">Nama Racikan</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">Formula</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Items</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">BUD</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Status</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Aksi</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[200px] whitespace-nowrap">Nama Racikan</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[160px] whitespace-nowrap">Formula</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[70px] whitespace-nowrap">Items</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[120px] whitespace-nowrap">BUD</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[140px] whitespace-nowrap">Status</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[190px] whitespace-nowrap">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">

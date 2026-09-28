@@ -163,16 +163,16 @@ const calculateHargaJual = (product) => {
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
-                        <Table class="w-full table-fixed">
+                        <Table class="w-full min-w-[850px]">
                         <TableHeader>
                             <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                <TableHead class="w-[26%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Produk / Batch</TableHead>
-                                <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Bahan Baku</TableHead>
-                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jasa Racik</TableHead>
-                                <TableHead class="w-[12%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Kemasan</TableHead>
-                                <TableHead class="w-[11%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
-                                <TableHead class="w-[15%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Baru</TableHead>
-                                <TableHead class="w-[9%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
+                                <TableHead class="min-w-[220px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Produk / Batch</TableHead>
+                                <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Bahan Baku</TableHead>
+                                <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jasa Racik</TableHead>
+                                <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Kemasan</TableHead>
+                                <TableHead class="min-w-[90px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
+                                <TableHead class="min-w-[130px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Baru</TableHead>
+                                <TableHead class="min-w-[90px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -263,15 +263,15 @@ const calculateHargaJual = (product) => {
 
                     <!-- TABLE CONTENT -->
                     <div class="overflow-x-auto">
-                        <Table class="w-full table-fixed">
+                        <Table class="w-full min-w-[890px]">
                             <TableHeader class="sticky top-0 bg-muted/90 backdrop-blur z-10">
                                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                    <TableHead class="w-[24%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Obat</TableHead>
-                                    <TableHead class="w-[16%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Kemasan</TableHead>
-                                    <TableHead class="w-[17%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Modal (Netto)</TableHead>
-                                    <TableHead class="w-[18%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Saat Ini</TableHead>
-                                    <TableHead class="w-[16%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
-                                    <TableHead class="w-[9%] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
+                                    <TableHead class="min-w-[240px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Obat</TableHead>
+                                    <TableHead class="min-w-[160px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Kemasan</TableHead>
+                                    <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Modal (Netto)</TableHead>
+                                    <TableHead class="min-w-[150px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Saat Ini</TableHead>
+                                    <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
+                                    <TableHead class="min-w-[90px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

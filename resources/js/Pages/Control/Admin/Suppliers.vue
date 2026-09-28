@@ -225,15 +225,15 @@ function destroy(supplier) {
 
             <!-- TABLE CONTAINER -->
             <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-                <Table class="w-full table-fixed">
+                <Table class="w-full min-w-[950px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                            <TableHead class="w-[24%] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Informasi PBF / Nama Perusahaan</TableHead>
-                            <TableHead class="w-[20%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kontak Distributor</TableHead>
-                            <TableHead class="w-[34%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alamat / Lokasi</TableHead>
-                            <TableHead class="w-[11%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status</TableHead>
-                            <TableHead class="w-[7%] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
+                            <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                            <TableHead class="min-w-[250px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Informasi PBF / Nama Perusahaan</TableHead>
+                            <TableHead class="min-w-[210px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kontak Distributor</TableHead>
+                            <TableHead class="min-w-[250px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alamat / Lokasi</TableHead>
+                            <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status</TableHead>
+                            <TableHead class="min-w-[90px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

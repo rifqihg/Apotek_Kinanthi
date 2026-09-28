@@ -120,16 +120,16 @@ const actionClass = (a) => ({
         <!-- Table View -->
         <div class="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
+                <table class="w-full text-sm text-left min-w-[1000px]">
                     <thead class="bg-muted/50 text-muted-foreground text-xs font-semibold uppercase tracking-wider border-b border-border">
                         <tr>
-                            <th class="px-4 py-3">Timestamp</th>
-                            <th class="px-4 py-3">Entitas / Substrat</th>
-                            <th class="px-4 py-3">Aksi Audit</th>
-                            <th class="px-4 py-3 text-right">Delta (Perubahan)</th>
-                            <th class="px-4 py-3 text-right">Saldo Akhir</th>
-                            <th class="px-4 py-3 text-center">PIC / Verifikator</th>
-                            <th class="px-4 py-3">Keterangan</th>
+                            <th class="px-4 py-3 min-w-[140px] whitespace-nowrap">Timestamp</th>
+                            <th class="px-4 py-3 min-w-[200px] whitespace-nowrap">Entitas / Substrat</th>
+                            <th class="px-4 py-3 min-w-[120px] whitespace-nowrap">Aksi Audit</th>
+                            <th class="px-4 py-3 text-right min-w-[110px] whitespace-nowrap">Delta (Perubahan)</th>
+                            <th class="px-4 py-3 text-right min-w-[110px] whitespace-nowrap">Saldo Akhir</th>
+                            <th class="px-4 py-3 text-center min-w-[140px] whitespace-nowrap">PIC / Verifikator</th>
+                            <th class="px-4 py-3 min-w-[180px] whitespace-nowrap">Keterangan</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border text-foreground">

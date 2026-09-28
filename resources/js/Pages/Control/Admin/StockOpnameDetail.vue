@@ -195,14 +195,14 @@ const finalizeOpname = () => {
 
         <!-- Detail Items Table -->
         <div class="bg-card rounded-lg border border-border shadow-sm overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse min-w-[1190px]">
                 <thead>
                     <tr class="bg-muted/50 border-b border-border h-10">
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Item</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Batch & ED</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Stok Sistem</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[350px] whitespace-nowrap">Qty Fisik</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Selisih</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[220px] whitespace-nowrap">Nama Item</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[150px] whitespace-nowrap">Batch & ED</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[130px] whitespace-nowrap">Stok Sistem</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[360px] whitespace-nowrap">Qty Fisik</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[110px] whitespace-nowrap">Selisih</th>
                         <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[220px] whitespace-nowrap">Alasan Selisih</th>
                     </tr>
                 </thead>
