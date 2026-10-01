@@ -32,7 +32,7 @@ class AdminUserController extends Controller
             'inventory.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,base_unit,rasio_konversi,classification', 
             'inventory.incomingStock:id,satuan_input,mid_unit,unit_conversion_factor,mid_to_big_ratio,small_to_mid_ratio',
             'rawMaterialStock:id,raw_material_id,batch_no', 
-            'rawMaterialStock.rawMaterial:id,nama_bahan,satuan_ukur', 
+            'rawMaterialStock.rawMaterial:id,nama_bahan,satuan_dasar_penggunaan', 
             'item'
         ])->where('quantity', '>', 0);
 

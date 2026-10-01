@@ -322,23 +322,54 @@ onUnmounted(() => {
 <template>
     <Head title="Kasir POS - Penjualan OTC" />
 
-    <div class="h-[calc(100vh-85px)] flex flex-col lg:flex-row gap-4 overflow-hidden -mt-1">
+    <div class="space-y-4 -mt-1">
+        <!-- HEADER SECTION: HERO BANNER -->
+        <div class="p-3 sm:py-4 sm:px-5 rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+            <!-- Left Text Column -->
+            <div class="relative z-10 max-w-sm sm:max-w-md">
+                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1">
+                    POINT OF SALE · KASIR BEBAS (OTC)
+                </div>
+                <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                    Kasir Penjualan Bebas (OTC)
+                </h1>
+            </div>
+
+            <!-- Right Integrated Control Panel -->
+            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-1.5 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto">
+                <div class="relative w-full sm:w-72">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input v-model="searchQuery" type="text" placeholder="Cari obat atau scan barcode..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <button v-else-if="searchQuery" type="button" @click="searchQuery = ''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="h-[calc(100vh-190px)] flex flex-col lg:flex-row gap-4 overflow-hidden">
             
             <!-- ========================================================= -->
             <!-- KOLOM KIRI: KATALOG PRODUK (CARD GRID MODERN POS)       -->
             <!-- ========================================================= -->
             <div class="flex-1 flex flex-col bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                 
-                <!-- TOP BAR: SEARCH & TABS -->
+                <!-- TOP BAR: TABS & CATEGORIES (SEARCH MOVED TO HERO) -->
                 <div class="p-4 border-b border-border bg-card space-y-3 shrink-0">
                     <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
                         
                         <!-- TAB SWITCHER: OBAT JADI VS RACIKAN -->
-                        <div class="flex p-1 bg-muted rounded-md border border-border w-full sm:w-auto">
+                        <div class="flex p-1 bg-muted rounded-md border border-border w-full">
                             <button 
                                 @click="activeTab = 'obat_jadi'"
                                 :class="activeTab === 'obat_jadi' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                                class="px-3 py-1.5 rounded-md text-xs transition-colors uppercase tracking-wider flex items-center gap-1.5"
+                                class="px-3 py-1.5 rounded-md text-xs transition-colors uppercase tracking-wider flex items-center justify-center gap-1.5 w-1/2"
                             >
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                                 <span>Obat Jadi ({{ filteredMedicines.length }})</span>
@@ -346,27 +377,10 @@ onUnmounted(() => {
                             <button 
                                 @click="activeTab = 'racikan'"
                                 :class="activeTab === 'racikan' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                                class="px-3 py-1.5 rounded-md text-xs transition-colors uppercase tracking-wider flex items-center gap-1.5"
+                                class="px-3 py-1.5 rounded-md text-xs transition-colors uppercase tracking-wider flex items-center justify-center gap-1.5 w-1/2"
                             >
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                                 <span>Racikan ({{ filteredCompounded.length }})</span>
-                            </button>
-                        </div>
-
-                        <!-- SEARCH BAR -->
-                        <div class="relative w-full sm:w-80">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
-                                <svg v-if="!isSearching" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                <svg v-else class="w-4 h-4 animate-spin text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                            </div>
-                            <input 
-                                v-model="searchQuery" 
-                                type="text" 
-                                placeholder="Cari obat di sini..." 
-                                class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
-                            >
-                            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground text-xs font-medium">
-                                ✕
                             </button>
                         </div>
                     </div>
@@ -850,7 +864,7 @@ onUnmounted(() => {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
+    </div>
 </template>
 
 <style scoped>

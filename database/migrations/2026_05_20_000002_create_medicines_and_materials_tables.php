@@ -57,11 +57,17 @@ return new class extends Migration
             $table->string('nama_bahan');
             $table->string('bentuk_sediaan')->nullable();
             $table->string('kode_bahan')->unique()->nullable();
-            $table->string('satuan_ukur', 50)->default('g');
-            $table->string('base_unit')->nullable();
-            $table->string('large_unit')->nullable();
-            $table->decimal('conversion_factor', 12, 4)->default(1);
-            $table->decimal('stok_total', 12, 4)->default(0);
+            
+            // Parameter Klinis
+            $table->string('golongan_bahan', 100)->nullable();
+            $table->string('suhu_penyimpanan', 100)->nullable();
+            
+            // Mesin Konversi Satuan
+            $table->string('satuan_pembelian', 50)->nullable(); // e.g. Kg, Liter
+            $table->string('satuan_dasar_penggunaan', 50)->nullable(); // e.g. mg, mL
+            $table->decimal('rasio_konversi', 15, 4)->default(1); // e.g. 1 Kg = 1000000 mg
+            
+            $table->decimal('stok_total', 15, 4)->default(0); // Disimpan dalam satuan_dasar_penggunaan
             $table->decimal('density_factor', 8, 4)->default(1.0000);
             $table->decimal('harga_beli_satuan', 15, 2)->default(0);
             $table->decimal('threshold_min', 12, 4)->default(0);

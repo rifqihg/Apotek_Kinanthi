@@ -1,6 +1,5 @@
 <script setup>
-import GuestLayout from '@/Layouts/GuestLayout.vue';
-import { Head, useForm, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
     status: {
@@ -10,63 +9,114 @@ defineProps({
 
 const form = useForm({
     email: '',
+    password: '',
+    password_confirmation: '',
 });
 
 const submit = () => {
-    form.post(route('password.email'));
+    form.post(route('password.email'), {
+        onSuccess: () => form.reset('password', 'password_confirmation'),
+    });
 };
 </script>
 
 <template>
-    <GuestLayout>
-        <Head title="Forgot Password" />
+    <Head title="Ubah Password" />
 
-        <div class="mb-6 text-sm text-slate-600 leading-relaxed text-center">
-            Lupa password? Masukkan alamat email Anda dan kami akan mengirimkan link untuk mereset password Anda.
-        </div>
-
-        <div v-if="status" class="mb-4 text-sm font-medium text-emerald-600 bg-emerald-50 p-3 rounded-[16px] border border-emerald-100 text-center">
-            {{ status }}
-        </div>
-
-        <form @submit.prevent="submit" class="space-y-5">
-            <div>
-                <label for="email" class="block text-sm font-bold text-slate-700 mb-2">Alamat Email</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
+    <div class="min-h-screen flex flex-col lg:flex-row font-sans bg-cover bg-center bg-no-repeat" style="background-image: url('/images/background.webp');">
+        
+        <!-- ==============================================
+             LEFT PANEL
+             ============================================== -->
+        <div class="w-full lg:w-[50%] min-h-screen flex flex-col justify-center items-center px-8 relative z-20">
+            <div class="w-full max-w-sm">
+            
+            <!-- Header -->
+            <div class="flex items-center gap-4 sm:gap-5 mb-3 z-10">
+                <img src="/images/logo-clean.webp" alt="Logo Apotek Kinanthi" class="w-16 h-16 sm:w-20 sm:h-20 aspect-square object-contain shrink-0 drop-shadow-sm" />
+                <div class="h-12 sm:h-14 w-[1.5px] bg-slate-300 shrink-0"></div>
+                <div>
+                    <h1 class="text-2xl sm:text-[26px] font-bold text-[#1e293b] tracking-tight leading-tight">Apotek Kinanthi</h1>
+                    <div class="text-[11px] sm:text-xs text-[#0d9488] font-semibold uppercase tracking-wider mt-0.5">
+                        Ubah Password
                     </div>
-                    <input
-                        id="email"
-                        type="email"
-                        class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-[#E8EEF6] rounded-[16px] text-slate-900 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-shadow outline-none"
-                        v-model="form.email"
-                        required
-                        autofocus
-                        autocomplete="username"
-                        placeholder="admin@apotek.com"
-                    />
                 </div>
-                <p v-if="form.errors.email" class="text-sm text-red-500 mt-2 font-medium">{{ form.errors.email }}</p>
             </div>
 
-            <div class="pt-2 space-y-3">
-                <button
-                    type="submit"
-                    :class="{ 'opacity-50 cursor-not-allowed': form.processing }"
-                    :disabled="form.processing"
-                    class="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-[16px] shadow-[0_8px_24px_rgba(15,23,42,0.04)] text-base font-bold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all transform hover:-translate-y-0.5"
-                >
-                    <svg v-if="form.processing" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {{ form.processing ? 'Memproses...' : 'Kirim Link Reset Password' }}
-                </button>
-                <Link :href="route('login')" class="block text-center text-sm font-bold text-slate-500 hover:text-teal-600 transition">
-                    Kembali ke halaman Login
-                </Link>
+            <!-- Description & Status -->
+            <div class="mb-5 text-sm text-slate-600 leading-relaxed z-10 relative">
+                Silakan masukkan alamat email yang terdaftar beserta password baru Anda.
             </div>
-        </form>
-    </GuestLayout>
+
+            <div v-if="status" class="mb-6 text-sm font-semibold text-teal-700 bg-teal-50 p-4 rounded-lg border border-teal-200 z-10 relative">
+                {{ status }}
+            </div>
+
+            <!-- Forgot Password Form -->
+            <form @submit.prevent="submit" class="w-full z-10 relative">
+                
+                <!-- Inputs tightly grouped -->
+                <div class="space-y-3">
+                    <div>
+                        <input 
+                            v-model="form.email" 
+                            type="email" 
+                            required 
+                            placeholder="Email Address"
+                            class="w-full px-6 py-4 bg-white border-2 border-slate-200 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-300"
+                        />
+                        <p v-if="form.errors.email" class="mt-1.5 text-xs text-rose-500 ml-4 font-medium">{{ form.errors.email }}</p>
+                    </div>
+
+                    <div>
+                        <input 
+                            v-model="form.password" 
+                            type="password" 
+                            required 
+                            placeholder="Password Baru"
+                            class="w-full px-6 py-4 bg-white border-2 border-slate-200 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-300"
+                        />
+                        <p v-if="form.errors.password" class="mt-1.5 text-xs text-rose-500 ml-4 font-medium">{{ form.errors.password }}</p>
+                    </div>
+
+                    <div>
+                        <input 
+                            v-model="form.password_confirmation" 
+                            type="password" 
+                            required 
+                            placeholder="Konfirmasi Password Baru"
+                            class="w-full px-6 py-4 bg-white border-2 border-slate-200 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-300"
+                        />
+                    </div>
+                </div>
+                
+                <!-- Actions separated with more space -->
+                <div class="mt-6 space-y-3">
+                    <button 
+                        type="submit" 
+                        :disabled="form.processing"
+                        class="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white font-semibold py-4 rounded-lg transition-all active:scale-[0.98] shadow-md shadow-teal-500/25 disabled:opacity-70 text-sm tracking-wide"
+                    >
+                        {{ form.processing ? 'Memproses...' : 'Ubah Password' }}
+                    </button>
+                    
+                    <Link 
+                        :href="route('login')" 
+                        class="block w-full text-center bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3.5 rounded-lg transition-all active:scale-[0.98] text-sm shadow-md"
+                    >
+                        Kembali ke Halaman Login
+                    </Link>
+                </div>
+            </form>
+            </div>
+        </div>
+
+    </div>
 </template>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+.font-sans {
+    font-family: 'Inter', sans-serif;
+}
+</style>

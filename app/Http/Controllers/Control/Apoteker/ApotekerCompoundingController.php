@@ -63,14 +63,23 @@ class ApotekerCompoundingController extends Controller
 
         return Inertia::render('Control/Apoteker/Submissions', [
             'submissions' => $submissions,
-            'formulas' => CompoundingFormula::active()->select('id', 'nama_resep', 'kategori_sediaan')->get(),
-            'rawMaterials' => RawMaterial::select('id', 'nama_bahan', 'satuan_ukur')->get(),
-            'medicines' => Medicine::select('id', 'nama_obat', 'satuan_stok', 'stok_total')->where('stok_total', '>', 0)->orderBy('nama_obat')->get(),
             'filters' => [
                 'search' => $search,
                 'status' => $status,
                 'unit' => $unit,
             ],
+        ]);
+    }
+
+    /**
+     * Async load of reference data for Submissions modal to keep SPA navigation instant
+     */
+    public function submissionsReference()
+    {
+        return response()->json([
+            'formulas' => CompoundingFormula::active()->select('id', 'nama_resep', 'kategori_sediaan')->get(),
+            'rawMaterials' => RawMaterial::select('id', 'nama_bahan', 'satuan_dasar_penggunaan', 'satuan_pembelian', 'rasio_konversi')->get(),
+            'medicines' => Medicine::select('id', 'nama_obat', 'satuan_stok', 'stok_total')->where('stok_total', '>', 0)->orderBy('nama_obat')->get(),
         ]);
     }
 

@@ -83,6 +83,9 @@ const isControlledRx = (rx) => {
             <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
                 <!-- Left Text Column -->
                 <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                        KLINIS · ANTRIAN RESEP
+                    </div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                         Daftar Resep & Skrining Klinis
                     </h1>
@@ -91,24 +94,35 @@ const isControlledRx = (rx) => {
                     </p>
                 </div>
 
-                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                <div class="relative z-10 flex items-center justify-center shrink-0">
-                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                        <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Prescription Sheet Rx (behind left) -->
-                            <rect x="4" y="4" width="30" height="44" rx="4" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                            <path d="M10 10v14M10 10h7a4 4 0 0 1 0 8h-7M15 18l4.5 6" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                            <line x1="10" y1="29" x2="27" y2="29" stroke="#2563EB" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                            <line x1="10" y1="34" x2="24" y2="34" stroke="#2563EB" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                            <line x1="10" y1="39" x2="26" y2="39" stroke="#2563EB" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                            <!-- Tilted Capsule (in front right) -->
-                            <g transform="translate(37, 33) rotate(28)">
-                                <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                                <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#BFDBFE" />
-                                <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#2563EB" stroke-width="1.8" />
-                            </g>
-                        </svg>
+                <!-- Right Integrated Control Panel -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                    <div class="relative w-full sm:w-48">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input v-model="search" type="text" placeholder="Cari no. resep..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <svg v-if="isFiltering" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <button v-else-if="search" type="button" @click="search=''; applyFilters()" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
                     </div>
+                    
+                    <select v-model="status" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer">
+                        <option value="">Status: Resep Aktif</option>
+                        <option value="all">Semua Status</option>
+                        <option value="baru">Baru</option>
+                        <option value="diproses">Diproses</option>
+                        <option value="siap_ambil">Siap Ambil</option>
+                        <option value="selesai">Selesai</option>
+                    </select>
+
+                    <Link :href="route('control.apoteker.prescriptions.create')" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Input Resep</span>
+                    </Link>
                 </div>
             </div>
 
@@ -160,65 +174,23 @@ const isControlledRx = (rx) => {
             </div>
         </div>
 
-        <!-- ACTION BAR -->
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-                Daftar Antrean Resep Pasien
-            </h2>
-            <Link :href="route('control.apoteker.prescriptions.create')" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah Resep Baru
-            </Link>
+        <div class="flex items-center justify-between mt-4">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                    Daftar Antrean Resep Pasien
+                </h2>
+            </div>
         </div>
 
-        <!-- FILTER BAR -->
+        <!-- ADDITIONAL FILTERS -->
         <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
-            <!-- Search Input -->
-            <div class="flex-1 min-w-[220px] relative">
-                <input 
-                    v-model="search" 
-                    type="text" 
-                    placeholder="Cari no. resep, pasien, atau dokter..." 
-                    class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" 
-                />
-                <svg v-if="!isFiltering" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <button 
-                    v-if="search" 
-                    @click="search = ''; applyFilters()" 
-                    type="button" 
-                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
-                    title="Hapus pencarian"
-                >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Status Dropdown -->
-            <select v-model="status" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">
-                <option value="">Status: Resep Aktif (Default)</option>
-                <option value="all">Semua Status</option>
-                <option value="baru">Baru</option>
-                <option value="diproses">Diproses</option>
-                <option value="siap_ambil">Siap Ambil</option>
-                <option value="selesai">Selesai</option>
-                <option value="batal">Batal</option>
-            </select>
-
             <!-- Date Filter -->
             <input v-model="date" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer" title="Filter Tanggal Resep" />
 
             <!-- Reset Button -->
-            <button v-if="search || status || date" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
-                Reset
+            <button v-if="search || status || date" @click="clearFilters" class="h-9 px-3 text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 rounded-md cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Reset Filter
             </button>
         </div>
 

@@ -1,6 +1,8 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { useToast } from '@/Components/ui/toast/use-toast';
 
 defineOptions({ layout: ControlLayout });
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -8,10 +10,37 @@ import { useDebounceFn } from '@vueuse/core';
 import { formatInventoryThreshold } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/Components/ui/table';
 
-const props = defineProps({ stocks: Object, suppliers: Array, medicines: Array, settings: Object, filters: Object });
+const props = defineProps({ stocks: Object, settings: Object, filters: Object });
 const showModal = ref(false);
 const searchInvoiceQuery = ref(props.filters?.search || '');
 const isSearching = ref(false);
+
+const suppliers = ref([]);
+const medicines = ref([]);
+const isLoadingReferenceData = ref(false);
+const hasLoadedReferenceData = ref(false);
+const { toast } = useToast();
+
+const loadReferenceData = async () => {
+    if (hasLoadedReferenceData.value) return;
+    isLoadingReferenceData.value = true;
+    try {
+        const response = await axios.get(route('control.admin.incoming-stocks.reference'));
+        suppliers.value = response.data.suppliers || [];
+        medicines.value = response.data.medicines || [];
+        hasLoadedReferenceData.value = true;
+    } catch (e) {
+        toast({ title: 'Gagal', description: 'Gagal memuat data referensi', variant: 'destructive' });
+    } finally {
+        isLoadingReferenceData.value = false;
+    }
+};
+
+watch(showModal, (newVal) => {
+    if (newVal) {
+        loadReferenceData();
+    }
+});
 
 watch(() => props.filters?.search, (newSearch) => {
     if (newSearch !== undefined && newSearch !== searchInvoiceQuery.value) {
@@ -333,6 +362,9 @@ function submit() {
         <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
             <!-- Left Text Column -->
             <div class="relative z-10 max-w-sm sm:max-w-md">
+                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                    PURCHASING · VERIFIKASI FAKTUR
+                </div>
                 <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                     Penerimaan Faktur Masuk
                 </h1>
@@ -341,29 +373,33 @@ function submit() {
                 </p>
             </div>
 
-            <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-            <div class="relative z-10 flex items-center justify-center shrink-0">
-                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Invoice Sheet (behind left) -->
-                        <rect x="4" y="4" width="30" height="44" rx="3.5" stroke="#0284C7" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="8" y="9" width="13" height="4" rx="1.2" fill="#BAE6FD" />
-                        <rect x="23" y="9" width="6.5" height="4" rx="1.2" fill="#0284C7" />
-                        <line x1="8" y1="18" x2="26" y2="18" stroke="#0284C7" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                        <line x1="8" y1="23" x2="23" y2="23" stroke="#0284C7" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                        <line x1="8" y1="28" x2="25" y2="28" stroke="#0284C7" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                        <circle cx="19" cy="37" r="5" stroke="#0284C7" stroke-width="1.5" fill="#E0F2FE" />
-                        <path d="M16.5 37l1.8 1.8 4-4" stroke="#0284C7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                        <!-- Delivery Box (in front right) -->
-                        <g transform="translate(20, 20)">
-                            <rect x="0" y="3" width="31" height="28" rx="3" stroke="#0284C7" stroke-width="2.2" fill="#FFFFFF" />
-                            <path d="M0 11h31" stroke="#0284C7" stroke-width="1.6" />
-                            <rect x="12.5" y="3" width="6" height="28" fill="#E0F2FE" stroke="#0284C7" stroke-width="1.2" />
-                            <rect x="3.5" y="15" width="6.5" height="8.5" rx="1" stroke="#BAE6FD" stroke-width="1.2" fill="#F0F9FF" />
-                            <line x1="5" y1="18" x2="8.5" y2="18" stroke="#0284C7" stroke-width="0.9" />
-                        </g>
-                    </svg>
+            <!-- Right Integrated Control Panel -->
+            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                <div class="relative w-full sm:w-64">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input v-model="searchInvoiceQuery" type="text" placeholder="Cari faktur, supplier..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <button 
+                            v-else-if="searchInvoiceQuery" 
+                            type="button" 
+                            @click="clearSearch" 
+                            class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                            title="Hapus pencarian"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+                <button @click="showModal=true; form.reset(); form.items=[getEmptyItem()]; form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Input Faktur</span>
+                </button>
             </div>
         </div>
 
@@ -415,39 +451,6 @@ function submit() {
         </div>
     </div>
 
-    <!-- SEARCH & ACTION BAR -->
-    <div class="bg-card p-3 rounded-lg border border-border flex flex-col sm:flex-row gap-3 justify-between items-center">
-        <div class="w-full sm:flex-1 relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input 
-                type="text" 
-                v-model="searchInvoiceQuery"
-                placeholder="Cari no faktur, nama supplier, atau obat..." 
-                class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-md text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
-            />
-            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <button 
-                    v-else-if="searchInvoiceQuery" 
-                    type="button" 
-                    @click="clearSearch" 
-                    class="p-0.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
-                    title="Hapus pencarian"
-                >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-        <button @click="showModal=true; form.reset(); form.items=[getEmptyItem()]; form.clearErrors()" class="h-9 px-4 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors w-full sm:w-auto shadow-sm shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Input Faktur Baru
-        </button>
-    </div>
 
     <!-- Accordion List -->
     <div class="mt-4 space-y-3">
@@ -586,7 +589,16 @@ function submit() {
                 </button>
             </div>
 
-            <form @submit.prevent="submit" class="flex-1 overflow-y-auto bg-card custom-scrollbar p-6 space-y-5">
+            <form @submit.prevent="submit" class="flex-1 overflow-y-auto bg-card custom-scrollbar p-6 space-y-5 relative">
+                <!-- Loading Overlay -->
+                <div v-if="isLoadingReferenceData" class="absolute inset-0 bg-card/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3">
+                    <svg class="w-8 h-8 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-sm font-medium text-muted-foreground animate-pulse">Memuat data referensi obat & supplier...</p>
+                </div>
+
                 <!-- Alert Validasi Global jika ada eror -->
                 <div v-if="Object.keys(form.errors).length > 0" class="p-3.5 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs space-y-1.5 animate-in fade-in-50 duration-200">
                     <div class="font-semibold flex items-center gap-1.5">

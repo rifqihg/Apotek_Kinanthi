@@ -108,10 +108,19 @@ class KasirSaleController extends Controller
                     if ($pItem->item_type === 'obat_jadi') {
                         $med = $pItem->medicine ?: Medicine::findOrFail($pItem->medicine_id);
                         $unitPrice = (float) $med->selling_price;
+                        $qtyInBase = $qty;
+
                         if ($pItem->unit === $med->satuan_besar && (float) $med->selling_price_large > 0) {
                             $unitPrice = (float) $med->selling_price_large;
+                            $qtyInBase = $qty * max(1, (float) $med->rasio_konversi);
+                            if ($med->satuan_menengah) {
+                                $qtyInBase *= max(1, (float) $med->conversion_factor);
+                            }
                         } elseif ($pItem->unit === $med->satuan_menengah && (float) $med->selling_price_mid > 0) {
                             $unitPrice = (float) $med->selling_price_mid;
+                            $qtyInBase = $qty * max(1, (float) $med->conversion_factor);
+                        } elseif ($pItem->unit === $med->satuan_besar && !$med->satuan_menengah) {
+                            $qtyInBase = $qty * max(1, (float) $med->rasio_konversi);
                         }
 
                         $resolvedItems[] = [
@@ -122,6 +131,7 @@ class KasirSaleController extends Controller
                             'name' => $med->nama_obat ?? 'Unknown Obat',
                             'unit' => $pItem->unit,
                             'quantity' => $qty,
+                            'qty_in_base' => $qtyInBase,
                             'unit_price' => $unitPrice,
                         ];
                     } else {
@@ -253,6 +263,7 @@ class KasirSaleController extends Controller
                             'name' => $med->nama_obat,
                             'unit' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
                             'quantity' => $qty,
+                            'qty_in_base' => $qty,
                             'unit_price' => (float) $med->selling_price,
                         ];
                     } else {
@@ -322,7 +333,7 @@ class KasirSaleController extends Controller
             ]);
 
             if ($rItem['item_type'] === 'obat_jadi') {
-                $this->deductKasirStock((int) $rItem['medicine_id'], $qty, $sale, $userId, $sale->sale_type);
+                $this->deductKasirStock((int) $rItem['medicine_id'], $rItem['qty_in_base'] ?? $qty, $sale, $userId, $sale->sale_type);
             } else {
                 $cp = $rItem['model'];
                 $cp->decrement('qty_hasil', $qty);
@@ -429,6 +440,16 @@ class KasirSaleController extends Controller
             $inv->stock_on_hand -= $qtyToDeduct;
             $inv->save();
 
+            \App\Models\Control\StockLog::create([
+                'medicine_id' => $medicineId,
+                'action' => 'PENJUALAN_' . strtoupper($context),
+                'qty_before' => $inv->stock_on_hand + $qtyToDeduct,
+                'qty_after' => $inv->stock_on_hand,
+                'change_amount' => -$qtyToDeduct,
+                'reason' => "Penjualan Faktur {$sale->sale_number}",
+                'user_id' => $userId,
+            ]);
+
             if ($inv->incomingStock) {
                 $incoming = $inv->incomingStock;
                 $incoming->qty_converted = max(0, $incoming->qty_converted - $qtyToDeduct);
@@ -460,6 +481,8 @@ class KasirSaleController extends Controller
             $medName = Medicine::find($medicineId)?->nama_obat ?? "ID {$medicineId}";
             abort(422, "Stok aktif/tidak kedaluwarsa tidak mencukupi untuk obat: {$medName}");
         }
+        
+        Medicine::find($medicineId)?->recalculateStock();
     }
 
     /**

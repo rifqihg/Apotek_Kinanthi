@@ -123,6 +123,20 @@ class AdminProcurementController extends Controller
 
         $stocks = $query->latest()->paginate(15)->withQueryString();
 
+        $settings = Setting::current();
+
+        return Inertia::render('Control/Admin/IncomingStocks', [
+            'stocks' => $stocks,
+            'settings' => $settings,
+            'filters' => $request->only('search'),
+        ]);
+    }
+
+    /**
+     * Async load of reference data to keep SPA navigation instant
+     */
+    public function incomingStocksReference()
+    {
         $suppliers = Supplier::active()->select(['id', 'nama_pbf'])->orderBy('nama_pbf')->get();
         $medicines = Medicine::with('latestActiveIncomingStock')
             ->select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
@@ -133,14 +147,10 @@ class AdminProcurementController extends Controller
                 $m->current_price = $lastApproved ? $lastApproved->harga_jual_akhir : 0;
                 return $m;
             });
-        $settings = Setting::current();
 
-        return Inertia::render('Control/Admin/IncomingStocks', [
-            'stocks' => $stocks,
+        return response()->json([
             'suppliers' => $suppliers,
             'medicines' => $medicines,
-            'settings' => $settings,
-            'filters' => $request->only('search'),
         ]);
     }
 

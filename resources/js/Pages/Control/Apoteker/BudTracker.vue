@@ -1,11 +1,15 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ submissions: Object });
+
+const search = ref('');
+const category = ref('all');
+const sort = ref('closest');
 
 const getBudStatus = (expiryDate) => {
     if (!expiryDate) return { label: 'Unknown', color: 'bg-slate-500', text: 'text-slate-700', bg: 'bg-slate-50', border: 'border-[#E8EEF6]', progress: 0 };
@@ -52,6 +56,9 @@ const formatDaysLeft = (expiryDate) => {
             <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
                 <!-- Left Text Column -->
                 <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900 mb-1.5">
+                        KLINIS · BUD TRACKER
+                    </div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                         Monitoring Beyond Use Date (BUD)
                     </h1>
@@ -60,25 +67,29 @@ const formatDaysLeft = (expiryDate) => {
                     </p>
                 </div>
 
-                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                <div class="relative z-10 flex items-center justify-center shrink-0">
-                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Compounded Medicine Bottle (behind left) -->
-                        <rect x="9" y="4" width="14" height="4.5" rx="1.8" stroke="#7C3AED" stroke-width="2" fill="#F5F3FF" />
-                        <rect x="4" y="8.5" width="24" height="42" rx="5" stroke="#7C3AED" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="7" y="18" width="18" height="19" rx="2.5" stroke="#DDD6FE" fill="#FAF5FF" />
-                        <line x1="10" y1="24" x2="22" y2="24" stroke="#7C3AED" stroke-width="1.5" stroke-linecap="round" />
-                        <line x1="10" y1="30" x2="19" y2="30" stroke="#7C3AED" stroke-width="1.5" stroke-linecap="round" />
-                        <!-- BUD Alarm Clock (in front right) -->
-                        <g transform="translate(20, 15)">
-                            <path d="M7 6l3.5 3.5M26 6l-3.5 3.5" stroke="#7C3AED" stroke-width="1.8" stroke-linecap="round" />
-                            <circle cx="16.5" cy="17" r="14" stroke="#7C3AED" stroke-width="2.2" fill="#FFFFFF" />
-                            <circle cx="16.5" cy="17" r="10.5" fill="#F5F3FF" />
-                            <path d="M16.5 11v6l4 2.5" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </g>
-                    </svg>
-                </div>
+                <!-- Right Integrated Control Panel -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                    <div class="relative w-full sm:w-48">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input v-model="search" type="text" placeholder="Cari racikan..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <button v-if="search" type="button" @click="search=''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <select v-model="category" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer max-w-[120px] sm:max-w-none">
+                        <option value="all">Status: Semua</option>
+                        <option value="kritis">Kritis</option>
+                        <option value="peringatan">Peringatan</option>
+                        <option value="aman">Aman</option>
+                    </select>
+
+                    <select v-model="sort" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer max-w-[120px] sm:max-w-none">
+                        <option value="closest">Urut: Terdekat</option>
+                        <option value="furthest">Urut: Terjauh</option>
+                    </select>
                 </div>
             </div>
 

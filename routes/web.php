@@ -49,9 +49,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
     Route::post('/medicines/{medicine}/photo', [AdminMedicineController::class, 'updateMedicinePhoto'])->name('medicines.updatePhoto');
     Route::put('/medicines/{medicine}', [AdminMedicineController::class, 'updateMedicine'])->name('medicines.update');
     Route::get('/compounded-products', [AdminMedicineController::class, 'compoundedProducts'])->name('compounded-products');
+    
+    // Master Bahan Baku
+    Route::get('/raw-materials', [AdminMedicineController::class, 'rawMaterials'])->name('raw-materials');
+    Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
+    Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
+    Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
 
     // ─── FAKTUR MASUK (Single-Gate Workflow) ─────────────────
     Route::get('/incoming-stocks', [AdminProcurementController::class, 'incomingStocks'])->name('incoming-stocks');
+    Route::get('/incoming-stocks/reference', [AdminProcurementController::class, 'incomingStocksReference'])->name('incoming-stocks.reference');
     Route::post('/incoming-stocks', [AdminProcurementController::class, 'storeIncomingStock'])->name('incoming-stocks.store');
 
     // ─── AUDIT & USER MANAGEMENT ──────────────────────────────
@@ -89,12 +96,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
 });
 
 
-// Shared Master Bahan Baku (Accessible by Admin & Apoteker)
+// Shared Access (Accessible by Admin & Apoteker)
 Route::middleware(['auth', 'role:admin,apoteker'])->prefix('control/admin')->name('control.admin.')->group(function () {
-    Route::get('/raw-materials', [AdminMedicineController::class, 'rawMaterials'])->name('raw-materials');
-    Route::post('/raw-materials', [AdminMedicineController::class, 'storeRawMaterial'])->name('raw-materials.store');
-    Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
-    Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
 
     // Secure Faktur File Access (Admin & Apoteker)
     Route::get('/incoming-stocks/{incomingStock}/faktur', [AdminProcurementController::class, 'showFakturFile'])->name('incoming-stocks.faktur-file');
@@ -112,6 +115,7 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
 
     // Submissions
     Route::get('/submissions', [ApotekerCompoundingController::class, 'submissions'])->name('submissions');
+    Route::get('/submissions/reference', [ApotekerCompoundingController::class, 'submissionsReference'])->name('submissions.reference');
     Route::post('/submissions', [ApotekerCompoundingController::class, 'storeSubmission'])->name('submissions.store');
     Route::get('/submissions/{submission}', [ApotekerCompoundingController::class, 'showSubmission'])->name('submissions.show');
     Route::post('/submissions/{submission}/cancel', [ApotekerCompoundingController::class, 'cancelSubmission'])->name('submissions.cancel');

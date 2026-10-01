@@ -1,6 +1,15 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
+defineProps({
+    canResetPassword: {
+        type: Boolean,
+    },
+    status: {
+        type: String,
+    },
+});
+
 const form = useForm({
     email: '',
     password: '',
@@ -26,7 +35,7 @@ const submit = () => {
             <div class="w-full max-w-sm">
             
             <!-- Header -->
-            <div class="flex items-center gap-4 sm:gap-5 mb-10 z-10">
+            <div class="flex items-center gap-4 sm:gap-5 mb-5 z-10">
                 <img src="/images/logo-clean.webp" alt="Logo Apotek Kinanthi" class="w-16 h-16 sm:w-20 sm:h-20 aspect-square object-contain shrink-0 drop-shadow-sm" />
                 <div class="h-12 sm:h-14 w-[1.5px] bg-slate-300 shrink-0"></div>
                 <div>
@@ -37,50 +46,57 @@ const submit = () => {
                 </div>
             </div>
 
+            <div v-if="status" class="mb-6 text-sm font-semibold text-teal-700 bg-teal-50 p-4 rounded-lg border border-teal-200 z-10 relative">
+                {{ status }}
+            </div>
+
             <!-- Login Form -->
-            <form @submit.prevent="submit" class="space-y-5 w-full z-10 relative">
+            <form @submit.prevent="submit" class="w-full z-10 relative">
                 
-                <div>
-                    <input 
-                        v-model="form.email" 
-                        type="email" 
-                        required 
-                        placeholder="Email Address"
-                        class="w-full px-6 py-4 bg-white border-2 border-slate-300 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-400"
-                    />
-                    <p v-if="form.errors.email" class="mt-1.5 text-xs text-rose-500 ml-4 font-medium">{{ form.errors.email }}</p>
-                </div>
-                
-                <div>
-                    <input 
-                        v-model="form.password" 
-                        type="password" 
-                        required 
-                        placeholder="Password"
-                        class="w-full px-6 py-4 bg-white border-2 border-slate-300 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-400"
-                    />
-                    <p v-if="form.errors.password" class="mt-1.5 text-xs text-rose-500 ml-4 font-medium">{{ form.errors.password }}</p>
+                <!-- Inputs tightly grouped -->
+                <div class="space-y-3">
+                    <div>
+                        <input 
+                            v-model="form.email" 
+                            type="email" 
+                            required 
+                            placeholder="Email Address"
+                            class="w-full px-6 py-4 bg-white border-2 border-slate-200 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-300"
+                        />
+                        <p v-if="form.errors.email" class="mt-1.5 text-xs text-rose-500 ml-4 font-medium">{{ form.errors.email }}</p>
+                    </div>
+                    
+                    <div>
+                        <input 
+                            v-model="form.password" 
+                            type="password" 
+                            required 
+                            placeholder="Password"
+                            class="w-full px-6 py-4 bg-white border-2 border-slate-200 shadow-sm rounded-lg focus:ring-0 focus:border-teal-500 transition-all outline-none text-sm text-slate-800 placeholder-slate-400 hover:border-slate-300"
+                        />
+                        <p v-if="form.errors.password" class="mt-1.5 text-xs text-rose-500 ml-4 font-medium">{{ form.errors.password }}</p>
+                    </div>
                 </div>
 
-                <!-- Remember Me & Forgot Password -->
-                <div class="flex items-center justify-between mt-1 px-4">
+                <!-- Remember Me & Forgot Password (closer to inputs) -->
+                <div class="flex items-center justify-between mt-4 px-2">
                     <label class="flex items-center gap-2 cursor-pointer group">
                         <input type="checkbox" v-model="form.remember" class="w-4 h-4 rounded text-teal-500 border-slate-300 focus:ring-teal-400 transition-colors" />
-                        <span class="text-xs font-medium text-slate-500 group-hover:text-slate-700 transition-colors">Remember Me</span>
+                        <span class="text-xs font-medium text-slate-500 group-hover:text-slate-700 transition-colors">Ingatkan Saya</span>
                     </label>
                     <Link v-if="route().has('password.request')" :href="route('password.request')" class="text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors">
-                        Forgot Password?
+                        Lupa Password?
                     </Link>
                 </div>
 
-                <!-- Submit Button -->
-                <div class="pt-4">
+                <!-- Submit Button (separated intentionally) -->
+                <div class="mt-6">
                     <button 
                         type="submit" 
                         :disabled="form.processing"
                         class="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 text-white font-semibold py-4 rounded-lg transition-all active:scale-[0.98] shadow-md shadow-teal-500/25 disabled:opacity-70 text-sm tracking-wide"
                     >
-                        Sign In
+                        Masuk
                     </button>
                 </div>
             </form>

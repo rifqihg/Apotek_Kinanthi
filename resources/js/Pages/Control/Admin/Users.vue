@@ -43,6 +43,9 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
         <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
             <!-- Left Text Column -->
             <div class="relative z-10 max-w-sm sm:max-w-md">
+                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                    SECURITY · RBAC MANAGEMENT
+                </div>
                 <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                     Manajemen Pengguna & Hak Akses
                 </h1>
@@ -51,23 +54,12 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
                 </p>
             </div>
 
-            <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-            <div class="relative z-10 flex items-center justify-center shrink-0">
-                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Primary User Profile (behind left) -->
-                        <circle cx="17" cy="13" r="8" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                        <path d="M4 46c0-8.5 6-14 14-14s14 5.5 14 14" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="12.5" y="34" width="9" height="8" rx="1.8" stroke="#2563EB" stroke-width="1.4" fill="#EFF6FF" />
-                        <line x1="14.5" y1="38" x2="19.5" y2="38" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round" />
-                        <!-- RBAC Security Shield (in front right) -->
-                        <g transform="translate(23, 11)">
-                            <path d="M14 2l13 5.5v12c0 9-6 15-13 18-7-3-13-9-13-18V7.5L14 2z" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                            <path d="M14 5.5l10 4.2v9.5c0 6.8-4.5 11.8-10 14.5-5.5-2.7-10-7.7-10-14.5V9.7l10-4.2z" fill="#EFF6FF" />
-                            <path d="M9.5 18.5l3.5 3.5 6-6" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </g>
-                    </svg>
-                </div>
+            <!-- Right Integrated Control Panel -->
+            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                <button @click="openCreate" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Tambah Staff</span>
+                </button>
             </div>
         </div>
 
@@ -119,15 +111,10 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
         </div>
     </div>
 
-    <!-- ACTION BAR -->
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center justify-between mt-4 mb-2">
         <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
             Daftar Akun Pengguna
         </h2>
-        <button @click="openCreate" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Tambah User Baru
-        </button>
     </div>
 
         <!-- Table -->

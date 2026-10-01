@@ -224,14 +224,13 @@ class AdminController extends Controller
                 'nomor_batch' => $incoming ? $incoming->batch_no : '-',
                 'stok_fisik' => $medicine->stok_total,
                 
-                // Required for Katalog Faktur QTY formatting logic
-                'qty_masuk' => $incoming ? $incoming->qty_masuk : 0,
-                'qty_converted' => $incoming ? $incoming->qty_converted : 0,
-                'satuan_input' => $incoming ? $incoming->satuan_input : $medicine->satuan_besar,
-                'mid_unit' => $incoming ? $incoming->mid_unit : $medicine->satuan_menengah,
-                'unit_conversion_factor' => $incoming ? $incoming->unit_conversion_factor : ($medicine->rasio_konversi ?: 1),
-                'mid_to_big_ratio' => $incoming ? $incoming->mid_to_big_ratio : 1,
-                'small_to_mid_ratio' => $incoming ? $incoming->small_to_mid_ratio : ($medicine->rasio_konversi ?: 1),
+                'qty_masuk' => 0,
+                'qty_converted' => $medicine->stok_total,
+                'satuan_input' => $medicine->satuan_besar,
+                'mid_unit' => $medicine->satuan_menengah,
+                'unit_conversion_factor' => $medicine->satuan_menengah ? $medicine->rasio_konversi : ($medicine->rasio_konversi ?: 1),
+                'mid_to_big_ratio' => $medicine->satuan_menengah ? $medicine->rasio_konversi : 1,
+                'small_to_mid_ratio' => $medicine->satuan_menengah ? $medicine->conversion_factor : ($medicine->rasio_konversi ?: 1),
                 'satuan_stok' => $medicine->satuan_stok ?? 'Unit',
                 
                 'batas_aman' => $medicine->threshold_min,

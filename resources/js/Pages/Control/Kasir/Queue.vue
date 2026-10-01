@@ -152,6 +152,46 @@ const submitVoid = () => {
     <Head title="Antrian Kasir" />
 
     <div class="space-y-6">
+        <!-- HEADER SECTION: HERO BANNER -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <div class="lg:col-span-12 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+                <!-- Left Text Column -->
+                <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                        POINT OF SALE · KASIR UTAMA
+                    </div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                        Antrian Pembayaran & Kasir
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                        Proses transaksi pembayaran resep siap bayar dan manajemen antrian pasien.
+                    </p>
+                </div>
+
+                <!-- Right Integrated Control Panel -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                    <div class="relative w-full sm:w-56">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input v-model="search" type="text" placeholder="Cari no. resep / pasien..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <button v-else-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button class="h-9 px-3.5 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm w-full sm:w-auto justify-center cursor-not-allowed opacity-80" title="Fitur scanner sedang dalam pengembangan">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                        Scan Barcode
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Antrian Pembayaran -->
         <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden no-print">
             <div class="p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -160,31 +200,6 @@ const submitVoid = () => {
                     <p class="text-xs text-muted-foreground mt-0.5">Daftar resep yang sudah selesai diracik dan menunggu pembayaran.</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div class="relative w-64">
-                        <input 
-                            v-model="search" 
-                            type="text" 
-                            placeholder="Cari no. resep / pasien..." 
-                            class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" 
-                        />
-                        <svg v-if="!isSearching" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <svg v-else class="animate-spin w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <button 
-                            v-if="search" 
-                            type="button" 
-                            @click="clearSearch" 
-                            class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors cursor-pointer"
-                            title="Hapus pencarian"
-                        >
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
-                    </div>
                     <div class="bg-primary/10 border border-primary/20 text-primary font-medium h-9 px-3.5 rounded-md text-xs flex items-center justify-center shrink-0">
                         {{ totalPrescriptions }} Menunggu
                     </div>

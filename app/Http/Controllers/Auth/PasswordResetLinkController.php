@@ -31,21 +31,22 @@ class PasswordResetLinkController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $user = \App\Models\User::where('email', $request->email)->first();
 
-        if ($status == Password::RESET_LINK_SENT) {
-            return back()->with('status', __($status));
+        // ponytail: explicit bypass of reset token logic. Ceiling: open to brute force/unauthorized reset if email is known.
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'email' => ['Email tidak ditemukan di sistem kami.'],
+            ]);
         }
 
-        throw ValidationException::withMessages([
-            'email' => [trans($status)],
-        ]);
+        $user->forceFill([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password)
+        ])->save();
+
+        return redirect()->route('login')->with('status', 'Password berhasil diubah! Silakan login dengan password baru.');
     }
 }

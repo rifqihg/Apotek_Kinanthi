@@ -267,9 +267,13 @@ class AdminMedicineController extends Controller
     {
         $v = $request->validate([
             'nama_bahan' => 'required|string|max:255',
-            'bentuk_sediaan' => 'required|string|max:100',
             'kode_bahan' => 'nullable|string|max:50|unique:raw_materials,kode_bahan',
-            'satuan_ukur' => 'required|string|max:50',
+            'golongan_bahan' => 'nullable|string|max:100',
+            'bentuk_sediaan' => 'required|string|max:100',
+            'suhu_penyimpanan' => 'nullable|string|max:100',
+            'satuan_pembelian' => 'required|string|max:50',
+            'satuan_dasar_penggunaan' => 'required|string|max:50',
+            'rasio_konversi' => 'required|numeric|min:1',
             'expected_quantity' => 'required|numeric|min:0',
             'batch_no' => 'nullable|string|max:100',
             'expired_date' => 'required|date',
@@ -279,31 +283,51 @@ class AdminMedicineController extends Controller
         ]);
 
         return DB::transaction(function () use ($v, $request) {
+            $expected_qty_in_base = $v['expected_quantity'] * $v['rasio_konversi'];
+            
             $rm = RawMaterial::create([
                 'nama_bahan' => $v['nama_bahan'],
-                'bentuk_sediaan' => $v['bentuk_sediaan'],
                 'kode_bahan' => $v['kode_bahan'],
-                'satuan_ukur' => $v['satuan_ukur'],
+                'golongan_bahan' => $v['golongan_bahan'],
+                'bentuk_sediaan' => $v['bentuk_sediaan'],
+                'suhu_penyimpanan' => $v['suhu_penyimpanan'],
+                'satuan_pembelian' => $v['satuan_pembelian'],
+                'satuan_dasar_penggunaan' => $v['satuan_dasar_penggunaan'],
+                'rasio_konversi' => $v['rasio_konversi'],
                 'harga_beli_satuan' => $v['harga_beli_satuan'],
                 'threshold_min' => $v['threshold_min'],
                 'deskripsi' => $v['deskripsi'],
                 'status' => 'active',
                 'creator_id' => $request->user()->id,
-                'stok_total' => $v['expected_quantity'],
+                'stok_total' => $expected_qty_in_base,
             ]);
 
-            RawMaterialStock::create([
+            $roleName = ucfirst($request->user()->role);
+
+            $stock = new RawMaterialStock([
                 'raw_material_id' => $rm->id,
                 'batch_no' => $v['batch_no'] ?? 'BATCH-' . strtoupper(Str::random(5)),
-                'expected_quantity' => $v['expected_quantity'],
-                'actual_quantity' => $v['expected_quantity'],
-                'stock_on_hand' => $v['expected_quantity'],
+                'expected_quantity' => $expected_qty_in_base,
+                'actual_quantity' => $expected_qty_in_base,
+                'stock_on_hand' => $expected_qty_in_base,
                 'expired_date' => $v['expired_date'],
                 'status' => 'active',
-                'notes' => 'Registrasi awal oleh Admin.',
+                'notes' => "Registrasi awal oleh {$roleName}.",
+            ]);
+            $stock->setMutationContext('in', null, "Registrasi awal bahan baku oleh {$roleName}");
+            $stock->save();
+
+            \App\Models\Control\StockLog::create([
+                'raw_material_id' => $rm->id,
+                'action' => 'REGISTRASI_AWAL',
+                'qty_before' => 0,
+                'qty_after' => $expected_qty_in_base,
+                'change_amount' => $expected_qty_in_base,
+                'reason' => "Registrasi awal oleh {$roleName}",
+                'user_id' => $request->user()->id,
             ]);
 
-            AuditTrail::log($request->user()->id, 'CREATE_RAW_MATERIAL', "Admin menambah bahan baku: {$rm->nama_bahan}", RawMaterial::class, $rm->id);
+            AuditTrail::log($request->user()->id, 'CREATE_RAW_MATERIAL', "{$roleName} menambah bahan baku: {$rm->nama_bahan}", RawMaterial::class, $rm->id);
 
             return redirect()->back()->with('success', 'Bahan baku berhasil ditambahkan dan stok langsung aktif.');
         });
@@ -313,9 +337,13 @@ class AdminMedicineController extends Controller
     {
         $v = $request->validate([
             'nama_bahan' => 'required|string|max:255',
-            'bentuk_sediaan' => 'required|string|max:100',
             'kode_bahan' => 'nullable|string|max:50|unique:raw_materials,kode_bahan,' . $rawMaterial->id,
-            'satuan_ukur' => 'required|string|max:50',
+            'golongan_bahan' => 'nullable|string|max:100',
+            'bentuk_sediaan' => 'required|string|max:100',
+            'suhu_penyimpanan' => 'nullable|string|max:100',
+            'satuan_pembelian' => 'required|string|max:50',
+            'satuan_dasar_penggunaan' => 'required|string|max:50',
+            'rasio_konversi' => 'required|numeric|min:1',
             'harga_beli_satuan' => 'required|numeric|min:0',
             'threshold_min' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string|max:1000',

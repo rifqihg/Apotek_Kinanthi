@@ -68,7 +68,7 @@ class AdminStockOpnameController extends Controller
                 ->get(),
             'categories' => Category::select(['id', 'name'])->orderBy('name')->get(),
             'rawMaterials' => RawMaterial::where('status', 'active')
-                ->select(['id', 'nama_bahan', 'satuan_ukur', 'base_unit', 'category_id'])
+                ->select(['id', 'nama_bahan', 'satuan_dasar_penggunaan as satuan_ukur', 'category_id'])
                 ->with([
                     'stocks' => fn($q) => $q->where('status', 'active')
                         ->where('stock_on_hand', '>', 0)
@@ -232,7 +232,7 @@ class AdminStockOpnameController extends Controller
                 'items' => fn($q) => $q->orderBy('id', 'asc'),
                 'items.medicine:id,nama_obat,satuan_stok,satuan_besar,satuan_menengah,rasio_konversi',
                 'items.medicine.latestActiveIncomingStock',
-                'items.rawMaterial:id,nama_bahan,satuan_ukur,base_unit',
+                'items.rawMaterial:id,nama_bahan,satuan_dasar_penggunaan as satuan_ukur',
                 'items.productBatch:id,batch_no,expired_date,stock_on_hand',
                 'items.rawMaterialBatch:id,batch_no,expired_date,stock_on_hand',
             ])->findOrFail($id),

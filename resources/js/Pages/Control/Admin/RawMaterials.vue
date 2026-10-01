@@ -54,11 +54,27 @@ const stats = computed(() => {
     return { total, critical, safe };
 });
 
+const farmasiTaksonomi = {
+    'Padat (Solida)': { 
+        satuan: ['Kg', 'Gram', 'mg', 'mcg', 'IU', 'Zack', 'Box', 'Strip', 'Tablet', 'Kapsul']
+    },
+    'Cair (Liquida)': { 
+        satuan: ['Liter', 'mL', 'cc', 'drop/tetes', 'Galon', 'Botol', 'Vial', 'Ampul']
+    },
+    'Semisolid': { 
+        satuan: ['Tube', 'Pot', 'Gram', 'mg']
+    }
+};
+
 const form = useForm({
     nama_bahan: '',
-    bentuk_sediaan: '',
     kode_bahan: '',
-    satuan_ukur: '',
+    golongan_bahan: '',
+    bentuk_sediaan: '',
+    suhu_penyimpanan: '',
+    satuan_pembelian: '',
+    satuan_dasar_penggunaan: '',
+    rasio_konversi: 1,
     expected_quantity: '',
     batch_no: '',
     expired_date: '',
@@ -66,6 +82,81 @@ const form = useForm({
     threshold_min: '',
     deskripsi: '',
 });
+
+const availableSatuan = computed(() => {
+    return farmasiTaksonomi[form.bentuk_sediaan]?.satuan || [];
+});
+
+watch(() => form.bentuk_sediaan, (newBentuk, oldBentuk) => {
+    if (newBentuk !== oldBentuk) {
+        form.satuan_pembelian = '';
+        form.satuan_dasar_penggunaan = '';
+        form.rasio_konversi = 1;
+    }
+});
+
+const metricWeights = {
+    'Kg': 1000000,
+    'Gram': 1000,
+    'mg': 1,
+    'mcg': 0.001,
+    'Liter': 1000,
+    'mL': 1,
+    'cc': 1,
+};
+
+const isRatioLocked = ref(false);
+const autoRatioMsg = ref('');
+
+watch([() => form.satuan_pembelian, () => form.satuan_dasar_penggunaan], ([beli, pakai], [oldBeli, oldPakai]) => {
+    if (!beli || !pakai) {
+        isRatioLocked.value = false;
+        autoRatioMsg.value = '';
+        return;
+    }
+
+    const weightBeli = metricWeights[beli];
+    const weightPakai = metricWeights[pakai];
+
+    if (weightBeli !== undefined && weightPakai !== undefined) {
+        const rasio = weightBeli / weightPakai;
+        if (rasio > 0) {
+            form.rasio_konversi = rasio;
+            isRatioLocked.value = true;
+            autoRatioMsg.value = '(Otomatis)';
+        }
+    } else {
+        isRatioLocked.value = false;
+        autoRatioMsg.value = '(Manual)';
+        
+        // Reset if it was previously locked to force user to type the new manual ratio
+        if ((oldBeli !== beli || oldPakai !== pakai) && metricWeights[oldBeli] && metricWeights[oldPakai]) {
+            form.rasio_konversi = '';
+        }
+    }
+});
+
+const formatStokBerjenjang = (stokDasar, rasio, satuanBeli, satuanPakai) => {
+    if (!stokDasar) return `0 ${satuanPakai || ''}`;
+    const qtyBase = Number(stokDasar);
+    const ratio = Number(rasio);
+    
+    if (!ratio || ratio <= 1 || !satuanBeli) return `${qtyBase.toLocaleString('id-ID')} ${satuanPakai || ''}`;
+    
+    const valueBeli = Math.floor(qtyBase / ratio);
+    const valuePakai = qtyBase % ratio;
+    
+    let result = '';
+    if (valueBeli > 0) result += `${valueBeli.toLocaleString('id-ID')} ${satuanBeli}`;
+    
+    if (valuePakai > 0) {
+        if (result.length > 0) result += ' ';
+        const remainderStr = valuePakai % 1 === 0 ? valuePakai.toLocaleString('id-ID') : valuePakai.toLocaleString('id-ID', { maximumFractionDigits: 4 });
+        result += `${remainderStr} ${satuanPakai}`;
+    }
+    
+    return result || `0 ${satuanPakai}`;
+};
 
 const openAdd = () => {
     editingMaterial.value = null;
@@ -76,9 +167,13 @@ const openAdd = () => {
 const openEdit = (m) => {
     editingMaterial.value = m;
     form.nama_bahan = m.nama_bahan;
-    form.bentuk_sediaan = m.bentuk_sediaan || '';
     form.kode_bahan = m.kode_bahan || '';
-    form.satuan_ukur = m.satuan_ukur || '';
+    form.golongan_bahan = m.golongan_bahan || '';
+    form.bentuk_sediaan = m.bentuk_sediaan || '';
+    form.suhu_penyimpanan = m.suhu_penyimpanan || '';
+    form.satuan_pembelian = m.satuan_pembelian || '';
+    form.satuan_dasar_penggunaan = m.satuan_dasar_penggunaan || '';
+    form.rasio_konversi = m.rasio_konversi || 1;
     form.harga_beli_satuan = m.harga_beli_satuan || '';
     form.threshold_min = m.threshold_min || '';
     form.deskripsi = m.deskripsi || '';
@@ -124,6 +219,9 @@ const deleteMaterial = (m) => {
         <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
             <!-- Left Text Column -->
             <div class="relative z-10 max-w-sm sm:max-w-md">
+                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                    MASTER DATA · BAHAN RACIKAN
+                </div>
                 <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                     Inventaris Bahan Baku Racikan
                 </h1>
@@ -132,27 +230,33 @@ const deleteMaterial = (m) => {
                 </p>
             </div>
 
-            <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-            <div class="relative z-10 flex items-center justify-center shrink-0">
-                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Chemical Container (behind left) -->
-                        <rect x="9" y="4" width="14" height="4.5" rx="1.8" stroke="#059669" stroke-width="2" fill="#ECFDF5" />
-                        <rect x="4" y="8.5" width="24" height="42" rx="5" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="7.5" y="18" width="17" height="19" rx="3" stroke="#A7F3D0" stroke-width="1.4" fill="#F0FDF4" />
-                        <path d="M16 22c-2.8 1.8-2.8 7 0 9 2.8-2 2.8-7.2 0-9z" fill="#059669" />
-                        <line x1="16" y1="22" x2="16" y2="31" stroke="#059669" stroke-width="1.2" stroke-linecap="round" />
-                        <!-- Mortar & Pestle (in front right) -->
-                        <g transform="translate(19, 15)">
-                            <path d="M12 2l16 18" stroke="#047857" stroke-width="4" stroke-linecap="round" />
-                            <circle cx="12" cy="2" r="2.2" fill="#047857" />
-                            <path d="M4 19h28c0 12-6 18-14 18S4 31 4 19z" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
-                            <ellipse cx="18" cy="19" rx="14" ry="4" stroke="#059669" stroke-width="1.8" fill="#ECFDF5" />
-                            <ellipse cx="18" cy="19" rx="10" ry="2.2" fill="#A7F3D0" />
-                            <path d="M12 37h12v2H12z" fill="#059669" />
-                        </g>
-                    </svg>
+            <!-- Right Integrated Control Panel -->
+            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                <div class="relative w-full sm:w-64">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input v-model="search" type="text" placeholder="Cari nama atau kode bahan baku..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <button 
+                            v-else-if="search" 
+                            type="button" 
+                            @click="clearSearch" 
+                            class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                            title="Hapus pencarian"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+                <button @click="openAdd" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span>Tambah Bahan</span>
+                </button>
             </div>
         </div>
 
@@ -204,34 +308,6 @@ const deleteMaterial = (m) => {
         </div>
     </div>
 
-    <!-- SEARCH & ACTION BAR -->
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div class="relative w-full sm:flex-1">
-            <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input v-model="search" type="text" placeholder="Cari nama atau kode bahan baku..." class="w-full h-10 pl-10 pr-10 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
-            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                <svg v-if="isSearching" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <button 
-                    v-else-if="search" 
-                    type="button" 
-                    @click="clearSearch" 
-                    class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
-                    title="Hapus pencarian"
-                >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-        <button @click="openAdd" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Tambah Bahan Baku
-        </button>
-    </div>
 
     <!-- Table -->
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
@@ -240,10 +316,10 @@ const deleteMaterial = (m) => {
                 <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                     <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
                     <TableHead class="min-w-[220px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nama Bahan</TableHead>
-                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kode</TableHead>
-                    <TableHead class="min-w-[80px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Golongan</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Satuan Beli</TableHead>
                     <TableHead class="min-w-[130px] text-right tabular-nums py-2 px-3 pr-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Beli</TableHead>
-                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Stok Total</TableHead>
+                    <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Stok (Dasar)</TableHead>
                     <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Threshold</TableHead>
                     <TableHead class="min-w-[110px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status Stok</TableHead>
                     <TableHead class="min-w-[90px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
@@ -262,14 +338,23 @@ const deleteMaterial = (m) => {
                     <TableCell class="py-2.5 px-3 break-words whitespace-normal align-middle">
                         <div class="flex flex-col">
                             <span class="font-medium text-foreground text-sm leading-snug break-words">{{ m.nama_bahan }}</span>
-                            <span class="text-xs text-muted-foreground leading-tight mt-0.5">{{ m.bentuk_sediaan || '-' }}</span>
+                            <span class="text-[10px] text-muted-foreground leading-tight mt-0.5">{{ m.kode_bahan || 'No Code' }} &bull; {{ m.bentuk_sediaan || '-' }}</span>
                         </div>
                     </TableCell>
-                    <!-- KODE -->
-                    <TableCell class="py-2.5 px-3 text-center text-sm font-medium text-foreground align-middle">{{ m.kode_bahan || '-' }}</TableCell>
-                    <!-- SATUAN -->
+                    <!-- GOLONGAN -->
+                    <TableCell class="py-2.5 px-3 text-center text-xs font-medium align-middle">
+                        <span class="px-2 py-0.5 rounded-full border" 
+                            :class="{
+                                'bg-red-50 text-red-600 border-red-200': m.golongan_bahan === 'Keras' || m.golongan_bahan === 'Narkotika' || m.golongan_bahan === 'Psikotropika',
+                                'bg-blue-50 text-blue-600 border-blue-200': m.golongan_bahan === 'Bebas Terbatas',
+                                'bg-green-50 text-green-600 border-green-200': m.golongan_bahan === 'Bebas' || !m.golongan_bahan,
+                            }">
+                            {{ m.golongan_bahan || 'Bebas' }}
+                        </span>
+                    </TableCell>
+                    <!-- SATUAN BELI -->
                     <TableCell class="py-2.5 px-3 text-center text-sm font-medium text-foreground uppercase align-middle">
-                        {{ m.satuan_ukur }}
+                        {{ m.satuan_pembelian || m.satuan_dasar_penggunaan }}
                     </TableCell>
                     <!-- HARGA BELI -->
                     <TableCell class="py-2.5 px-3 pr-4 text-right font-medium text-foreground text-sm tabular-nums align-middle">
@@ -277,9 +362,12 @@ const deleteMaterial = (m) => {
                     </TableCell>
                     <!-- STOK TOTAL -->
                     <TableCell class="py-2.5 px-3 text-center align-middle">
-                        <span :class="m.stok_total < m.threshold_min ? 'text-destructive font-semibold' : 'text-foreground font-medium'" class="text-sm tabular-nums">
-                            {{ Number(m.stok_total).toLocaleString('id-ID') }}
-                        </span>
+                        <div class="flex flex-col items-center justify-center">
+                            <span :class="m.stok_total < m.threshold_min ? 'text-destructive font-semibold' : 'text-foreground font-medium'" class="text-sm">
+                                {{ formatStokBerjenjang(m.stok_total, m.rasio_konversi, m.satuan_pembelian, m.satuan_dasar_penggunaan) }}
+                            </span>
+                            <span class="text-[10px] text-muted-foreground mt-0.5" v-if="m.rasio_konversi > 1">Total Base: {{ Number(m.stok_total).toLocaleString('id-ID') }} {{ m.satuan_dasar_penggunaan || 'g' }}</span>
+                        </div>
                     </TableCell>
                     <!-- THRESHOLD -->
                     <TableCell class="py-2.5 px-3 text-center text-sm font-medium text-muted-foreground tabular-nums align-middle">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</TableCell>
@@ -335,57 +423,127 @@ const deleteMaterial = (m) => {
             </div>
             <form @submit.prevent="submitForm" class="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
                 <div class="grid grid-cols-2 gap-4">
+                    <!-- BLOK 1: Identitas Dasar -->
+                    <div class="col-span-2 pt-1">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Identitas & Klasifikasi</p>
+                    </div>
                     <div class="col-span-2 space-y-1.5">
                         <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Nama Bahan Baku <span class="text-destructive">*</span></label>
-                        <input v-model="form.nama_bahan" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Contoh: Paracetamol">
+                        <input v-model="form.nama_bahan" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Contoh: Paracetamol murni">
                         <p v-if="form.errors.nama_bahan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.nama_bahan }}</p>
-                    </div>
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Bentuk Sediaan <span class="text-destructive">*</span></label>
-                        <input v-model="form.bentuk_sediaan" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Serbuk, Cairan, dll">
-                        <p v-if="form.errors.bentuk_sediaan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.bentuk_sediaan }}</p>
                     </div>
                     <div class="space-y-1.5">
                         <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Kode Bahan</label>
                         <input v-model="form.kode_bahan" type="text" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Opsional">
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Satuan Ukur <span class="text-destructive">*</span></label>
-                        <input v-model="form.satuan_ukur" type="text" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Gram, mL, dll">
-                    </div>
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Harga Beli / Satuan <span class="text-destructive">*</span></label>
-                        <input v-model="form.harga_beli_satuan" type="number" required min="0" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
-                        <p v-if="form.errors.harga_beli_satuan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.harga_beli_satuan }}</p>
-                    </div>
-                    <div class="col-span-2 space-y-1.5">
-                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Minimum Stok (Threshold) <span class="text-destructive">*</span></label>
-                        <input v-model="form.threshold_min" type="number" required min="0" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Golongan Obat</label>
+                        <select v-model="form.golongan_bahan" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors">
+                            <option value="">Belum Diklasifikasi</option>
+                            <option value="Bebas">Bebas</option>
+                            <option value="Bebas Terbatas">Bebas Terbatas</option>
+                            <option value="Keras">Keras (G)</option>
+                            <option value="Prekursor">Prekursor</option>
+                            <option value="Narkotika">Narkotika</option>
+                            <option value="Psikotropika">Psikotropika</option>
+                        </select>
+                        <p v-if="form.errors.golongan_bahan" class="text-destructive text-xs font-medium mt-1">{{ form.errors.golongan_bahan }}</p>
                     </div>
 
-                    <!-- Only shown when creating a new item -->
-                    <template v-if="!editingMaterial">
-                        <div class="col-span-2 pt-3 border-t border-border">
-                            <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Data Stok Awal</p>
+                    <!-- BLOK 2: Parameter Fisik & Klinis -->
+                    <div class="col-span-2 pt-3 border-t border-border mt-2">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Parameter Fisik & Penyimpanan</p>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Bentuk Sediaan <span class="text-destructive">*</span></label>
+                        <select v-model="form.bentuk_sediaan" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors">
+                            <option value="" disabled>Pilih Sediaan...</option>
+                            <option v-for="key in Object.keys(farmasiTaksonomi)" :key="key" :value="key">{{ key }}</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Suhu Penyimpanan</label>
+                        <select v-model="form.suhu_penyimpanan" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors">
+                            <option value="">Pilih Suhu...</option>
+                            <option value="Suhu Ruang (15-30°C)">Suhu Ruang (15-30°C)</option>
+                            <option value="Sejuk (8-15°C)">Sejuk (8-15°C)</option>
+                            <option value="Dingin (2-8°C)">Dingin (2-8°C)</option>
+                        </select>
+                    </div>
+
+                    <!-- BLOK 3: Mesin Konversi & Ekonomi -->
+                    <div class="col-span-2 pt-3 border-t border-border mt-2">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Konversi Satuan & Ekonomi</p>
+                    </div>
+                    <div class="col-span-2 grid grid-cols-3 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Satuan Beli <span class="text-destructive">*</span></label>
+                            <select v-model="form.satuan_pembelian" :disabled="!form.bentuk_sediaan" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground disabled:opacity-50">
+                                <option value="" disabled>Pilih Satuan...</option>
+                                <option v-for="unit in availableSatuan" :key="unit" :value="unit">{{ unit }}</option>
+                            </select>
                         </div>
                         <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Qty Stok Awal <span class="text-destructive">*</span></label>
-                            <input v-model="form.expected_quantity" type="number" required min="0" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
-                            <p v-if="form.errors.expected_quantity" class="text-destructive text-xs font-medium mt-1">{{ form.errors.expected_quantity }}</p>
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Satuan Pakai (Base) <span class="text-destructive">*</span></label>
+                            <select v-model="form.satuan_dasar_penggunaan" :disabled="!form.bentuk_sediaan" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground disabled:opacity-50">
+                                <option value="" disabled>Pilih Satuan Pakai...</option>
+                                <option v-for="unit in availableSatuan" :key="unit" :value="unit">{{ unit }}</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Rasio Konversi <span v-if="autoRatioMsg" :class="isRatioLocked ? 'text-emerald-600' : 'text-amber-600'" class="text-[10px] ml-1 lowercase font-bold">{{ autoRatioMsg }}</span><span v-else class="text-destructive">*</span></label>
+                            <input v-model="form.rasio_konversi" type="number" min="1" step="any" :readonly="isRatioLocked" required :class="['w-full h-9 px-3 border border-input rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors', isRatioLocked ? 'bg-muted opacity-80 cursor-not-allowed border-transparent font-bold' : 'bg-background hover:border-primary']" placeholder="Contoh: 100">
+                        </div>
+                    </div>
+                    
+                    <div v-if="form.satuan_pembelian && form.satuan_dasar_penggunaan && form.rasio_konversi" class="col-span-2 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 p-2 rounded-md">
+                        Info: 1 {{ form.satuan_pembelian }} = {{ form.rasio_konversi }} {{ form.satuan_dasar_penggunaan }}
+                    </div>
+                    
+                    <div class="col-span-2 space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Harga Beli / Satuan Beli <span class="text-destructive">*</span></label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-sm text-muted-foreground font-medium">Rp</span>
+                            <input v-model="form.harga_beli_satuan" type="number" required min="0" class="w-full h-9 pl-9 pr-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- BLOK 4: Data Fisik / Stok Awal -->
+                    <template v-if="!editingMaterial">
+                        <div class="col-span-2 pt-3 border-t border-border mt-2">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Data Fisik / Stok Awal</p>
+                        </div>
+                        <div class="col-span-2 space-y-1.5">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Qty Stok Awal (Satuan Beli) <span class="text-destructive">*</span></label>
+                            <div class="flex items-center gap-2">
+                                <input v-model="form.expected_quantity" type="number" required min="0" class="flex-1 h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="0">
+                                <span v-if="form.satuan_pembelian" class="text-xs font-medium text-muted-foreground uppercase bg-muted px-3 py-2 rounded-md border border-input">{{ form.satuan_pembelian }}</span>
+                            </div>
+                            <p v-if="form.expected_quantity && form.rasio_konversi" class="text-[10px] font-medium text-emerald-600 mt-1">Stok akan tercatat di sistem sebagai: {{ form.expected_quantity * form.rasio_konversi }} {{ form.satuan_dasar_penggunaan }}</p>
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-xs font-semibold text-foreground uppercase tracking-wider">No. Batch</label>
                             <input v-model="form.batch_no" type="text" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Opsional (auto-generate)">
                         </div>
-                        <div class="col-span-2 space-y-1.5">
+                        <div class="space-y-1.5">
                             <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Tanggal Kadaluarsa <span class="text-destructive">*</span></label>
                             <input v-model="form.expired_date" type="date" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors">
-                            <p v-if="form.errors.expired_date" class="text-destructive text-xs font-medium mt-1">{{ form.errors.expired_date }}</p>
                         </div>
                     </template>
 
+                    <!-- BLOK 5: Aturan Sistem & Catatan -->
+                    <div class="col-span-2 pt-3 border-t border-border mt-2">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Aturan Sistem & Catatan</p>
+                    </div>
                     <div class="col-span-2 space-y-1.5">
-                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Deskripsi / Catatan</label>
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Minimum Stok (Threshold) <span class="text-destructive">*</span></label>
+                        <div class="flex items-center gap-2">
+                            <input v-model="form.threshold_min" type="number" required min="0" class="flex-1 h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Dalam satuan dasar...">
+                            <span v-if="form.satuan_dasar_penggunaan" class="text-xs font-medium text-muted-foreground uppercase bg-muted px-3 py-2 rounded-md border border-input">{{ form.satuan_dasar_penggunaan }}</span>
+                        </div>
+                    </div>
+                    <div class="col-span-2 space-y-1.5">
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Deskripsi / Catatan Tambahan</label>
                         <textarea v-model="form.deskripsi" rows="2" class="w-full p-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors resize-none" placeholder="Opsional"></textarea>
                     </div>
                 </div>

@@ -5,15 +5,37 @@ import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useDebounceFn } from '@vueuse/core';
 import axios from 'axios';
 
+import { useToast } from '@/Components/ui/toast/use-toast';
+
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ 
     submissions: Object, 
-    formulas: Array, 
-    rawMaterials: Array, 
-    medicines: Array,
     filters: { type: Object, default: () => ({}) }
 });
+
+const formulas = ref([]);
+const rawMaterials = ref([]);
+const medicines = ref([]);
+const isLoadingReferenceData = ref(false);
+const hasLoadedReferenceData = ref(false);
+const { toast } = useToast();
+
+const loadReferenceData = async () => {
+    if (hasLoadedReferenceData.value) return;
+    isLoadingReferenceData.value = true;
+    try {
+        const response = await axios.get(route('submissions.reference'));
+        formulas.value = response.data.formulas || [];
+        rawMaterials.value = response.data.rawMaterials || [];
+        medicines.value = response.data.medicines || [];
+        hasLoadedReferenceData.value = true;
+    } catch (e) {
+        toast({ title: 'Gagal', description: 'Gagal memuat data referensi', variant: 'destructive' });
+    } finally {
+        isLoadingReferenceData.value = false;
+    }
+};
 
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || 'all');
@@ -55,6 +77,10 @@ const clearFilters = () => {
 };
 const showModal = ref(false);
 
+watch(showModal, (newVal) => {
+    if (newVal) loadReferenceData();
+});
+
 const statusClass = (s) => ({
     pending_final_verification: 'bg-amber-50 text-amber-600 border-amber-200',
     active: 'bg-emerald-50 text-emerald-600 border-emerald-200',
@@ -95,7 +121,7 @@ const form = useForm({
 
 const rawMaterialsMap = computed(() => {
     const map = {};
-    (props.rawMaterials || []).forEach(rm => {
+    (rawMaterials.value || []).forEach(rm => {
         map[rm.id] = rm;
     });
     return map;
@@ -103,7 +129,7 @@ const rawMaterialsMap = computed(() => {
 
 const medicinesMap = computed(() => {
     const map = {};
-    (props.medicines || []).forEach(m => {
+    (medicines.value || []).forEach(m => {
         map[m.id] = m;
     });
     return map;
@@ -128,7 +154,7 @@ const getItemUnit = (detail) => {
         return med?.satuan_terkecil || med?.satuan_stok || 'Pcs';
     }
     const rm = rawMaterialsMap.value[detail.id_batch];
-    return rm?.satuan_ukur || 'g';
+    return rm?.satuan_dasar_penggunaan || rm?.satuan_ukur || 'g';
 };
 
 const total_massa_neto_bahan = computed(() => {
@@ -168,7 +194,7 @@ const hasLiquidInCapsule = computed(() => {
     return form.bahan_baku.some(d => {
         if (d.source_type === 'medicine') return false;
         const rm = rawMaterialsMap.value[d.id_batch];
-        return rm?.satuan_ukur === 'ml' || rm?.satuan_ukur === 'L';
+        return rm?.satuan_dasar_penggunaan === 'ml' || rm?.satuan_dasar_penggunaan === 'mL' || rm?.satuan_dasar_penggunaan === 'L' || rm?.satuan_dasar_penggunaan === 'Liter';
     });
 });
 
@@ -206,7 +232,7 @@ watch(() => form.target_unit, (newUnit) => {
 
 watch(() => form.formula_id, (newId) => {
     if (!newId) return;
-    const formula = (props.formulas || []).find(f => f.id === newId);
+    const formula = (formulas.value || []).find(f => f.id === newId);
     if (formula) {
         const kat = (formula.kategori_sediaan || '').toLowerCase();
         if (kat.includes('larutan') || kat.includes('sirup') || kat.includes('suspensi')) {
@@ -350,6 +376,9 @@ if (prefillItemId) {
             <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
                 <!-- Left Text Column -->
                 <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                        KLINIS · MEJA RACIK
+                    </div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                         Log Pengajuan & Racikan Obat
                     </h1>
@@ -358,24 +387,34 @@ if (prefillItemId) {
                     </p>
                 </div>
 
-                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                <div class="relative z-10 flex items-center justify-center shrink-0">
-                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                        <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Erlenmeyer Lab Flask (behind left) -->
-                            <rect x="12" y="4" width="14" height="4.5" rx="1.8" stroke="#059669" stroke-width="2" fill="#ECFDF5" />
-                            <path d="M15 8.5v11L5 46.5a4 4 0 0 0 3.5 5.5h23a4 4 0 0 0 3.5-5.5L25 19.5V8.5" stroke="#059669" stroke-width="2.2" stroke-linejoin="round" fill="#FFFFFF" />
-                            <path d="M8 39c3-1.5 6 1.5 10 0s6-.5 10 1l2 6.5a3 3 0 0 1-2.5 4H10a3 3 0 0 1-2.8-4l.8-7.5z" fill="#A7F3D0" fill-opacity="0.9" />
-                            <line x1="16" y1="26" x2="20" y2="26" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
-                            <line x1="14" y1="31" x2="20" y2="31" stroke="#059669" stroke-width="1.4" stroke-linecap="round" />
-                            <!-- Tilted Capsule (interlocking in front right) -->
-                            <g transform="translate(37, 33) rotate(28)">
-                                <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#059669" stroke-width="2.2" fill="#FFFFFF" />
-                                <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#10B981" />
-                                <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#059669" stroke-width="1.8" />
-                            </g>
-                        </svg>
+                <!-- Right Integrated Control Panel -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                    <div class="relative w-full sm:w-48">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input v-model="search" type="text" placeholder="Cari racikan..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <button v-else-if="search" type="button" @click="search=''; applyFilters()" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
                     </div>
+                    
+                    <select v-model="statusFilter" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer">
+                        <option value="all">Status: Semua</option>
+                        <option value="pending_final_verification">Verifikasi</option>
+                        <option value="active">Aktif</option>
+                        <option value="rejected">Ditolak</option>
+                        <option value="cancelled">Batal</option>
+                    </select>
+
+                    <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Buat Racikan</span>
+                    </button>
                 </div>
             </div>
 
@@ -428,59 +467,19 @@ if (prefillItemId) {
         </div>
 
         <!-- ACTION BAR -->
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-                Daftar Riwayat Pengajuan Racikan
-            </h2>
-            <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Buat Racikan Baru
-            </button>
+        <div class="flex items-center justify-between mt-4">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
+                    Daftar Riwayat Pengajuan Racikan
+                </h2>
+            </div>
         </div>
 
-        <!-- FILTER BAR -->
+        <!-- ADDITIONAL FILTERS -->
         <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
-            <!-- Search Input -->
-            <div class="flex-1 min-w-[220px] relative">
-                <input 
-                    v-model="search" 
-                    type="text" 
-                    placeholder="Cari racikan, formula, atau apoteker..." 
-                    class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" 
-                />
-                <svg v-if="!isSearching" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <button 
-                    v-if="search" 
-                    @click="search = ''; applyFilters()" 
-                    type="button" 
-                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
-                    title="Hapus pencarian"
-                >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Status Dropdown -->
-            <select v-model="statusFilter" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">
-                <option value="all">Semua Status</option>
-                <option value="pending_final_verification">Menunggu Verifikasi</option>
-                <option value="active">Aktif (Siap)</option>
-                <option value="rejected">Ditolak</option>
-                <option value="cancelled">Dibatalkan</option>
-            </select>
-
             <!-- Unit Dropdown -->
             <select v-model="unitFilter" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">
-                <option value="all">Semua Satuan</option>
+                <option value="all">Semua Satuan Sediaan</option>
                 <option value="Kapsul">Kapsul</option>
                 <option value="Puyer">Puyer</option>
                 <option value="Botol">Botol</option>
@@ -489,8 +488,9 @@ if (prefillItemId) {
             </select>
 
             <!-- Reset Button -->
-            <button v-if="search || statusFilter !== 'all' || unitFilter !== 'all'" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
-                Reset
+            <button v-if="search || statusFilter !== 'all' || unitFilter !== 'all'" @click="clearFilters" class="h-9 px-3 text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 rounded-md cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Reset Filter
             </button>
         </div>
 
@@ -585,7 +585,15 @@ if (prefillItemId) {
                     <button @click="showModal=false" class="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                 </div>
                 
-                <form @submit.prevent="submit" class="p-6 space-y-6">
+                <form @submit.prevent="submit" class="p-6 space-y-6 relative">
+                    <!-- Loading Overlay -->
+                    <div v-if="isLoadingReferenceData" class="absolute inset-0 bg-card/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3">
+                        <svg class="w-8 h-8 text-emerald-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-sm font-medium text-muted-foreground animate-pulse">Memuat data referensi bahan & resep...</p>
+                    </div>
                     <!-- Pre-fill Banner -->
                     <div v-if="form.prescription_item_id" class="bg-primary/10 border border-primary/20 rounded-md p-3 flex items-center gap-3">
                         <div class="p-1.5 rounded-md bg-primary/20 text-primary">
@@ -712,22 +720,27 @@ if (prefillItemId) {
                                         </select>
                                         <select v-else v-model="d.id_batch" @change="fetchFEFO(d)" class="w-full bg-background border border-input rounded-md h-9 px-2.5 text-foreground text-xs focus:ring-1 focus:ring-ring outline-none transition-colors" required>
                                             <option value="">Pilih Bahan Baku...</option>
-                                            <option v-for="rm in (rawMaterials || [])" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }} ({{ rm.satuan_ukur }})</option>
+                                            <option v-for="rm in (rawMaterials || [])" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }} ({{ rm.satuan_dasar_penggunaan || rm.satuan_ukur }})</option>
                                         </select>
                                     </div>
-                                    <div class="w-full md:w-[80px] md:shrink-0">
+                                    <div class="w-full md:w-[110px] md:shrink-0">
                                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 truncate" :title="'Qty Butuh' + (getItemUnit(d) ? ' (' + getItemUnit(d) + ')' : '')">
                                             Qty <span v-if="getItemUnit(d)" class="text-primary font-normal text-[10px] lowercase">({{ getItemUnit(d) }})</span>
                                         </label>
-                                        <input 
-                                            v-model.number="d.qty_taken_pcs" 
-                                            type="number" 
-                                            :step="d.source_type === 'medicine' ? '1' : 'any'" 
-                                            min="0" 
-                                            class="w-full bg-background border border-input rounded-md h-9 pl-2 pr-1 text-foreground text-xs font-semibold focus:ring-1 focus:ring-ring outline-none" 
-                                            placeholder="0"
-                                            required 
-                                        />
+                                        <div class="relative flex items-center">
+                                            <input 
+                                                v-model.number="d.qty_taken_pcs" 
+                                                type="number" 
+                                                :step="d.source_type === 'medicine' ? '1' : 'any'" 
+                                                min="0" 
+                                                class="w-full bg-background border border-input rounded-md h-9 pl-2 pr-8 text-foreground text-xs font-semibold focus:ring-1 focus:ring-ring outline-none" 
+                                                placeholder="0"
+                                                required 
+                                            />
+                                            <div class="absolute right-2 text-[10px] font-bold text-muted-foreground pointer-events-none select-none uppercase">
+                                                {{ getItemUnit(d) }}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="w-full md:w-[80px] md:shrink-0">
                                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap" title="Massa Neto Bahan (Gram)">
@@ -768,7 +781,16 @@ if (prefillItemId) {
                             </div>
                         </div>
                     </div>
-
+                    
+                    <div class="mt-4 bg-amber-50 border border-amber-200/50 rounded-lg p-3 flex items-start gap-3">
+                        <div class="mt-0.5 text-amber-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <div class="text-xs text-amber-800">
+                            <p class="font-semibold mb-0.5">Perhatian: Presisi Kuantitas Pengambilan Stok</p>
+                            <p>Pastikan Anda memasukkan Qty butuh berdasarkan <strong>satuan dasar stok</strong> yang tercantum di dalam kotak input (bukan menggunakan fraksi satuan beli seperti "0.5 Kg"). Pemotongan fisik stok akan langsung memotong nilai tersebut.</p>
+                        </div>
+                    </div>
                     <!-- Label / Etiket -->
                     <div class="border-t border-border pt-4 space-y-4">
                         <h4 class="text-foreground font-semibold text-sm flex items-center gap-2">

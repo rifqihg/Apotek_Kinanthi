@@ -77,53 +77,49 @@ const formatCurrency = (amount) => {
 
 <div class="space-y-6">
     
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-            <h2 class="text-2xl font-bold tracking-tight text-foreground">Laporan Penjualan</h2>
-            <p class="text-muted-foreground text-sm mt-1">Rekapitulasi penjualan berdasarkan produk obat.</p>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <button @click="exportToPdf" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Export PDF
-            </button>
-            <button @click="exportToExcel" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export Excel
-            </button>
-        </div>
-    </div>
-
-    <!-- Filters & Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <!-- Date Filters -->
-        <div class="md:col-span-4 bg-card border border-border p-4 rounded-lg shadow-sm">
-            <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
-                <span>Filter Periode</span>
-                <svg v-if="isFiltering" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </h3>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Mulai</label>
-                    <input type="date" v-model="startDate" class="w-full border-input bg-background rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" />
+    <!-- HEADER SECTION: HERO BANNER + 3 STAT CARDS -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        <!-- HERO BANNER CARD (lg:col-span-12) -->
+        <div class="lg:col-span-12 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+            <!-- Left Text Column -->
+            <div class="relative z-10 max-w-sm sm:max-w-md">
+                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                    FINANCE · LAPORAN PENJUALAN
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Sampai</label>
-                    <input type="date" v-model="endDate" class="w-full border-input bg-background rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" />
+                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                    Laporan Penjualan
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
+                    Rekapitulasi penjualan berdasarkan produk obat.
+                </p>
+            </div>
+
+            <!-- Right Integrated Control Panel -->
+            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                <!-- Date Range -->
+                <div class="flex items-center gap-1.5 bg-background border border-input rounded-lg px-2 h-9">
+                    <input type="date" v-model="startDate" class="bg-transparent border-none text-xs h-full w-28 focus:ring-0 p-0 text-foreground" title="Tanggal Mulai" />
+                    <span class="text-muted-foreground text-xs font-semibold">-</span>
+                    <input type="date" v-model="endDate" class="bg-transparent border-none text-xs h-full w-28 focus:ring-0 p-0 text-foreground" title="Tanggal Akhir" />
+                    <svg v-if="isFiltering" class="animate-spin h-3.5 w-3.5 text-emerald-600 ml-1" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                 </div>
+                
+                <button @click="exportToPdf" class="w-full sm:w-auto h-9 px-3 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    <span>PDF</span>
+                </button>
+                <button @click="exportToExcel" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <span>Excel</span>
+                </button>
             </div>
         </div>
 
-        <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- 3 STAT CARDS (lg:col-span-12) -->
+        <div class="lg:col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-card border border-border p-4 rounded-lg shadow-sm flex flex-col justify-center">
                 <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Item Terjual</p>
                 <p class="text-2xl font-bold tracking-tight text-foreground">{{ activeSummary.total_items }} <span class="text-sm font-medium text-muted-foreground">PCS</span></p>

@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({ logs: Object });
+
+const search = ref('');
+const dateRange = ref('');
 
 const stats = computed(() => {
     const list = props.logs?.data || [];
@@ -31,6 +34,9 @@ const actionClass = (a) => ({
             <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
                 <!-- Left Text Column -->
                 <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-900 mb-1.5">
+                        MONITORING · KARTU STOK
+                    </div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                         Log Audit & Mutasi Inventaris
                     </h1>
@@ -39,29 +45,22 @@ const actionClass = (a) => ({
                     </p>
                 </div>
 
-                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                <div class="relative z-10 flex items-center justify-center shrink-0">
-                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Stock Ledger Sheet (behind left) -->
-                        <rect x="4" y="4" width="31" height="44" rx="4" stroke="#0891B2" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="8" y="9" width="15" height="3.5" rx="1.2" fill="#06B6D4" />
-                        <line x1="8" y1="17" x2="28" y2="17" stroke="#0891B2" stroke-opacity="0.25" stroke-width="1.4" />
-                        <line x1="8" y1="23" x2="28" y2="23" stroke="#0891B2" stroke-opacity="0.25" stroke-width="1.4" />
-                        <!-- Dynamic Trend Line Chart -->
-                        <path d="M8 39l6-7 7 3 9-11" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        <circle cx="14" cy="32" r="1.6" fill="#06B6D4" />
-                        <circle cx="21" cy="35" r="1.6" fill="#06B6D4" />
-                        <circle cx="30" cy="24" r="2" fill="#0891B2" />
-                        <!-- In/Out Mutation Badge (in front right) -->
-                        <g transform="translate(23, 16)">
-                            <circle cx="14.5" cy="14.5" r="13.5" stroke="#0891B2" stroke-width="2.2" fill="#FFFFFF" />
-                            <circle cx="14.5" cy="14.5" r="10.5" fill="#ECFEFF" />
-                            <path d="M10.5 19V10M7 13.5l3.5-3.5 3.5 3.5" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M18.5 10v9m-3.5-3.5l3.5 3.5 3.5-3.5" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                        </g>
-                    </svg>
-                </div>
+                <!-- Right Integrated Control Panel -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                    <div class="relative w-full sm:w-48">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input v-model="search" type="text" placeholder="Cari entitas..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <button v-if="search" type="button" @click="search=''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="relative w-full sm:w-40">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <input v-model="dateRange" type="date" class="w-full h-9 pl-9 pr-3 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                    </div>
                 </div>
             </div>
 

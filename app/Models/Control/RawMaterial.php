@@ -14,10 +14,11 @@ class RawMaterial extends Model
         'nama_bahan',
         'bentuk_sediaan',
         'kode_bahan',
-        'satuan_ukur',
-        'base_unit',
-        'large_unit',
-        'conversion_factor',
+        'golongan_bahan',
+        'suhu_penyimpanan',
+        'satuan_pembelian',
+        'satuan_dasar_penggunaan',
+        'rasio_konversi',
         'stok_total',
         'harga_beli_satuan',
         'threshold_min',
@@ -35,11 +36,11 @@ class RawMaterial extends Model
     protected function casts(): array
     {
         return [
-            'stok_total' => 'decimal:2',
+            'stok_total' => 'decimal:4',
             'harga_beli_satuan' => 'decimal:2',
-            'threshold_min' => 'decimal:2',
-            'conversion_factor' => 'decimal:2',
-            'density_factor' => 'decimal:2',
+            'threshold_min' => 'decimal:4',
+            'rasio_konversi' => 'decimal:4',
+            'density_factor' => 'decimal:4',
             'verified_at' => 'datetime',
             'admin_gate_1_at' => 'datetime',
             'admin_gate_2_at' => 'datetime',
@@ -80,6 +81,6 @@ class RawMaterial extends Model
 
     public function getSatuanAttribute(): string
     {
-        return $this->satuan_ukur ?? '';
+        return $this->satuan_dasar_penggunaan ?? '';
     }
 }

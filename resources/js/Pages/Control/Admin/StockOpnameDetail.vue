@@ -20,7 +20,7 @@ const getPackaging = (item) => {
     const rSmall = Math.max(1, Number(inc?.small_to_mid_ratio) || 1);
     const rMid = Math.max(1, Number(inc?.mid_to_big_ratio) || 1);
     const rBig = (rMid > 1 && rSmall > 1) ? (rMid * rSmall) : (Number(inc?.unit_conversion_factor) || (rMid * rSmall));
-    const satuanPrimer = item.medicine?.satuan_stok || item.raw_material?.satuan_ukur || item.raw_material?.base_unit || 'Unit';
+    const satuanPrimer = item.medicine?.satuan_stok || item.raw_material?.satuan_dasar_penggunaan || 'Unit';
 
     return {
         satuan_input: inc?.satuan_input || null,

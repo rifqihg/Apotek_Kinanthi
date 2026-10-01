@@ -109,6 +109,9 @@ function destroy(supplier) {
             <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
                 <!-- Left Text Column -->
                 <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
+                        SUPPLY CHAIN · KEMITRAAN
+                    </div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                         Manajemen Supplier & PBF
                     </h1>
@@ -117,37 +120,38 @@ function destroy(supplier) {
                     </p>
                 </div>
 
-                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                <div class="relative z-10 flex items-center justify-center shrink-0">
-                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                        <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- PBF Facility (behind left) -->
-                            <rect x="4" y="8" width="28" height="43" rx="3" stroke="#0284C7" stroke-width="2" fill="#FFFFFF" />
-                            <rect x="11" y="4" width="14" height="4" rx="1.5" stroke="#0284C7" stroke-width="1.6" fill="#E0F2FE" />
-                            <rect x="8" y="13" width="7" height="6" rx="1.2" fill="#BAE6FD" />
-                            <rect x="21" y="13" width="7" height="6" rx="1.2" fill="#BAE6FD" />
-                            <rect x="8" y="23" width="7" height="6" rx="1.2" fill="#BAE6FD" />
-                            <rect x="21" y="23" width="7" height="6" rx="1.2" fill="#BAE6FD" />
-                            <path d="M14 51V39h8v12" stroke="#0284C7" stroke-width="1.6" fill="#F0F9FF" />
-                            <!-- Logistics Van (in front right) -->
-                            <g transform="translate(20, 26)">
-                                <rect x="0" y="0" width="23" height="19" rx="2.5" stroke="#0284C7" stroke-width="2" fill="#FFFFFF" />
-                                <circle cx="11.5" cy="9.5" r="4" fill="#E0F2FE" />
-                                <path d="M11.5 7v5M9 9.5h5" stroke="#0284C7" stroke-width="1.5" stroke-linecap="round" />
-                                <path d="M23 7h6l4 6v6h-10V7z" stroke="#0284C7" stroke-width="2" fill="#F0F9FF" />
-                                <path d="M25 9h4l2.5 4H25v-4z" fill="#BAE6FD" />
-                                <circle cx="7" cy="20" r="3.5" stroke="#0284C7" stroke-width="1.8" fill="#FFFFFF" />
-                                <circle cx="7" cy="20" r="1.3" fill="#0284C7" />
-                                <circle cx="27" cy="20" r="3.5" stroke="#0284C7" stroke-width="1.8" fill="#FFFFFF" />
-                                <circle cx="27" cy="20" r="1.3" fill="#0284C7" />
-                            </g>
+            <!-- Right Integrated Control Panel -->
+            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                <div class="relative w-full sm:w-64">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input v-model="search" type="text" placeholder="Cari nama PBF, kontak..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
+                        <button 
+                            v-else-if="search" 
+                            type="button" 
+                            @click="clearSearch" 
+                            class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                            title="Hapus pencarian"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
+                <button @click="openCreate" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Tambah Supplier</span>
+                </button>
             </div>
+        </div>
 
-            <!-- 2 STAT CARDS (lg:col-span-4) -->
-            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+        <!-- 2 STAT CARDS (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
                 <!-- Card 1: Distributor Aktif -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                     <div class="flex items-center justify-between gap-1">
@@ -194,37 +198,9 @@ function destroy(supplier) {
             </div>
         </div>
 
-        <!-- SEARCH & ACTION BAR -->
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div class="relative w-full sm:flex-1">
-                <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input v-model="search" type="text" placeholder="Cari berdasarkan nama PBF, kontak, atau alamat..." class="w-full h-10 pl-10 pr-10 bg-background border border-input rounded-md text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" />
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                    <svg v-if="isSearching" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <button 
-                        v-else-if="search" 
-                        type="button" 
-                        @click="clearSearch" 
-                        class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
-                        title="Hapus pencarian"
-                    >
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <button @click="openCreate" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah Supplier
-            </button>
-        </div>
 
             <!-- TABLE CONTAINER -->
-            <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+            <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm mt-2">
                 <Table class="w-full min-w-[950px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">

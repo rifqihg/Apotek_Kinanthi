@@ -88,6 +88,9 @@ function submit() {
             <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
                 <!-- Left Text Column -->
                 <div class="relative z-10 max-w-sm sm:max-w-md">
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-900 mb-1.5">
+                        KLINIS · MASTER FORMULA
+                    </div>
                     <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                         Pustaka Resep & Formula Obat
                     </h1>
@@ -96,28 +99,37 @@ function submit() {
                     </p>
                 </div>
 
-                <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                <div class="relative z-10 flex items-center justify-center shrink-0">
-                    <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Formula Document Sheet (behind left) -->
-                        <rect x="4" y="4" width="30" height="44" rx="4" stroke="#0D9488" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="11" y="4" width="7" height="8" rx="1.2" fill="#0D9488" />
-                        <rect x="8" y="16" width="15" height="3.5" rx="1" fill="#99F6E4" />
-                        <line x1="8" y1="24" x2="27" y2="24" stroke="#0D9488" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                        <line x1="8" y1="29" x2="23" y2="29" stroke="#0D9488" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                        <line x1="8" y1="34" x2="25" y2="34" stroke="#0D9488" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" />
-                        <!-- Mortar & Pestle (in front right) -->
-                        <g transform="translate(19, 16)">
-                            <path d="M12 2l16 17" stroke="#0F766E" stroke-width="4" stroke-linecap="round" />
-                            <circle cx="12" cy="2" r="2.2" fill="#0F766E" />
-                            <path d="M4 18h28c0 11-6 17-14 17S4 29 4 18z" stroke="#0D9488" stroke-width="2.2" fill="#FFFFFF" />
-                            <ellipse cx="18" cy="18" rx="14" ry="4" stroke="#0D9488" stroke-width="1.8" fill="#F0FDFA" />
-                            <ellipse cx="18" cy="18" rx="10" ry="2.2" fill="#99F6E4" />
-                            <path d="M12 35h12v2H12z" fill="#0D9488" />
-                        </g>
-                    </svg>
-                </div>
+                <!-- Right Integrated Control Panel -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                    <div class="relative w-full sm:w-48">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input v-model="search" type="text" placeholder="Cari formula..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <button v-else-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <select v-model="kategori" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer max-w-[120px] sm:max-w-none">
+                        <option value="all">Kategori: Semua</option>
+                        <option value="Larutan Air/Sirup">Cair</option>
+                        <option value="Sediaan Padat/Puyer/Kapsul">Padat</option>
+                        <option value="Sediaan Topikal/Lainnya">Topikal</option>
+                        <option value="Kapsul">Kapsul</option>
+                        <option value="Puyer">Puyer</option>
+                        <option value="Sirup">Sirup</option>
+                        <option value="Salep">Salep</option>
+                    </select>
+
+                    <button @click="showModal=true;form.reset();form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Buat Formula</span>
+                    </button>
                 </div>
             </div>
 
@@ -169,77 +181,12 @@ function submit() {
             </div>
         </div>
 
-        <!-- ACTION & FILTER BAR -->
-        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div class="flex items-center justify-between mt-4">
             <div>
                 <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
                     Katalog Formula & Protokol Peracikan
                 </h2>
                 <p class="text-xs text-muted-foreground mt-0.5">Standarisasi pustaka formula racikan apotek dan instruksi klinis sediaan.</p>
-            </div>
-            <button @click="showModal=true;form.reset();form.clearErrors()" class="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-4 rounded-md text-sm font-medium shadow-sm transition-colors shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah Formula Baru
-            </button>
-        </div>
-
-        <!-- FILTER CONTROLS -->
-        <div class="bg-card rounded-lg border border-border p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-                <!-- Live Search Box -->
-                <div class="relative flex-1 sm:max-w-md">
-                    <input 
-                        v-model="search" 
-                        type="text" 
-                        placeholder="Cari nama resep, kode, kategori, indikasi klinis..." 
-                        class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-md text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" 
-                    />
-                    <svg v-if="!isSearching" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    <svg v-else class="animate-spin w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <button 
-                        v-if="search" 
-                        type="button" 
-                        @click="clearSearch" 
-                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors cursor-pointer"
-                        title="Hapus pencarian"
-                    >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-
-                <!-- Kategori Filter Dropdown -->
-                <div class="w-full sm:w-56">
-                    <select 
-                        v-model="kategori" 
-                        class="w-full h-9 bg-background border border-input rounded-md px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer"
-                    >
-                        <option value="all">Semua Kategori</option>
-                        <option value="Larutan Air/Sirup">Larutan Air / Sirup</option>
-                        <option value="Sediaan Padat/Puyer/Kapsul">Padat / Puyer / Kapsul</option>
-                        <option value="Sediaan Topikal/Lainnya">Topikal / Salep / Lainnya</option>
-                        <option value="Kapsul">Kapsul</option>
-                        <option value="Puyer">Puyer</option>
-                        <option value="Sirup">Sirup</option>
-                        <option value="Salep">Salep</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Reset Filter Button -->
-            <div v-if="search || kategori !== 'all'" class="shrink-0">
-                <button 
-                    type="button" 
-                    @click="resetAllFilters" 
-                    class="h-9 px-3 rounded-md text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-                >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Reset Filter
-                </button>
             </div>
         </div>
 

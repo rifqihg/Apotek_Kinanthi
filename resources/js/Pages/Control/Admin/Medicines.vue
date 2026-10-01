@@ -126,6 +126,9 @@ const submitEditMedicine = () => {
                 >
                     <!-- Left Text Column -->
                     <div class="relative z-10 max-w-sm sm:max-w-md">
+                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-900 mb-1.5">
+                            MASTER DATA · INVENTORY STOK
+                        </div>
                         <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
                             Katalog Obat dari Faktur
                         </h1>
@@ -134,25 +137,46 @@ const submitEditMedicine = () => {
                         </p>
                     </div>
 
-                    <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-                    <div class="relative z-10 flex items-center justify-center shrink-0">
-                        <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                            <!-- SVG FAKTUR (Botol Obat Etiket Presisi + Kapsul Interlocking) -->
-                            <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="10" y="4" width="16" height="4.5" rx="2" stroke="#2563EB" stroke-width="2" fill="#EFF6FF" />
-                                <rect x="14" y="8.5" width="8" height="3" stroke="#2563EB" stroke-width="1.6" fill="#FFFFFF" />
-                                <rect x="4" y="11.5" width="28" height="40" rx="5" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                                <rect x="8" y="20" width="20" height="24" rx="3" stroke="#2563EB" stroke-width="1.5" fill="#EFF6FF" />
-                                <line x1="12" y1="26" x2="24" y2="26" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" />
-                                <line x1="12" y1="32" x2="22" y2="32" stroke="#2563EB" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" />
-                                <line x1="12" y1="37" x2="19" y2="37" stroke="#2563EB" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" />
-                                <g transform="translate(37, 33) rotate(28)">
-                                    <rect x="-7.5" y="-18" width="15" height="36" rx="7.5" stroke="#2563EB" stroke-width="2.2" fill="#FFFFFF" />
-                                    <path d="M-7.5 -10.5 A7.5 7.5 0 0 1 7.5 -10.5 V0 H-7.5 Z" fill="#BFDBFE" />
-                                    <line x1="-7.5" y1="0" x2="7.5" y2="0" stroke="#2563EB" stroke-width="1.8" />
-                                </g>
+                    <!-- Right Integrated Control Panel -->
+                    <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
+                        <div class="relative w-full sm:w-64">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
+                            <input 
+                                type="text" 
+                                v-model="search" 
+                                placeholder="Cari obat, batch, kategori..." 
+                                class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                            />
+                            <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                                <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <button 
+                                    v-else-if="search" 
+                                    type="button" 
+                                    @click="clearSearch" 
+                                    class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-muted transition-colors cursor-pointer"
+                                    title="Hapus pencarian"
+                                >
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+
+                        <Link 
+                            :href="route('control.admin.incoming-stocks')"
+                            class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Tambah Faktur</span>
+                        </Link>
                     </div>
                 </div>
 
@@ -215,51 +239,6 @@ const submitEditMedicine = () => {
 
             <!-- CONTENT AREA -->
             <div class="w-full space-y-4">
-                <!-- SEARCH & ACTION BAR -->
-                <div class="flex flex-col sm:flex-row items-center gap-3 w-full">
-                    <div class="relative flex-1 w-full">
-                        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input 
-                            type="text" 
-                            v-model="search" 
-                            placeholder="Cari berdasarkan nama obat, batch, atau kategori..." 
-                            class="w-full h-10 pl-10 pr-10 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl text-xs sm:text-sm font-medium text-slate-800 dark:text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
-                        />
-                        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                            <svg v-if="isSearching" class="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <button 
-                                v-else-if="search" 
-                                type="button" 
-                                @click="clearSearch" 
-                                class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-muted transition-colors cursor-pointer"
-                                title="Hapus pencarian"
-                            >
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
-                        <!-- + Tambah Button -->
-                        <Link 
-                            :href="route('control.admin.incoming-stocks')"
-                            class="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 whitespace-nowrap"
-                        >
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span>Tambah Faktur</span>
-                        </Link>
-                    </div>
-                </div>
-
                     <!-- TABLE: KATALOG FAKTUR -->
                     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
                         <Table class="w-full min-w-[960px]">

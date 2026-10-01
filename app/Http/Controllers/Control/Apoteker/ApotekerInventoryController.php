@@ -22,7 +22,7 @@ class ApotekerInventoryController extends Controller
     {
         $search = $request->query('search');
 
-        $rawMaterials = RawMaterial::select(['id', 'kode_bahan', 'nama_bahan', 'bentuk_sediaan', 'satuan_ukur', 'stok_total', 'threshold_min'])
+        $rawMaterials = RawMaterial::select(['id', 'kode_bahan', 'nama_bahan', 'bentuk_sediaan', 'satuan_dasar_penggunaan', 'stok_total', 'threshold_min'])
             ->with(['stocks' => fn($q) => $q->select(['id', 'raw_material_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'shelf_location', 'rack_location'])
                 ->where('stock_on_hand', '>', 0)
                 ->orderBy('expired_date')

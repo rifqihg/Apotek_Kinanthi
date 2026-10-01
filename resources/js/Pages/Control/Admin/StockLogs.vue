@@ -111,6 +111,10 @@ const formatReference = (l) => {
         };
     }
     
+    if (l.note) {
+        return { title: 'Aktivitas Sistem', id: l.note };
+    }
+
     return { title: '-', id: '' };
 };
 
@@ -463,7 +467,7 @@ const formatAuditDate = (dateStr) => {
                                 <div class="flex flex-col min-w-0">
                                     <div class="flex items-center gap-2 truncate">
                                         <span class="text-sm font-medium text-foreground leading-tight truncate">
-                                            {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || '-' }}
+                                            {{ l.inventory?.medicine?.nama_obat || l.raw_material_stock?.raw_material?.nama_bahan || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || '-' }}
                                         </span>
                                         <span v-if="l.inventory?.medicine?.classification === 'narkotika' || l.inventory?.medicine?.classification === 'psikotropika'" 
                                             class="inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0"
@@ -474,13 +478,13 @@ const formatAuditDate = (dateStr) => {
                                         </span>
                                     </div>
                                     <span class="text-xs text-muted-foreground leading-tight mt-0.5">
-                                        {{ l.inventory?.medicine ? 'Obat Jadi' : (l.rawMaterialStock ? 'Bahan Baku Racikan' : 'Item') }}
+                                        {{ l.inventory?.medicine ? 'Obat Jadi' : ((l.rawMaterialStock || l.raw_material_stock) ? 'Bahan Baku Racikan' : 'Item') }}
                                     </span>
                                 </div>
                             </TableCell>
                             <!-- Batch -->
                             <TableCell class="py-2.5 px-3 align-middle text-center text-sm font-medium text-foreground tracking-tight truncate">
-                                {{ l.inventory?.batch_no || l.rawMaterialStock?.batch_no || '-' }}
+                                {{ l.inventory?.batch_no || l.raw_material_stock?.batch_no || l.rawMaterialStock?.batch_no || '-' }}
                             </TableCell>
                             <!-- Referensi -->
                             <TableCell class="py-2.5 px-3 align-middle">
@@ -505,7 +509,7 @@ const formatAuditDate = (dateStr) => {
                                     <span class="text-sm font-semibold tabular-nums" :class="l.type === 'Masuk' || l.type === 'Penyesuaian Masuk' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
                                         {{ Number(l.quantity) }}
                                     </span>
-                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_ukur || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_dasar_penggunaan || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
                                 </div>
                             </TableCell>
                             <!-- Sisa Stok -->
@@ -522,7 +526,7 @@ const formatAuditDate = (dateStr) => {
                                 <!-- Base Unit Display -->
                                 <div v-else class="flex items-center justify-center gap-1 text-xs text-muted-foreground">
                                     <span class="text-sm font-semibold text-foreground tabular-nums">{{ Number(l.balance_after) }}</span>
-                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_ukur || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_dasar_penggunaan || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
                                 </div>
                             </TableCell>
                         </TableRow>
