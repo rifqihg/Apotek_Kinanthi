@@ -10,6 +10,10 @@ class CompoundingFormula extends Model
     protected $fillable = [
         'nama_resep',
         'kategori_sediaan',
+        'target_qty',
+        'target_unit',
+        'signa_default',
+        'bud_days',
         'instruksi_racik',
         'is_active',
     ];
@@ -18,7 +22,17 @@ class CompoundingFormula extends Model
     {
         return [
             'is_active' => 'boolean',
+            'target_qty' => 'decimal:2',
+            'bud_days' => 'integer',
         ];
+    }
+
+    /**
+     * The ingredients of this formula.
+     */
+    public function ingredients(): HasMany
+    {
+        return $this->hasMany(FormulaIngredient::class, 'formula_id');
     }
 
     /**

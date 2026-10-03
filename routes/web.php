@@ -58,7 +58,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
 
     // ─── FAKTUR MASUK (Single-Gate Workflow) ─────────────────
     Route::get('/incoming-stocks', [AdminProcurementController::class, 'incomingStocks'])->name('incoming-stocks');
-    Route::get('/incoming-stocks/reference', [AdminProcurementController::class, 'incomingStocksReference'])->name('incoming-stocks.reference');
+    Route::get('/incoming-stocks/search-medicines', [AdminProcurementController::class, 'searchMedicines'])->name('incoming-stocks.search-medicines');
     Route::post('/incoming-stocks', [AdminProcurementController::class, 'storeIncomingStock'])->name('incoming-stocks.store');
 
     // ─── AUDIT & USER MANAGEMENT ──────────────────────────────

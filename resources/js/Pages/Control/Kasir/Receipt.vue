@@ -28,8 +28,8 @@ const printReceipt = () => window.print();
             <!-- Header -->
             <div class="p-6 text-center border-b border-dashed border-border">
                 <h1 class="text-lg font-bold text-foreground">APOTEK KINANTHI</h1>
-                <p class="text-xs text-muted-foreground mt-0.5">Jl. Contoh Alamat No. 123, Kota</p>
-                <p class="text-xs text-muted-foreground">Telp: 0812-3456-7890</p>
+                <p class="text-xs text-muted-foreground mt-0.5 px-2">Jl. Dieng No.24, Wonosobo Timur, Wonosobo Tim., Kec. Wonosobo, Kabupaten Wonosobo, Jawa Tengah 56311</p>
+                <p class="text-xs text-muted-foreground mt-0.5">Telp: 081238575662</p>
             </div>
 
             <!-- Info -->
@@ -69,7 +69,7 @@ const printReceipt = () => window.print();
                         <tr v-for="item in sale.sale_items" :key="item.id">
                             <td class="py-2.5">
                                 <p class="font-semibold text-foreground">{{ item.item_name }}</p>
-                                <p class="text-xs text-muted-foreground">{{ item.quantity }} {{ item.unit }} x {{ formatRupiah(item.unit_price) }}</p>
+                                <p class="text-xs text-muted-foreground">{{ Number(item.quantity) }} {{ item.unit }} x {{ formatRupiah(item.unit_price) }}</p>
                             </td>
                             <td class="py-2.5 text-right font-semibold text-foreground align-top">
                                 {{ formatRupiah(item.subtotal) }}
@@ -80,24 +80,41 @@ const printReceipt = () => window.print();
             </div>
 
             <!-- Total -->
-            <div class="p-6 bg-muted/40 space-y-2 text-xs">
-                <div class="flex justify-between">
-                    <span class="font-medium text-foreground">Total Belanja</span>
-                    <span class="font-bold text-foreground text-sm">{{ formatRupiah(sale.total_amount) }}</span>
+            <div class="p-6 bg-muted/40 text-xs">
+                <!-- Blok 1: Kalkulasi Harga -->
+                <div v-if="sale.discount_amount > 0" class="space-y-1.5 pb-2.5 border-b border-dashed border-border mb-2.5">
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Subtotal</span>
+                        <span class="font-semibold text-foreground">{{ formatRupiah(Number(sale.total_amount) + Number(sale.discount_amount)) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Diskon</span>
+                        <span class="font-semibold text-rose-600">-{{ formatRupiah(sale.discount_amount) }}</span>
+                    </div>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-muted-foreground">Tunai / Dibayar ({{ String(sale.payment_method).toUpperCase() }})</span>
-                    <span class="font-medium text-foreground">{{ formatRupiah(sale.paid_amount) }}</span>
+                
+                <!-- Blok 2: Tagihan Akhir -->
+                <div class="flex justify-between mb-4">
+                    <span class="font-bold text-foreground">Total Belanja</span>
+                    <span class="font-bold text-foreground">{{ formatRupiah(sale.total_amount) }}</span>
                 </div>
-                <div class="flex justify-between pt-2 border-t border-border">
-                    <span class="font-medium text-foreground">Kembalian</span>
-                    <span class="font-semibold text-foreground">{{ formatRupiah(sale.change_amount) }}</span>
+                
+                <!-- Blok 3: Pembayaran -->
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Tunai / Dibayar ({{ String(sale.payment_method).toUpperCase() }})</span>
+                        <span class="font-medium text-foreground">{{ formatRupiah(sale.paid_amount) }}</span>
+                    </div>
+                    <div class="flex justify-between pt-2.5 border-t border-border">
+                        <span class="font-bold text-foreground">Kembalian</span>
+                        <span class="font-bold text-foreground">{{ formatRupiah(sale.change_amount) }}</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="p-6 text-center text-xs text-muted-foreground bg-card">
-                <p>Terima kasih atas kunjungan Anda</p>
-                <p>Semoga lekas sembuh</p>
+            <div class="p-6 text-center text-xs text-muted-foreground bg-card space-y-1.5">
+                <p>Terima kasih telah mempercayakan kesehatan Anda pada Apotek Kinanthi.</p>
+                <p class="italic font-medium text-foreground">"Semoga lekas sembuh dan sehat selalu!"</p>
             </div>
         </div>
 

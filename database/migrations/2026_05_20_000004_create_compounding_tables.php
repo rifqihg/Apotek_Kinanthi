@@ -18,11 +18,26 @@ return new class extends Migration
             $table->id();
             $table->string('nama_resep');
             $table->string('kategori_sediaan')->nullable();
+            $table->decimal('target_qty', 15, 2)->nullable();
+            $table->string('target_unit')->nullable();
+            $table->string('signa_default')->nullable();
+            $table->integer('bud_days')->default(14);
             $table->text('instruksi_racik')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
             $table->index('is_active');
+        });
+
+        // 1.5. Compounding Formula Ingredients (BOM)
+        Schema::create('formula_ingredients', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('formula_id')->constrained('compounding_formulas')->cascadeOnDelete();
+            $table->enum('source_type', ['medicine', 'raw_material']);
+            $table->unsignedBigInteger('source_id');
+            $table->decimal('qty_required', 15, 2);
+            $table->string('unit')->nullable();
+            $table->timestamps();
         });
 
         // 2. Compounding Submissions (Pengajuan Produksi Racikan)
@@ -163,6 +178,7 @@ return new class extends Migration
         Schema::dropIfExists('compounding_labels');
         Schema::dropIfExists('compounding_details');
         Schema::dropIfExists('compounding_submissions');
+        Schema::dropIfExists('formula_ingredients');
         Schema::dropIfExists('compounding_formulas');
     }
 };

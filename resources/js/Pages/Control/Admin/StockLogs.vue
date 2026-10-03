@@ -84,6 +84,7 @@ const clearFilters = () => {
 };
 
 const displayType = (l) => {
+    if ((l.note && l.note.toLowerCase().includes('distribusi')) || (l.type && l.type.includes('Distribusi'))) return 'Distribusi';
     if (l.type === 'Masuk' || l.type === 'Penyesuaian Masuk') return 'Masuk';
     if (l.reference_type === 'App\\Models\\Control\\ReturnForm' || l.type === 'Retur') return 'Retur';
     if (l.type === 'Keluar' || l.type === 'Penjualan' || l.type === 'Penyesuaian Keluar') return 'Terjual';
@@ -94,6 +95,7 @@ const getLogTypeClass = (type) => ({
     Masuk: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40',
     Retur: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40',
     Terjual: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800/40',
+    Distribusi: 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800/40',
 }[type] || 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-800');
 
 // Format Referensi
@@ -104,15 +106,21 @@ const formatReference = (l) => {
         return { title: refTitles[type] || type, id: 'ID: ' + l.reference_id };
     }
 
+    if (l.note) {
+        let noteText = l.note;
+        if (noteText.includes('Terima Distribusi dari Gudang') || noteText.includes('Distribusi ke Kasir')) {
+            noteText = 'Distribusi ke Kasir';
+        } else if (noteText.includes('Return Distribusi dari Kasir') || noteText.includes('Return dari Kasir')) {
+            noteText = 'Distribusi ke Gudang';
+        }
+        return { title: 'Aktivitas Sistem', id: noteText };
+    }
+
     if (l.type === 'Masuk' && l.inventory?.incoming_stock) {
         return {
             title: 'Faktur Masuk',
             id: l.inventory.incoming_stock.faktur_no || '-'
         };
-    }
-    
-    if (l.note) {
-        return { title: 'Aktivitas Sistem', id: l.note };
     }
 
     return { title: '-', id: '' };
@@ -350,75 +358,85 @@ const formatAuditDate = (dateStr) => {
     <!-- ═══ TAB 1: MUTASI FISIK STOK ═══ -->
     <div v-show="activeTab === 'mutasi'" class="space-y-4">
         <!-- Filters -->
-        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
-            <div class="flex-1 min-w-[200px] relative">
-                <input v-model="search" type="text" placeholder="Cari nama obat atau bahan baku..." 
-                       class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
-                <svg v-if="!isFilteringLogs" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <button 
-                    v-if="search" 
-                    @click="search = ''; applyMutationFilters()" 
-                    type="button" 
-                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
-                    title="Hapus pencarian"
-                >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
+        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-col md:flex-row gap-3 md:items-center justify-between">
+            <div class="flex flex-1 flex-row gap-2 items-center w-full md:w-auto">
+                <div class="flex-1 min-w-[150px] relative">
+                    <input v-model="search" type="text" placeholder="Cari obat..." 
+                           class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
+                    <svg v-if="!isFilteringLogs" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                </button>
-            </div>
-            <div class="relative">
-                <button @click="filterDropdownOpen = !filterDropdownOpen" @blur="setTimeout(() => filterDropdownOpen = false, 200)" class="h-9 min-w-[130px] bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground hover:bg-accent cursor-pointer outline-none transition-colors flex items-center justify-between gap-2 shadow-sm">
-                    <div class="flex items-center gap-1.5">
-                        <span v-if="filterType === 'all'" class="text-foreground">Semua Log</span>
-                        <span v-else-if="filterType === 'Masuk'" class="text-emerald-600 font-semibold">Masuk</span>
-                        <span v-else-if="filterType === 'Retur'" class="text-amber-600 font-semibold">Retur</span>
-                        <span v-else-if="filterType === 'Jual'" class="text-primary font-semibold">Terjual</span>
-                    </div>
-                    <svg class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                </button>
-                <div v-show="filterDropdownOpen" class="absolute left-0 top-full mt-1.5 w-full min-w-[140px] bg-card border border-border rounded-md shadow-lg overflow-hidden z-20 origin-top-left transition-all">
-                    <div class="p-1 space-y-0.5">
-                        <button @click="filterType = 'all'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'all' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">
-                            Semua Log
-                            <div v-if="filterType === 'all'" class="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                        </button>
-                        <div class="h-px bg-border my-1"></div>
-                        <button @click="filterType = 'Masuk'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Masuk' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:bg-muted hover:text-emerald-600'">
-                            Masuk
-                            <div v-if="filterType === 'Masuk'" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        </button>
-                        <button @click="filterType = 'Retur'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Retur' ? 'bg-amber-500/10 text-amber-600' : 'text-muted-foreground hover:bg-muted hover:text-amber-600'">
-                            Retur
-                            <div v-if="filterType === 'Retur'" class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                        </button>
-                        <button @click="filterType = 'Jual'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Jual' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-primary'">
-                            Terjual
-                            <div v-if="filterType === 'Jual'" class="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                        </button>
+                    <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <button 
+                        v-if="search" 
+                        @click="search = ''; applyMutationFilters()" 
+                        type="button" 
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
+                    >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="relative shrink-0">
+                    <button @click="filterDropdownOpen = !filterDropdownOpen" @blur="setTimeout(() => filterDropdownOpen = false, 200)" class="h-9 w-auto bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground hover:bg-accent cursor-pointer outline-none transition-colors flex items-center justify-between gap-2 shadow-sm">
+                        <div class="flex items-center gap-1.5">
+                            <span v-if="filterType === 'all'" class="text-foreground">Semua Log</span>
+                            <span v-else-if="filterType === 'Masuk'" class="text-emerald-600 font-semibold">Masuk</span>
+                            <span v-else-if="filterType === 'Retur'" class="text-amber-600 font-semibold">Retur</span>
+                            <span v-else-if="filterType === 'Jual'" class="text-primary font-semibold">Terjual</span>
+                            <span v-else-if="filterType === 'Distribusi'" class="text-indigo-600 font-semibold">Distribusi</span>
+                        </div>
+                        <svg class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <div v-show="filterDropdownOpen" class="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-full min-w-[140px] bg-card border border-border rounded-md shadow-lg overflow-hidden z-20 origin-top-right sm:origin-top-left transition-all">
+                        <div class="p-1 space-y-0.5">
+                            <button @click="filterType = 'all'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'all' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">
+                                Semua Log
+                                <div v-if="filterType === 'all'" class="w-1.5 h-1.5 rounded-full bg-foreground"></div>
+                            </button>
+                            <div class="h-px bg-border my-1"></div>
+                            <button @click="filterType = 'Masuk'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Masuk' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:bg-muted hover:text-emerald-600'">
+                                Masuk
+                                <div v-if="filterType === 'Masuk'" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                            </button>
+                            <button @click="filterType = 'Retur'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Retur' ? 'bg-amber-500/10 text-amber-600' : 'text-muted-foreground hover:bg-muted hover:text-amber-600'">
+                                Retur
+                                <div v-if="filterType === 'Retur'" class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                            </button>
+                            <button @click="filterType = 'Jual'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Jual' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-primary'">
+                                Terjual
+                                <div v-if="filterType === 'Jual'" class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                            </button>
+                            <button @click="filterType = 'Distribusi'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Distribusi' ? 'bg-indigo-50 text-indigo-600' : 'text-muted-foreground hover:bg-muted hover:text-indigo-600'">
+                                Distribusi
+                                <div v-if="filterType === 'Distribusi'" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                <input v-model="startDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-                <span class="text-muted-foreground text-xs">-</span>
-                <input v-model="endDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-            </div>
-            <button v-if="search || startDate || endDate || filterType !== 'all' || isControlled" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
-                Reset
-            </button>
-            <div class="flex items-center gap-2 border-l border-border pl-3 ml-auto">
+
+            <!-- Scrollable container for dates and extra filters on mobile -->
+            <div class="flex flex-row items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto shrink-0 hide-scrollbar" style="-ms-overflow-style: none; scrollbar-width: none;">
+                <input v-model="startDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0" />
+                <span class="text-muted-foreground text-xs shrink-0">-</span>
+                <input v-model="endDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0" />
+                
+                <button v-if="search || startDate || endDate || filterType !== 'all' || isControlled" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer shrink-0">
+                    Reset
+                </button>
+                
+                <div class="h-6 w-px bg-border hidden md:block mx-1"></div>
+                
                 <button 
                     @click="isControlled = !isControlled" 
                     type="button" 
-                    class="h-9 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 border cursor-pointer"
+                    class="h-9 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 border cursor-pointer shrink-0 ml-auto md:ml-0"
                     :class="isControlled ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800/40' : 'bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground'"
                 >
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -434,7 +452,7 @@ const formatAuditDate = (dateStr) => {
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                             <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
-                            <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Jenis</TableHead>
+                            <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jenis</TableHead>
                             <TableHead class="min-w-[220px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Item (Obat / Bahan)</TableHead>
                             <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
                             <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
@@ -457,15 +475,15 @@ const formatAuditDate = (dateStr) => {
                                 {{ new Date(l.created_at).toLocaleString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) }}
                             </TableCell>
                             <!-- Jenis -->
-                            <TableCell class="py-2.5 px-3 align-middle">
+                            <TableCell class="py-2.5 px-3 align-middle text-center">
                                 <span :class="getLogTypeClass(displayType(l))" class="px-2.5 py-0.5 rounded-md text-xs font-medium border inline-block">
                                     {{ displayType(l) }}
                                 </span>
                             </TableCell>
                             <!-- Item -->
-                            <TableCell class="py-2.5 px-3 align-middle">
-                                <div class="flex flex-col min-w-0">
-                                    <div class="flex items-center gap-2 truncate">
+                            <TableCell class="py-2.5 px-3 align-middle text-left">
+                                <div class="flex flex-col min-w-0 text-left">
+                                    <div class="flex items-center justify-start gap-2 truncate">
                                         <span class="text-sm font-medium text-foreground leading-tight truncate">
                                             {{ l.inventory?.medicine?.nama_obat || l.raw_material_stock?.raw_material?.nama_bahan || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || '-' }}
                                         </span>
@@ -496,7 +514,7 @@ const formatAuditDate = (dateStr) => {
                             <!-- Qty Mutasi -->
                             <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
-                                <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1.5">
+                                <div v-if="l.inventory?.medicine" class="flex flex-nowrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getMutationUnits(l.quantity, l.inventory)" :key="i">
                                         <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
                                             <span class="font-semibold tabular-nums" :class="l.type === 'Masuk' || l.type === 'Penyesuaian Masuk' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">{{ b.qty }}</span>
@@ -515,7 +533,7 @@ const formatAuditDate = (dateStr) => {
                             <!-- Sisa Stok -->
                             <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
-                                <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1.5">
+                                <div v-if="l.inventory?.medicine" class="flex flex-nowrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getMutationUnits(l.balance_after, l.inventory)" :key="i">
                                         <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
                                             <span class="font-semibold tabular-nums text-foreground">{{ b.qty }}</span>
@@ -547,8 +565,8 @@ const formatAuditDate = (dateStr) => {
     <!-- ═══ TAB 2: JEJAK AKTIVITAS SISTEM (AUDIT TRAIL) ═══ -->
     <div v-show="activeTab === 'audit'" class="space-y-4">
         <!-- Audit Filters -->
-        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center justify-between">
-            <div class="flex flex-1 flex-wrap items-center gap-3">
+        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-col md:flex-row gap-4 md:items-center justify-between">
+            <div class="flex flex-col sm:flex-row flex-1 w-full md:w-auto items-stretch sm:items-center gap-3">
                 <div class="flex-1 min-w-[220px] max-w-md relative">
                     <input v-model="auditSearch" type="text" placeholder="Cari aktivitas, tindakan, atau user..." 
                            class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
@@ -596,12 +614,12 @@ const formatAuditDate = (dateStr) => {
                 <Table>
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Waktu</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pengguna</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tindakan</TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deskripsi Aktivitas</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Model Target</TableHead>
-                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Record ID</TableHead>
+                            <TableHead class="py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Pengguna</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tindakan</TableHead>
+                            <TableHead class="min-w-[350px] py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Deskripsi Aktivitas</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Model Target</TableHead>
+                            <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Record ID</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -615,11 +633,11 @@ const formatAuditDate = (dateStr) => {
                         </TableRow>
                         <TableRow v-for="a in (activeAudits.data || [])" :key="a.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <!-- Waktu -->
-                            <TableCell class="py-2 px-3 align-middle text-muted-foreground text-xs font-mono whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-foreground text-sm font-medium tabular-nums whitespace-nowrap">
                                 {{ formatAuditDate(a.performed_at) }}
                             </TableCell>
                             <!-- Pengguna -->
-                            <TableCell class="py-2 px-3 align-middle">
+                            <TableCell class="py-2 px-3 align-middle whitespace-nowrap">
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium text-foreground leading-tight">{{ a.user?.name || 'Sistem Otomatis' }}</span>
                                     <span class="text-xs text-muted-foreground uppercase tracking-wider leading-tight mt-0.5">{{ a.user?.role || 'SYSTEM' }}</span>

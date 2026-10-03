@@ -363,19 +363,26 @@ const deleteMaterial = (m) => {
                     <!-- STOK TOTAL -->
                     <TableCell class="py-2.5 px-3 text-center align-middle">
                         <div class="flex flex-col items-center justify-center">
-                            <span :class="m.stok_total < m.threshold_min ? 'text-destructive font-semibold' : 'text-foreground font-medium'" class="text-sm">
+                            <span :class="Number(m.stok_total) < Number(m.threshold_min) ? 'text-destructive font-semibold' : 'text-foreground font-medium'" class="text-sm">
                                 {{ formatStokBerjenjang(m.stok_total, m.rasio_konversi, m.satuan_pembelian, m.satuan_dasar_penggunaan) }}
                             </span>
                             <span class="text-[10px] text-muted-foreground mt-0.5" v-if="m.rasio_konversi > 1">Total Base: {{ Number(m.stok_total).toLocaleString('id-ID') }} {{ m.satuan_dasar_penggunaan || 'g' }}</span>
                         </div>
                     </TableCell>
                     <!-- THRESHOLD -->
-                    <TableCell class="py-2.5 px-3 text-center text-sm font-medium text-muted-foreground tabular-nums align-middle">{{ Number(m.threshold_min).toLocaleString('id-ID') }}</TableCell>
+                    <TableCell class="py-2.5 px-3 text-center align-middle tabular-nums">
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="text-sm font-medium text-foreground">
+                                {{ (m.threshold_min / (m.rasio_konversi || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ m.satuan_pembelian || m.satuan_dasar_penggunaan }}
+                            </span>
+                            <span class="text-[10px] text-muted-foreground mt-0.5" v-if="m.rasio_konversi > 1">Base: {{ Number(m.threshold_min).toLocaleString('id-ID') }} {{ m.satuan_dasar_penggunaan || 'g' }}</span>
+                        </div>
+                    </TableCell>
                     <!-- STATUS STOK -->
                     <TableCell class="py-2.5 px-3 text-center align-middle whitespace-nowrap">
-                        <span :class="m.stok_total < m.threshold_min ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full" :class="m.stok_total < m.threshold_min ? 'bg-destructive' : 'bg-emerald-500'"></span>
-                            {{ m.stok_total < m.threshold_min ? 'Kritis' : 'Aman' }}
+                        <span :class="Number(m.stok_total) < Number(m.threshold_min) ? 'text-destructive' : 'text-emerald-600'" class="text-xs font-medium inline-flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full" :class="Number(m.stok_total) < Number(m.threshold_min) ? 'bg-destructive' : 'bg-emerald-500'"></span>
+                            {{ Number(m.stok_total) < Number(m.threshold_min) ? 'Kritis' : 'Aman' }}
                         </span>
                     </TableCell>
                     <!-- AKSI -->
@@ -437,7 +444,7 @@ const deleteMaterial = (m) => {
                         <input v-model="form.kode_bahan" type="text" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Opsional">
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Golongan Obat</label>
+                        <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Golongan</label>
                         <select v-model="form.golongan_bahan" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors">
                             <option value="">Belum Diklasifikasi</option>
                             <option value="Bebas">Bebas</option>

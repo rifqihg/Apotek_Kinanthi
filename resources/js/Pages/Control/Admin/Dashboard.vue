@@ -90,9 +90,9 @@ const applyFilter = (filterName) => {
     executeFilter(filterName);
 };
 
-// Kemasan & Multi-unit breakdown helper (modulo berjenjang, selaras dengan Ambang Batas & Katalog Faktur)
-const getStockUnits = (item) => {
-    let rem = Number(item?.stok_fisik ?? item?.qty_converted) || 0;
+// Kemasan & Multi-unit breakdown helper (modulo berjenjang)
+const getFormattedUnits = (item, totalQty) => {
+    let rem = Number(totalQty) || 0;
     const unit = item?.satuan_stok || 'Unit';
     if (rem <= 0) return [{ qty: 0, unit, isZero: true }];
 
@@ -114,6 +114,9 @@ const getStockUnits = (item) => {
     }
     return res.length ? res : [{ qty: 0, unit, isZero: true }];
 };
+
+const getStockUnits = (item) => getFormattedUnits(item, item?.stok_fisik ?? item?.qty_converted);
+const getThresholdUnits = (item) => getFormattedUnits(item, item?.batas_aman);
 </script>
 
 <template>
@@ -415,7 +418,7 @@ const getStockUnits = (item) => {
                                 <span class="font-mono text-sm font-normal text-foreground tracking-tight">{{ item.nomor_batch || 'NO-BATCH' }}</span>
                             </TableCell>
                             <TableCell class="py-2 px-3 text-center align-middle">
-                                <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                <div class="flex flex-nowrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getStockUnits(item)" :key="i">
                                         <div 
                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
@@ -428,9 +431,16 @@ const getStockUnits = (item) => {
                                 </div>
                             </TableCell>
                             <TableCell class="py-2 px-3 text-center align-middle">
-                                <span class="text-sm font-normal text-foreground tabular-nums">
-                                    {{ formatInventoryThreshold(item.batas_aman, item.small_to_mid_ratio, item.mid_to_big_ratio, { tersier: item.satuan_input, sekunder: item.mid_unit, primer: item.satuan_stok }) }}
-                                </span>
+                                <div class="flex flex-nowrap items-center justify-center gap-1.5">
+                                    <template v-for="(b, i) in getThresholdUnits(item)" :key="'thresh-'+i">
+                                        <div 
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-border/80 bg-muted/20 text-foreground"
+                                        >
+                                            <span class="font-semibold tabular-nums">{{ b.qty }}</span>
+                                            <span class="text-muted-foreground uppercase text-[11px] tracking-wide">{{ b.unit }}</span>
+                                        </div>
+                                    </template>
+                                </div>
                             </TableCell>
                             <TableCell class="py-2 px-3 text-center align-middle">
                                 <span 

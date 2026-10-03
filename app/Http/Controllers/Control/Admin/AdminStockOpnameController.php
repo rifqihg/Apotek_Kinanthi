@@ -297,6 +297,22 @@ class AdminStockOpnameController extends Controller
                 $opname->load('items');
             }
 
+            // SIPNAP Compliance Lock (Ponytail Mode)
+            $sipnapViolations = [];
+            foreach ($opname->items as $item) {
+                if ($item->difference < -0.001 && $item->medicine_id) {
+                    $item->loadMissing('medicine');
+                    $classification = strtolower($item->medicine->classification ?? '');
+                    if (in_array($classification, ['narkotika', 'psikotropika', 'prekursor', 'oot'])) {
+                        $sipnapViolations[] = $item->medicine->nama_obat;
+                    }
+                }
+            }
+
+            if (count($sipnapViolations) > 0 && auth()->user()->role !== 'apoteker') {
+                return redirect()->back()->with('error', 'Peringatan SIPNAP: Ditemukan selisih stok kurang (hilang) pada obat khusus (' . implode(', ', $sipnapViolations) . '). Pengurangan stok ini ilegal dilakukan sepihak oleh Admin. Wajib disesuaikan langsung oleh Apoteker beserta Berita Acara.');
+            }
+
             $affectedMedicines = [];
             $affectedRawMaterials = [];
 

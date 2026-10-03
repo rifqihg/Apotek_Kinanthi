@@ -41,7 +41,7 @@ class WarehouseInventoryObserver
         $finalType = $context['type'] ?? $defaultType;
 
         if ($finalType === 'internal_transfer') {
-            $finalType = in_array($defaultType, ['Masuk', 'in']) ? 'Masuk' : 'Keluar';
+            $finalType = in_array($defaultType, ['Masuk', 'in']) ? 'Distribusi Masuk' : 'Distribusi Keluar';
         }
 
         $totalBalanceAfter = (float) WarehouseInventory::where('medicine_id', $inventory->medicine_id)

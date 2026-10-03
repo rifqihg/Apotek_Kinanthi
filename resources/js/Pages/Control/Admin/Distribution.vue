@@ -225,10 +225,6 @@ const handlePhotoUpload = (e) => {
         foto_obat: file
     }, {
         preserveScroll: true,
-        onSuccess: () => {
-            router.reload({ preserveScroll: true });
-            toast.success('Berhasil', { description: 'Foto obat berhasil diperbarui.' });
-        },
         onError: (errors) => {
             const msg = typeof errors === 'object' ? Object.values(errors)[0] : 'Gagal mengupload foto';
             toast.error('Gagal', { description: msg || 'Gagal mengupload foto' });

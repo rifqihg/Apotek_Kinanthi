@@ -10,37 +10,13 @@ import { useDebounceFn } from '@vueuse/core';
 import { formatInventoryThreshold } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/Components/ui/table';
 
-const props = defineProps({ stocks: Object, settings: Object, filters: Object });
+const props = defineProps({ stocks: Object, settings: Object, filters: Object, suppliers: Array });
 const showModal = ref(false);
 const searchInvoiceQuery = ref(props.filters?.search || '');
 const isSearching = ref(false);
 
-const suppliers = ref([]);
 const medicines = ref([]);
-const isLoadingReferenceData = ref(false);
-const hasLoadedReferenceData = ref(false);
-const { toast } = useToast();
-
-const loadReferenceData = async () => {
-    if (hasLoadedReferenceData.value) return;
-    isLoadingReferenceData.value = true;
-    try {
-        const response = await axios.get(route('control.admin.incoming-stocks.reference'));
-        suppliers.value = response.data.suppliers || [];
-        medicines.value = response.data.medicines || [];
-        hasLoadedReferenceData.value = true;
-    } catch (e) {
-        toast({ title: 'Gagal', description: 'Gagal memuat data referensi', variant: 'destructive' });
-    } finally {
-        isLoadingReferenceData.value = false;
-    }
-};
-
-watch(showModal, (newVal) => {
-    if (newVal) {
-        loadReferenceData();
-    }
-});
+const isSearchingMedicine = ref(false);
 
 watch(() => props.filters?.search, (newSearch) => {
     if (newSearch !== undefined && newSearch !== searchInvoiceQuery.value) {
@@ -188,12 +164,21 @@ const removeItem = (index) => {
     }
 };
 
-const filteredMedicines = (query) => {
-    if (!query) return props.medicines || [];
-    return (props.medicines || []).filter(m => 
-        (m.nama_obat || '').toLowerCase().includes(query.toLowerCase())
-    );
-};
+const searchMedicineAction = useDebounceFn(async (query) => {
+    if (!query) {
+        medicines.value = [];
+        return;
+    }
+    isSearchingMedicine.value = true;
+    try {
+        const response = await axios.get(route('control.admin.incoming-stocks.search-medicines'), { params: { query } });
+        medicines.value = response.data.medicines || [];
+    } catch (e) {
+        console.error('Gagal mencari obat', e);
+    } finally {
+        isSearchingMedicine.value = false;
+    }
+}, 300);
 
 const selectMedicine = (index, m) => {
     const item = form.items[index];
@@ -345,6 +330,7 @@ function submit() {
             form.reset(); 
             form.items = [getEmptyItem()];
             form.clearErrors(); 
+            medicines.value = [];
         },
         onError: (errors) => {
             console.error('Terjadi kesalahan validasi faktur masuk:', errors);
@@ -590,14 +576,6 @@ function submit() {
             </div>
 
             <form @submit.prevent="submit" class="flex-1 overflow-y-auto bg-card custom-scrollbar p-6 space-y-5 relative">
-                <!-- Loading Overlay -->
-                <div v-if="isLoadingReferenceData" class="absolute inset-0 bg-card/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3">
-                    <svg class="w-8 h-8 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="text-sm font-medium text-muted-foreground animate-pulse">Memuat data referensi obat & supplier...</p>
-                </div>
 
                 <!-- Alert Validasi Global jika ada eror -->
                 <div v-if="Object.keys(form.errors).length > 0" class="p-3.5 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-xs space-y-1.5 animate-in fade-in-50 duration-200">
@@ -631,7 +609,7 @@ function submit() {
                                     :class="{'ring-1 ring-ring border-input': activeDropdown === 'supplier_0'}"
                                 >
                                     <span class="truncate" :class="{'text-muted-foreground': !form.supplier_id}">
-                                        {{ suppliers?.find(s => s.id === form.supplier_id)?.nama_pbf || 'Pilih Supplier...' }}
+                                        {{ props.suppliers?.find(s => s.id === form.supplier_id)?.nama_pbf || 'Pilih Supplier...' }}
                                     </span>
                                     <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'supplier_0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
@@ -639,7 +617,7 @@ function submit() {
                                 <div v-if="activeDropdown === 'supplier_0'" class="absolute z-30 w-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground">
                                     <div class="max-h-56 overflow-y-auto custom-scrollbar p-1 grid grid-cols-1 gap-0.5">
                                         <div 
-                                            v-for="sup in suppliers" 
+                                            v-for="sup in props.suppliers" 
                                             :key="sup.id" 
                                             @click.stop="form.supplier_id = sup.id; activeDropdown = null"
                                             class="px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer transition-colors"
@@ -698,9 +676,18 @@ function submit() {
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{{ item.is_new_medicine ? 'Nama Obat Baru' : 'Pilih Obat' }} <span class="text-destructive">*</span></label>
                                     
                                     <div v-if="!item.is_new_medicine" class="relative">
-                                        <input type="text" v-model="item.search_query" @input="item.medicine_id = ''" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Ketik nama obat..." required />
+                                        <input type="text" v-model="item.search_query" @input="item.medicine_id = ''; searchMedicineAction(item.search_query)" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Ketik nama obat..." required />
                                         <div v-if="item.active_dropdown" class="absolute z-20 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto p-1">
-                                            <div v-for="m in filteredMedicines(item.search_query)" :key="m.id" @click.prevent="selectMedicine(index, m)" class="px-3 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer text-sm flex justify-between items-center">
+                                            <div v-if="isSearchingMedicine" class="px-3 py-2 text-sm text-muted-foreground text-center animate-pulse">
+                                                Mencari...
+                                            </div>
+                                            <div v-else-if="medicines.length === 0 && item.search_query" class="px-3 py-2 text-sm text-muted-foreground text-center">
+                                                Obat tidak ditemukan
+                                            </div>
+                                            <div v-else-if="medicines.length === 0" class="px-3 py-2 text-sm text-muted-foreground text-center">
+                                                Ketik nama obat...
+                                            </div>
+                                            <div v-else v-for="m in medicines" :key="m.id" @click.prevent="selectMedicine(index, m)" class="px-3 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer text-sm flex justify-between items-center">
                                                 <span class="font-medium text-foreground">{{ m.nama_obat }}</span>
                                                 <span class="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{{ m.satuan_stok }}</span>
                                             </div>

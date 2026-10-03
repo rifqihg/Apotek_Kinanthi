@@ -236,7 +236,7 @@ class ApotekerCompoundingController extends Controller
             'filler_qty' => $fillerQty,
             'unit_weight_target' => $v['berat_per_unit'],
             'apoteker_note' => $v['apoteker_note'] ?? null,
-            'status' => 'pending_final_verification',
+            'status' => 'approved', 
             'prescription_id' => $v['prescription_id'] ?? null,
             'prescription_item_id' => $v['prescription_item_id'] ?? null,
         ]);
@@ -380,7 +380,12 @@ class ApotekerCompoundingController extends Controller
             }
         }
 
-        // 4. Buat Record Produksi & Label Etiket
+        // 4. Buat Record Produksi & Label Etiket (AUTO-PRICING ENGINE)
+        $hppPerUnit = $totalBaseCost / max($v['jumlah_unit'], 1);
+        $marginMultiplier = 1.30; // 30% Margin apotek standar
+        $jasaResep = 5000; // Flat fee jasa racik (Tuslah)
+        $hargaJual = ceil(($hppPerUnit * $marginMultiplier) + $jasaResep);
+
         $cp = CompoundedProduct::create([
             'compounding_submission_id' => $sub->id,
             'nama_produk' => $sub->nama_racikan,
@@ -390,8 +395,10 @@ class ApotekerCompoundingController extends Controller
             'qty_hasil' => $v['jumlah_unit'],
             'satuan' => $v['target_unit'],
             'base_cost' => $totalBaseCost,
-            'status' => 'inactive',
-            'pricing_status' => 'pending_price',
+            'hpp_per_unit' => $hppPerUnit,
+            'harga_jual' => $hargaJual,
+            'status' => 'active',          // Otomatis aktif
+            'pricing_status' => 'priced',  // Otomatis berharga jual
             'created_by' => $user->id,
         ]);
 
@@ -420,9 +427,9 @@ class ApotekerCompoundingController extends Controller
             }
         }
 
-        AuditTrail::log($user->id, 'CREATE_COMPOUNDING', "Submit Racikan: {$sub->nama_racikan}. Stok batch dikunci.", CompoundingSubmission::class, $sub->id);
+        AuditTrail::log($user->id, 'CREATE_COMPOUNDING', "Submit Racikan: {$sub->nama_racikan}. Stok batch dikunci. Harga jual diset otomatis Rp. " . number_format($hargaJual, 0, ',', '.'), CompoundingSubmission::class, $sub->id);
 
-        return redirect()->back()->with('success', 'Pengajuan racikan berhasil. Menunggu penetapan harga jual dari Admin.');
+        return redirect()->back()->with('success', 'Racikan Selesai! Tagihan telah terbit otomatis (Auto-Margin) dan dapat langsung dibayar di Kasir.');
     }
 
     /**

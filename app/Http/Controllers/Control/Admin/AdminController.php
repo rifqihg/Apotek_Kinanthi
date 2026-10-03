@@ -196,7 +196,7 @@ class AdminController extends Controller
 
     private function getTableStocks(string $filter)
     {
-        $query = Medicine::with('earliestExpiringStock');
+        $query = Medicine::with(['earliestExpiringStock', 'latestActiveIncomingStock']);
         
         if ($filter === 'exp') {
             $query->orderBy(
@@ -217,6 +217,8 @@ class AdminController extends Controller
         
         $tableStocks = $paginator->getCollection()->map(function ($medicine) {
             $incoming = $medicine->earliestExpiringStock; // Gets the one with earliest expiry
+            $latest = $medicine->latestActiveIncomingStock;
+            
             return [
                 'id' => $medicine->id,
                 'nama_obat' => $medicine->nama_obat,
@@ -228,9 +230,9 @@ class AdminController extends Controller
                 'qty_converted' => $medicine->stok_total,
                 'satuan_input' => $medicine->satuan_besar,
                 'mid_unit' => $medicine->satuan_menengah,
-                'unit_conversion_factor' => $medicine->satuan_menengah ? $medicine->rasio_konversi : ($medicine->rasio_konversi ?: 1),
-                'mid_to_big_ratio' => $medicine->satuan_menengah ? $medicine->rasio_konversi : 1,
-                'small_to_mid_ratio' => $medicine->satuan_menengah ? $medicine->conversion_factor : ($medicine->rasio_konversi ?: 1),
+                'unit_conversion_factor' => $latest ? $latest->unit_conversion_factor : ($medicine->rasio_konversi ?: 1),
+                'mid_to_big_ratio' => $latest ? $latest->mid_to_big_ratio : 1,
+                'small_to_mid_ratio' => $latest ? $latest->small_to_mid_ratio : ($medicine->rasio_konversi ?: 1),
                 'satuan_stok' => $medicine->satuan_stok ?? 'Unit',
                 
                 'batas_aman' => $medicine->threshold_min,

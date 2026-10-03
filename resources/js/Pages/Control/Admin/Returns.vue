@@ -357,7 +357,7 @@ const submitReturn = () => {
                         </TableCell>
                         <TableCell class="py-2.5 px-3 align-middle text-center">
                             <span class="text-sm font-semibold tabular-nums text-destructive">
-                                -{{ item.qty_retur }} <span class="text-xs font-normal uppercase">{{ item.incoming_stock?.medicine?.satuan_stok }}</span>
+                                -{{ item.qty_retur }} <span class="uppercase">{{ item.incoming_stock?.medicine?.satuan_stok }}</span>
                             </span>
                         </TableCell>
                         <TableCell class="py-2.5 px-3 align-middle">

@@ -34,7 +34,15 @@ class AdminUserController extends Controller
             'rawMaterialStock:id,raw_material_id,batch_no', 
             'rawMaterialStock.rawMaterial:id,nama_bahan,satuan_dasar_penggunaan', 
             'item'
-        ])->where('quantity', '>', 0);
+        ])->where('quantity', '>', 0)
+          ->where('type', '!=', 'Distribusi Keluar')
+          ->where(function ($q) {
+              $q->whereNull('note')
+                ->orWhere(function ($q2) {
+                    $q2->where('note', 'not like', 'Distribusi ke Kasir ID%')
+                       ->where('note', 'not like', 'Return dari Kasir ID%');
+                });
+          });
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $mutationQuery->whereBetween('created_at', ["{$request->start_date} 00:00:00", "{$request->end_date} 23:59:59"]);
@@ -42,9 +50,10 @@ class AdminUserController extends Controller
 
         if ($request->filled('type') && $request->type !== 'all') {
             match ($request->type) {
-                'Masuk' => $mutationQuery->whereIn('type', ['Masuk', 'Penyesuaian Masuk']),
+                'Masuk' => $mutationQuery->whereIn('type', ['Masuk', 'Penyesuaian Masuk', 'Distribusi Masuk']),
                 'Retur' => $mutationQuery->where(fn($q) => $q->where('reference_type', ReturnForm::class)->orWhere('type', 'Retur')),
-                'Jual'  => $mutationQuery->where(fn($q) => $q->whereIn('type', ['Keluar', 'Penjualan', 'Penyesuaian Keluar'])->where(fn($q2) => $q2->whereNull('reference_type')->orWhere('reference_type', '!=', ReturnForm::class))),
+                'Jual'  => $mutationQuery->where(fn($q) => $q->whereIn('type', ['Keluar', 'Penjualan', 'Penyesuaian Keluar'])->where(fn($q2) => $q2->whereNull('reference_type')->orWhere('reference_type', '!=', ReturnForm::class))->where('type', 'not like', '%Distribusi%')->where(fn($q3) => $q3->whereNull('note')->orWhere('note', 'not like', '%Distribusi%'))),
+                'Distribusi' => $mutationQuery->where(fn($q) => $q->where('type', 'like', '%Distribusi%')->orWhere('note', 'like', '%Distribusi%')),
                 default => null,
             };
         }

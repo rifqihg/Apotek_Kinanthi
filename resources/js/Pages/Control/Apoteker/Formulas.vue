@@ -8,6 +8,8 @@ defineOptions({ layout: ControlLayout });
 
 const props = defineProps({
     formulas: Object,
+    medicines: { type: Array, default: () => [] },
+    rawMaterials: { type: Array, default: () => [] },
     filters: {
         type: Object,
         default: () => ({}),
@@ -58,7 +60,58 @@ const resetAllFilters = () => {
 };
 
 const showModal = ref(false);
-const form = useForm({ nama_resep:'', kategori_sediaan:'', instruksi_racik:'' });
+const form = useForm({ 
+    nama_resep: '', 
+    kategori_sediaan: '', 
+    target_qty: '',
+    target_unit: '',
+    signa_default: '',
+    bud_days: 14,
+    instruksi_racik: '',
+    ingredients: []
+});
+
+const addIngredient = (type) => {
+    form.ingredients.push({
+        _key: Date.now() + Math.random(),
+        source_type: type,
+        source_id: '',
+        qty_required: '',
+        unit_label: ''
+    });
+};
+
+const removeIngredient = (index) => {
+    form.ingredients.splice(index, 1);
+};
+
+const updateUnit = (index) => {
+    const ing = form.ingredients[index];
+    if (ing.source_type === 'medicine') {
+        const med = props.medicines.find(m => m.id === ing.source_id);
+        ing.unit_label = med ? med.satuan_stok : '';
+    } else {
+        const rm = props.rawMaterials.find(r => r.id === ing.source_id);
+        ing.unit_label = rm ? rm.satuan : '';
+    }
+};
+
+const availableUnits = computed(() => {
+    switch (form.kategori_sediaan) {
+        case 'Larutan Air/Sirup':
+            return ['mL', 'Botol', 'Tetes'];
+        case 'Sediaan Padat/Puyer/Kapsul':
+            return ['Kapsul', 'Bungkus'];
+        case 'Sediaan Topikal/Lainnya':
+            return ['Gram', 'Tube', 'Pot'];
+        default:
+            return [];
+    }
+});
+
+watch(() => form.kategori_sediaan, () => {
+    form.target_unit = '';
+});
 
 const stats = computed(() => {
     const list = props.formulas?.data || [];
@@ -246,7 +299,7 @@ function submit() {
     <Teleport to="body">
         <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-background/80 backdrop-blur-sm" @click="showModal=false"></div>
-            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-md overflow-hidden border border-border">
+            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-border">
                 <div class="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
                     <div>
                         <h3 class="text-foreground font-semibold text-base">Registrasi Formula Baru</h3>
@@ -254,32 +307,108 @@ function submit() {
                     </div>
                 </div>
                 
-                <form @submit.prevent="submit" class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Resep / Sediaan <span class="text-red-500">*</span></label>
-                        <input v-model="form.nama_resep" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Nama racikan standar..." required />
-                        <p v-if="form.errors.nama_resep" class="text-red-500 text-xs mt-1">{{ form.errors.nama_resep }}</p>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Kategori Sediaan <span class="text-red-500">*</span></label>
-                        <select v-model="form.kategori_sediaan" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" required>
-                            <option value="" disabled>Pilih Kategori...</option>
-                            <option value="Larutan Air/Sirup">Larutan Air/Sirup (BUD 14 Hari)</option>
-                            <option value="Sediaan Padat/Puyer/Kapsul">Sediaan Padat/Puyer/Kapsul (BUD 30 Hari)</option>
-                            <option value="Sediaan Topikal/Lainnya">Lainnya / Topikal</option>
-                        </select>
-                        <p v-if="form.errors.kategori_sediaan" class="text-red-500 text-xs mt-1">{{ form.errors.kategori_sediaan }}</p>
+                <form @submit.prevent="submit" class="p-6 space-y-6">
+                    <!-- SECTION 1: HEADER & YIELD -->
+                    <div class="space-y-4">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-border pb-1">1. Identitas & Target Hasil</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Resep / Sediaan <span class="text-red-500">*</span></label>
+                                <input v-model="form.nama_resep" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Contoh: Kapsul Flu & Batuk Anak" required />
+                            </div>
+                            
+                            <div class="col-span-2 sm:col-span-1">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Kategori Sediaan <span class="text-red-500">*</span></label>
+                                <select v-model="form.kategori_sediaan" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" required>
+                                    <option value="" disabled>Pilih Kategori...</option>
+                                    <option value="Larutan Air/Sirup">Cair / Sirup / Larutan</option>
+                                    <option value="Sediaan Padat/Puyer/Kapsul">Padat / Kapsul / Puyer</option>
+                                    <option value="Sediaan Topikal/Lainnya">Topikal / Salep / Krim</option>
+                                </select>
+                            </div>
+
+                            <div class="col-span-2 sm:col-span-1 flex gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5" title="Kuantitas standar untuk 1 resep (misal: 1, 10, atau 100)">Skala Dasar Formula <span class="text-red-500">*</span></label>
+                                    <input v-model="form.target_qty" type="number" min="0.01" step="any" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none" placeholder="100" required />
+                                </div>
+                                <div class="w-24">
+                                    <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Satuan <span class="text-red-500">*</span></label>
+                                    <select v-model="form.target_unit" class="w-full h-9 bg-background border border-input rounded-md px-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none disabled:opacity-50 disabled:bg-muted" :disabled="!form.kategori_sediaan" required>
+                                        <option value="" disabled>Pilih...</option>
+                                        <option v-for="u in availableUnits" :key="u" :value="u">{{ u }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Instruksi Racik</label>
-                        <textarea v-model="form.instruksi_racik" rows="4" class="w-full bg-background border border-input rounded-md p-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none resize-none transition-colors leading-relaxed" placeholder="Catatan cara pembuatan atau peringatan khusus..."></textarea>
+                    <!-- SECTION 2: KOMPOSISI BAHAN (BOM) -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between border-b border-border pb-1">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">2. Komposisi Baku (BOM)</h4>
+                            <div class="flex gap-2">
+                                <button type="button" @click="addIngredient('medicine')" class="text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded hover:bg-blue-100 transition-colors">+ Obat Jadi</button>
+                                <button type="button" @click="addIngredient('raw_material')" class="text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-1 rounded hover:bg-emerald-100 transition-colors">+ Bahan Baku</button>
+                            </div>
+                        </div>
+                        
+                        <div v-if="form.ingredients.length === 0" class="text-center py-6 border-2 border-dashed border-border rounded-lg bg-muted/20">
+                            <p class="text-xs text-muted-foreground">Belum ada bahan. Tambahkan komposisi racikan.</p>
+                        </div>
+                        
+                        <div v-for="(ing, index) in form.ingredients" :key="ing._key" class="flex items-start gap-2 bg-muted/10 p-2 border border-border rounded-lg">
+                            <!-- Dropdown Pilih Obat/Bahan -->
+                            <div class="flex-1">
+                                <select v-model="ing.source_id" @change="updateUnit(index)" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground focus:ring-1 focus:ring-ring outline-none" required>
+                                    <option value="" disabled>Pilih {{ ing.source_type === 'medicine' ? 'Obat Jadi' : 'Bahan Baku' }}...</option>
+                                    <template v-if="ing.source_type === 'medicine'">
+                                        <option v-for="med in medicines" :key="med.id" :value="med.id">{{ med.nama_obat }}</option>
+                                    </template>
+                                    <template v-else>
+                                        <option v-for="rm in rawMaterials" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }}</option>
+                                    </template>
+                                </select>
+                            </div>
+                            
+                            <!-- Input Kuantitas -->
+                            <div class="w-28 relative flex-shrink-0 flex items-center">
+                                <input v-model="ing.qty_required" type="number" min="0.01" step="any" placeholder="Qty" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground pr-[42px] pl-2 focus:ring-1 focus:ring-ring outline-none" required />
+                                <div class="absolute right-1 flex items-center justify-center pointer-events-none">
+                                    <span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider truncate max-w-[38px]" :title="ing.unit_label || '-'">{{ ing.unit_label || '-' }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Hapus Baris -->
+                            <button type="button" @click="removeIngredient(index)" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-red-500 hover:bg-red-50 rounded transition-colors" title="Hapus">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                        <p v-if="form.errors.ingredients" class="text-red-500 text-xs mt-1">{{ form.errors.ingredients }}</p>
                     </div>
 
-                    <div class="flex justify-end gap-2 pt-2">
+                    <!-- SECTION 3: PARAMETER KLINIS -->
+                    <div class="space-y-4">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-border pb-1">3. Parameter Klinis</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2 sm:col-span-1">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Aturan Pakai (Signa)</label>
+                                <input v-model="form.signa_default" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Contoh: S 3 dd 1 Caps" />
+                            </div>
+                            <div class="col-span-2 sm:col-span-1">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Estimasi BUD (Hari) <span class="text-red-500">*</span></label>
+                                <input v-model="form.bud_days" type="number" min="1" class="w-full h-9 bg-background border border-input rounded-md px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="14" required />
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Instruksi Prosedur Pembuatan</label>
+                                <textarea v-model="form.instruksi_racik" rows="3" class="w-full bg-background border border-input rounded-md p-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none resize-none transition-colors leading-relaxed" placeholder="1. Gerus bahan A... 2. Tambahkan bahan B..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-4 border-t border-border">
                         <button type="button" @click="showModal=false" class="px-4 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-md text-sm font-medium transition-colors">Batal</button>
-                        <button type="submit" :disabled="form.processing" class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors disabled:opacity-50">Simpan Formula</button>
+                        <button type="submit" :disabled="form.processing || form.ingredients.length === 0" class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors disabled:opacity-50">Simpan Formula Master</button>
                     </div>
                 </form>
             </div>

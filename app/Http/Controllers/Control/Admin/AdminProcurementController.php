@@ -124,32 +124,40 @@ class AdminProcurementController extends Controller
         $stocks = $query->latest()->paginate(15)->withQueryString();
 
         $settings = Setting::current();
+        $suppliers = Supplier::active()->select(['id', 'nama_pbf'])->orderBy('nama_pbf')->get();
 
         return Inertia::render('Control/Admin/IncomingStocks', [
             'stocks' => $stocks,
             'settings' => $settings,
+            'suppliers' => $suppliers,
             'filters' => $request->only('search'),
         ]);
     }
 
-    /**
-     * Async load of reference data to keep SPA navigation instant
-     */
-    public function incomingStocksReference()
+    public function searchMedicines(Request $request)
     {
-        $suppliers = Supplier::active()->select(['id', 'nama_pbf'])->orderBy('nama_pbf')->get();
-        $medicines = Medicine::with('latestActiveIncomingStock')
-            ->select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
+        $search = $request->query('query');
+        
+        $medicines = Medicine::select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
+            ->addSelect([
+                'current_price' => \App\Models\Control\IncomingStock::select('harga_jual_akhir')
+                    ->whereColumn('medicine_id', 'medicines.id')
+                    ->where('status_gate', 'active')
+                    ->orderByDesc('id')
+                    ->limit(1)
+            ])
+            ->when($search, function ($q) use ($search) {
+                $q->where('nama_obat', 'like', "%{$search}%");
+            })
             ->orderBy('nama_obat')
+            ->limit(20)
             ->get()
             ->map(function ($m) {
-                $lastApproved = $m->latestActiveIncomingStock;
-                $m->current_price = $lastApproved ? $lastApproved->harga_jual_akhir : 0;
+                $m->current_price = $m->current_price ?? 0;
                 return $m;
             });
 
         return response()->json([
-            'suppliers' => $suppliers,
             'medicines' => $medicines,
         ]);
     }
