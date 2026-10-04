@@ -20,18 +20,43 @@ class AdminPricingController extends Controller
      */
     public function pricingIndex()
     {
-        $pendingProducts = CompoundedProduct::select(['id', 'compounding_submission_id', 'nama_produk', 'batch_no', 'qty_hasil', 'hpp_per_unit', 'pricing_status', 'created_at'])
-            ->with(['submission' => fn($q) => $q->select(['id', 'target_quantity', 'total_hpp_racikan'])])
-            ->where('pricing_status', 'pending_price')
+        $compoundedProducts = CompoundedProduct::select(['id', 'compounding_submission_id', 'nama_produk', 'batch_no', 'qty_hasil', 'hpp_per_unit', 'pricing_status', 'created_at', 'harga_jual', 'satuan'])
+            ->with(['submission' => fn($q) => $q->select(['id', 'target_quantity', 'total_hpp_racikan', 'total_hpp_bahan', 'biaya_tuslah', 'jasa_racik', 'biaya_kemasan', 'harga_jual_racikan'])])
             ->latest()
             ->get()
             ->map(function ($product) {
-                $hpp = $product->hpp_per_unit;
-                if ($hpp <= 0 && $product->submission) {
-                    $qty = $product->qty_hasil > 0 ? $product->qty_hasil : ($product->submission->target_quantity > 0 ? $product->submission->target_quantity : 1);
-                    $hpp = $product->submission->total_hpp_racikan / $qty;
+                $qty = max($product->qty_hasil > 0 ? $product->qty_hasil : ($product->submission?->target_quantity ?: 1), 1);
+                
+                $hppBahan = 0;
+                $tuslah = 0;
+                $jasaRacik = 0;
+                $biayaKemasan = 0;
+                $hargaJual = (float)$product->harga_jual;
+                $margin = null;
+
+                if ($product->submission) {
+                    $hppBahan = (float)$product->submission->total_hpp_bahan / $qty;
+                    if ($hppBahan == 0 && $product->hpp_per_unit > 0) {
+                        $hppBahan = (float)$product->hpp_per_unit;
+                    }
+                    $tuslah = (float)$product->submission->biaya_tuslah / $qty;
+                    $jasaRacik = (float)$product->submission->jasa_racik / $qty;
+                    $biayaKemasan = (float)$product->submission->biaya_kemasan / $qty;
+                    
+                    if ($hargaJual > 0 && ($hppBahan + $tuslah) > 0) {
+                        $modal = $hppBahan + $tuslah;
+                        $margin = round((($hargaJual - $modal) / $modal) * 100, 1);
+                    }
+                } else {
+                    $hppBahan = (float)$product->hpp_per_unit;
                 }
-                $product->calculated_hpp = $hpp;
+
+                $product->calculated_hpp = $hppBahan;
+                $product->calculated_tuslah = $tuslah;
+                $product->calculated_jasa = $jasaRacik;
+                $product->calculated_kemasan = $biayaKemasan;
+                $product->calculated_margin = $margin;
+                
                 return $product;
             });
 
@@ -94,7 +119,7 @@ class AdminPricingController extends Controller
             });
 
         return Inertia::render('Control/Admin/Pricing', [
-            'pendingProducts' => $pendingProducts,
+            'compoundedProducts' => $compoundedProducts,
             'medicines' => $medicines,
         ]);
     }
@@ -121,11 +146,18 @@ class AdminPricingController extends Controller
             ]);
 
             if ($product->submission) {
+                $qty = max(1, (float)$product->qty_hasil);
+                $totalHppBahan = (float)$product->submission->total_hpp_bahan;
+                $jasaRacikTotal = $v['jasa_racik'] * $qty;
+                $biayaKemasanTotal = $v['biaya_kemasan'] * $qty;
+                $biayaTuslahTotal = $jasaRacikTotal + $biayaKemasanTotal;
+
                 $product->submission->update([
                     'status' => 'active',
-                    'biaya_tuslah' => $v['jasa_racik'] + $v['biaya_kemasan'],
-                    'total_hpp_bahan' => max(0, $v['total_modal_buat'] - ($v['jasa_racik'] + $v['biaya_kemasan'])),
-                    'total_hpp_racikan' => $v['total_modal_buat'],
+                    'biaya_tuslah' => $biayaTuslahTotal,
+                    'jasa_racik' => $jasaRacikTotal,
+                    'biaya_kemasan' => $biayaKemasanTotal,
+                    'total_hpp_racikan' => $totalHppBahan + $biayaTuslahTotal,
                     'harga_jual_racikan' => $v['harga_jual_final'],
                     'approved_at' => now(),
                     'approved_by' => $request->user()->id,

@@ -112,6 +112,7 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
     // Formulas
     Route::get('/formulas', [ApotekerFormulaController::class, 'formulas'])->name('formulas');
     Route::post('/formulas', [ApotekerFormulaController::class, 'storeFormula'])->name('formulas.store');
+    Route::put('/formulas/{id}', [ApotekerFormulaController::class, 'updateFormula'])->name('formulas.update');
 
     // Submissions
     Route::get('/submissions', [ApotekerCompoundingController::class, 'submissions'])->name('submissions');

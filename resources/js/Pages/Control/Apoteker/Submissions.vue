@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useDebounceFn } from '@vueuse/core';
 import axios from 'axios';
@@ -25,7 +25,7 @@ const loadReferenceData = async () => {
     if (hasLoadedReferenceData.value) return;
     isLoadingReferenceData.value = true;
     try {
-        const response = await axios.get(route('submissions.reference'));
+        const response = await axios.get(route('control.apoteker.submissions.reference'));
         formulas.value = response.data.formulas || [];
         rawMaterials.value = response.data.rawMaterials || [];
         medicines.value = response.data.medicines || [];
@@ -81,6 +81,10 @@ watch(showModal, (newVal) => {
     if (newVal) loadReferenceData();
 });
 
+onMounted(() => {
+    loadReferenceData(); // Pre-load data in background
+});
+
 const statusClass = (s) => ({
     pending_final_verification: 'bg-amber-50 text-amber-600 border-amber-200',
     active: 'bg-emerald-50 text-emerald-600 border-emerald-200',
@@ -114,8 +118,7 @@ const form = useForm({
         tanggal_racik: new Date().toISOString().split('T')[0], 
         bud_hari: 30, 
         aturan_pakai: '', 
-        keterangan: '', 
-        nama_pasien: '' 
+        keterangan: ''
     }
 });
 
@@ -141,7 +144,7 @@ const total_massa_target = computed(() => {
 
 const calculateItemNeto = (item) => {
     const isMed = item.source_type === 'medicine';
-    const density = isMed ? 1 : (Number(rawMaterialsMap.value[item.id_batch]?.density_factor) || 1);
+    const density = isMed ? 0 : (Number(rawMaterialsMap.value[item.id_batch]?.density_factor) || 1);
     const gross = Number(item.qty_taken_pcs) || 0;
     const neto = gross * density;
     return Number(neto.toFixed(2));
@@ -170,7 +173,7 @@ const filler_dibutuhkan = computed(() => {
 
 const yieldStats = computed(() => {
     const weight = Number(form.berat_per_unit) || 0;
-    if (weight <= 0) return { yield: 0, remainder: 0 };
+    if (weight <= 0) return { yield: Number(form.jumlah_unit), remainder: 0 };
     if (total_massa_neto_bahan.value >= total_massa_target.value) {
         return {
             yield: Number(form.jumlah_unit),
@@ -185,6 +188,8 @@ const yieldStats = computed(() => {
 });
 
 const is_mass_balance_ok = computed(() => {
+    const weight = Number(form.berat_per_unit) || 0;
+    if (weight <= 0) return true;
     const currentTotal = total_massa_neto_bahan.value + filler_dibutuhkan.value;
     return Math.abs(currentTotal - total_massa_target.value) < 0.001 || total_massa_neto_bahan.value > total_massa_target.value;
 });
@@ -196,6 +201,10 @@ const hasLiquidInCapsule = computed(() => {
         const rm = rawMaterialsMap.value[d.id_batch];
         return rm?.satuan_dasar_penggunaan === 'ml' || rm?.satuan_dasar_penggunaan === 'mL' || rm?.satuan_dasar_penggunaan === 'L' || rm?.satuan_dasar_penggunaan === 'Liter';
     });
+});
+
+const hasMedicineInIngredients = computed(() => {
+    return form.bahan_baku.some(item => item.source_type === 'medicine' && item.id_batch);
 });
 
 const isOverstock = (d) => {
@@ -234,19 +243,50 @@ watch(() => form.formula_id, (newId) => {
     if (!newId) return;
     const formula = (formulas.value || []).find(f => f.id === newId);
     if (formula) {
-        const kat = (formula.kategori_sediaan || '').toLowerCase();
-        if (kat.includes('larutan') || kat.includes('sirup') || kat.includes('suspensi')) {
-            form.label.bud_hari = 14;
-            form.target_unit = 'Botol';
-            form.berat_per_unit = 0; 
-        } else if (kat.includes('salep') || kat.includes('krim') || kat.includes('semisolid') || kat.includes('pasta') || kat.includes('gel')) {
-            form.label.bud_hari = 30;
-            form.target_unit = 'Pot';
-            form.berat_per_unit = 10;
+        form.nama_racikan = formula.nama_resep || '';
+        form.apoteker_note = formula.instruksi_racik || '';
+        form.label.aturan_pakai = formula.signa_default || '';
+        form.label.bud_hari = formula.bud_days || 30;
+
+        form.jumlah_unit = Number(formula.target_qty) || 1;
+
+        if (formula.target_unit) {
+            form.target_unit = formula.target_unit;
+            const unit = formula.target_unit.toLowerCase();
+            if (unit === 'botol' || unit.includes('sirup') || unit.includes('larutan') || unit.includes('suspensi')) {
+                form.berat_per_unit = 0;
+            } else if (unit.includes('pot') || unit.includes('salep') || unit.includes('krim') || unit.includes('gel')) {
+                form.berat_per_unit = 10;
+            } else {
+                form.berat_per_unit = 0.5;
+            }
         } else {
-            form.label.bud_hari = 30;
-            form.target_unit = 'Kapsul';
-            form.berat_per_unit = 0.5;
+            const kat = (formula.kategori_sediaan || '').toLowerCase();
+            if (kat.includes('larutan') || kat.includes('sirup') || kat.includes('suspensi')) {
+                form.target_unit = 'Botol';
+                form.berat_per_unit = 0; 
+            } else if (kat.includes('salep') || kat.includes('krim') || kat.includes('semisolid') || kat.includes('pasta') || kat.includes('gel')) {
+                form.target_unit = 'Pot';
+                form.berat_per_unit = 10;
+            } else {
+                form.target_unit = 'Kapsul';
+                form.berat_per_unit = 0.5;
+            }
+        }
+
+        if (formula.ingredients && formula.ingredients.length > 0) {
+            form.bahan_baku = formula.ingredients.map(ing => ({
+                source_type: ing.source_type,
+                id_batch: ing.source_id,
+                nama_bahan: '', 
+                qty_taken_pcs: ing.qty_required || '',
+                qty_neto_mass: 0,
+                original_stock: 0,
+                fefo_info: null
+            }));
+            
+            // Trigger fetchFEFO asynchronously on the reactive proxies
+            form.bahan_baku.forEach(d => fetchFEFO(d));
         }
     }
 });
@@ -308,15 +348,24 @@ function removeDetail(i) { if(form.bahan_baku.length > 1) form.bahan_baku.splice
 async function fetchFEFO(detail) {
     if (!detail.id_batch) return;
     const type = detail.source_type || 'raw_material';
+    detail.fefo_info = null; // Start loading
     try {
         const { data } = await axios.get(route('control.apoteker.fefo', detail.id_batch) + `?type=${type}`);
-        detail.fefo_info = data.suggestion;
-        detail.original_stock = Number(data.suggestion?.stock_on_hand) || 0;
-        detail.nama_bahan = type === 'medicine'
-            ? (data.suggestion?.medicine?.nama_obat || '')
-            : (data.suggestion?.raw_material?.nama_bahan || '');
+        if (data.suggestion) {
+            detail.fefo_info = data.suggestion;
+            detail.original_stock = Number(data.suggestion?.stock_on_hand) || 0;
+            detail.nama_bahan = type === 'medicine'
+                ? (data.suggestion?.medicine?.nama_obat || '')
+                : (data.suggestion?.raw_material?.nama_bahan || '');
+        } else {
+            detail.fefo_info = { empty: true };
+            detail.original_stock = 0;
+            detail.nama_bahan = type === 'medicine' 
+                ? (medicinesMap.value[detail.id_batch]?.nama_obat || '') 
+                : (rawMaterialsMap.value[detail.id_batch]?.nama_bahan || '');
+        }
     } catch { 
-        detail.fefo_info = null; 
+        detail.fefo_info = { error: 'Gagal memuat FEFO' };
         detail.original_stock = 0;
     }
 }
@@ -411,7 +460,7 @@ if (prefillItemId) {
                         <option value="cancelled">Batal</option>
                     </select>
 
-                    <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:'',nama_pasien:''};form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:''};form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                         <span>Buat Racikan</span>
                     </button>
@@ -499,10 +548,11 @@ if (prefillItemId) {
             <table class="w-full text-sm text-left border-collapse min-w-[880px]">
                 <thead class="bg-muted/50 border-b border-border">
                     <tr>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[200px] whitespace-nowrap">Nama Racikan</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[200px] whitespace-nowrap">Nama Racikan / Batch</th>
                         <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[160px] whitespace-nowrap">Formula</th>
                         <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[70px] whitespace-nowrap">Items</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[120px] whitespace-nowrap">BUD</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Target Hasil</th>
+                        <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[120px] whitespace-nowrap">Tgl Racik / BUD</th>
                         <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[140px] whitespace-nowrap">Status</th>
                         <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[190px] whitespace-nowrap">Aksi</th>
                     </tr>
@@ -521,7 +571,9 @@ if (prefillItemId) {
                     <tr v-for="s in (submissions?.data || [])" :key="s.id" class="hover:bg-muted/30 transition-colors">
                         <td class="px-4 py-3">
                             <span class="font-medium text-foreground text-sm block">{{ s.nama_racikan || 'Tanpa Nama' }}</span>
-                            <span class="text-xs text-muted-foreground tracking-wide mt-0.5 block">ID-{{ s.id }}</span>
+                            <span class="text-xs text-muted-foreground tracking-wide mt-0.5 block">
+                                {{ s.compounded_product?.batch_no || ('ID-' + s.id) }}
+                            </span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="text-xs font-medium text-muted-foreground">{{ s.formula?.nama_resep || '-' }}</span>
@@ -529,8 +581,14 @@ if (prefillItemId) {
                         <td class="px-4 py-3 text-center font-semibold text-foreground text-sm">
                             {{ (s.details?.length || 0) }} 
                         </td>
+                        <td class="px-4 py-3 text-center text-foreground font-medium text-sm">
+                            {{ s.expected_yield || '-' }} <span class="text-xs text-muted-foreground font-normal">{{ s.target_unit }}</span>
+                        </td>
                         <td class="px-4 py-3 text-center text-muted-foreground text-xs font-medium">
-                            {{ s.label?.tanggal_kadaluarsa_bud ? new Date(s.label.tanggal_kadaluarsa_bud).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-' }}
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-foreground" v-if="s.label?.tanggal_racik">{{ new Date(s.label.tanggal_racik).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}</span>
+                                <span class="text-red-500" v-if="s.label?.tanggal_kadaluarsa_bud">Exp: {{ new Date(s.label.tanggal_kadaluarsa_bud).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}</span>
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-center">
                             <span :class="statusClass(s.status)" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-block whitespace-nowrap">
@@ -634,8 +692,11 @@ if (prefillItemId) {
                             <!-- Status Mass Balance -->
                             <div class="flex items-center gap-1.5">
                                 <div :class="massBalanceStatus.ok ? 'bg-emerald-500' : 'bg-red-500'" class="w-2 h-2 rounded-full animate-pulse"></div>
-                                <span :class="massBalanceStatus.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'" class="text-xs font-semibold uppercase tracking-wider">
+                                <span v-if="form.berat_per_unit > 0" :class="massBalanceStatus.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'" class="text-xs font-semibold uppercase tracking-wider">
                                     {{ massBalanceStatus.ok ? 'Mass Balance OK' : 'Insufficient Mass' }}
+                                </span>
+                                <span v-else class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                                    Volume Based
                                 </span>
                             </div>
                         </div>
@@ -668,14 +729,7 @@ if (prefillItemId) {
                             </div>
                         </div>
 
-                        <!-- Filler & Safety Information -->
-                        <div v-if="filler_dibutuhkan > 0" class="p-3 bg-background border border-border rounded-md flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <div class="w-5 h-5 bg-primary/20 text-primary rounded-full flex items-center justify-center text-xs font-bold">B</div>
-                                <p class="text-foreground text-xs font-medium">Butuh Bahan Tambahan (Filler):</p>
-                            </div>
-                            <p class="text-foreground font-semibold text-sm">{{ filler_dibutuhkan.toFixed(2) }}g</p>
-                        </div>
+                        <!-- Safety Information -->
 
                         <div v-if="hasLiquidInCapsule" class="p-3 bg-red-500/10 border border-red-500/20 rounded-md flex items-center gap-2">
                             <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -703,7 +757,7 @@ if (prefillItemId) {
                                 <div v-if="isOverstock(d)" class="absolute inset-0 bg-red-500/10 pointer-events-none border border-red-500 rounded-md z-20"></div>
 
                                 <div class="flex flex-col md:flex-row gap-2.5 items-end relative z-10">
-                                    <div class="w-full md:w-[190px] md:shrink-0">
+                                    <div class="w-full md:w-[220px] md:shrink-0">
                                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">Tipe Bahan</label>
                                         <select v-model="d.source_type" @change="d.id_batch=''; d.fefo_info=null; d.original_stock=0;" class="w-full bg-background border border-input rounded-md h-9 px-2 text-foreground text-xs font-medium focus:ring-1 focus:ring-ring outline-none transition-colors">
                                             <option value="raw_material">Bahan Baku (Murni)</option>
@@ -723,7 +777,7 @@ if (prefillItemId) {
                                             <option v-for="rm in (rawMaterials || [])" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }} ({{ rm.satuan_dasar_penggunaan || rm.satuan_ukur }})</option>
                                         </select>
                                     </div>
-                                    <div class="w-full md:w-[110px] md:shrink-0">
+                                    <div class="w-full md:w-[140px] md:shrink-0">
                                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 truncate" :title="'Qty Butuh' + (getItemUnit(d) ? ' (' + getItemUnit(d) + ')' : '')">
                                             Qty <span v-if="getItemUnit(d)" class="text-primary font-normal text-[10px] lowercase">({{ getItemUnit(d) }})</span>
                                         </label>
@@ -742,15 +796,6 @@ if (prefillItemId) {
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="w-full md:w-[80px] md:shrink-0">
-                                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap" title="Massa Neto Bahan (Gram)">
-                                            Massa (g)
-                                        </label>
-                                        <div class="w-full bg-muted border border-border rounded-md h-9 px-2 text-foreground font-semibold text-xs flex items-center justify-between">
-                                            <span>{{ calculateItemNeto(d).toFixed(2) }}</span>
-                                            <span class="text-muted-foreground font-normal text-[10px]">g</span>
-                                        </div>
-                                    </div>
                                     <div class="w-full md:w-9 md:shrink-0 flex justify-center pb-0.5">
                                         <button type="button" @click="removeDetail(i)" class="h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors" title="Hapus bahan">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -766,11 +811,19 @@ if (prefillItemId) {
                                     <div class="flex-1 text-xs">
                                         <p class="text-foreground leading-relaxed">
                                             <template v-if="d.fefo_info">
-                                                Rekomendasi FEFO: <span class="bg-background border border-border px-1.5 py-0.5 rounded font-medium text-foreground tracking-wide">{{ d.fefo_info.batch_no }}</span> 
-                                                <span class="mx-1.5 text-muted-foreground">|</span> 
-                                                Exp: <strong class="text-foreground">{{ new Date(d.fefo_info.expired_date).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) }}</strong>
-                                                <span class="mx-1.5 text-muted-foreground">|</span> 
-                                                Sisa stok fisik: <strong :class="isOverstock(d) ? 'text-red-600 font-bold' : 'text-foreground'">{{ getRemaining(d) }}</strong>
+                                                <template v-if="d.fefo_info.empty">
+                                                    <span class="text-rose-500 font-medium">Stok habis atau kadaluarsa (Silakan input stok baru)</span>
+                                                </template>
+                                                <template v-else-if="d.fefo_info.error">
+                                                    <span class="text-rose-500">{{ d.fefo_info.error }}</span>
+                                                </template>
+                                                <template v-else>
+                                                    Rekomendasi FEFO: <span class="bg-background border border-border px-1.5 py-0.5 rounded font-medium text-foreground tracking-wide">{{ d.fefo_info.batch_no }}</span> 
+                                                    <span class="mx-1.5 text-muted-foreground">|</span> 
+                                                    Exp: <strong class="text-foreground">{{ new Date(d.fefo_info.expired_date).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) }}</strong>
+                                                    <span class="mx-1.5 text-muted-foreground">|</span> 
+                                                    Sisa stok fisik: <strong :class="isOverstock(d) ? 'text-red-600 font-bold' : 'text-foreground'">{{ getRemaining(d) }}</strong>
+                                                </template>
                                             </template>
                                             <template v-else>
                                                 <span class="text-muted-foreground animate-pulse">Mengambil data batch FEFO terdekat...</span>
@@ -828,11 +881,7 @@ if (prefillItemId) {
                             <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Aturan Pakai <span class="text-red-500">*</span></label>
                             <input v-model="form.label.aturan_pakai" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Contoh: 3 x sehari 1 bungkus sesudah makan" required />
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Pasien</label>
-                                <input v-model="form.label.nama_pasien" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Nama pasien..." />
-                            </div>
+                        <div class="grid grid-cols-1 md:grid-cols-1 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Keterangan Tambahan</label>
                                 <input v-model="form.label.keterangan" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Kocok dahulu, habiskan, dll..." />
@@ -840,7 +889,17 @@ if (prefillItemId) {
                         </div>
                     </div>
 
-                    <div class="pt-4">
+                    <div class="pt-4 space-y-3">
+                        <!-- Error Banner -->
+                        <div v-if="$page.props.flash?.error || Object.keys(form.errors).length > 0" class="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-md p-3">
+                            <div v-if="$page.props.flash?.error" class="text-red-600 dark:text-red-400 text-xs font-medium">
+                                {{ $page.props.flash.error }}
+                            </div>
+                            <ul v-if="Object.keys(form.errors).length > 0" class="text-red-600 dark:text-red-400 text-[11px] font-medium list-disc list-inside mt-1 space-y-0.5">
+                                <li v-for="(error, key) in form.errors" :key="key">{{ error }}</li>
+                            </ul>
+                        </div>
+
                         <button type="submit" :disabled="form.processing || stockSafety.overStock" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-md text-sm font-medium shadow-sm transition-colors uppercase tracking-wider disabled:opacity-50">
                             {{ stockSafety.overStock ? 'Bahan Tidak Mencukupi (Batch Over)' : 'Finalisasi & Cetak Etiket' }}
                         </button>

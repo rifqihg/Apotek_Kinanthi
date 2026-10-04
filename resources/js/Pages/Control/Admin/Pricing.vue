@@ -7,10 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 defineOptions({ layout: ControlLayout });
 
-const formatCurrency = (val) => Number(val) ? 'Rp ' + Number(val).toLocaleString('id-ID') : '-';
+const formatCurrency = (val) => Number(val) ? 'Rp ' + Number(val).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '-';
 
 const props = defineProps({
-    pendingProducts: Array,
+    compoundedProducts: Array,
     medicines: Array,
 });
 
@@ -115,8 +115,29 @@ const submitMedicinePrices = () => {
     });
 };
 
-const submitCompoundedPrice = (product) => {
-    if (!product.temp_harga_jual || product.temp_harga_jual < 1) {
+const isCompoundingModalOpen = ref(false);
+const selectedCompounding = ref(null);
+
+const openCompoundingModal = (product) => {
+    selectedCompounding.value = product;
+    
+    // Initialize default values if empty
+    product.jasa_racik = product.jasa_racik || '';
+    product.biaya_kemasan = product.biaya_kemasan || '';
+    product.margin_percentage = product.margin_percentage || '';
+    
+    calculateMargin(product);
+    isCompoundingModalOpen.value = true;
+};
+
+const closeCompoundingModal = () => {
+    isCompoundingModalOpen.value = false;
+    selectedCompounding.value = null;
+};
+
+const submitCompoundedPrice = () => {
+    const product = selectedCompounding.value;
+    if (!product || !product.temp_harga_jual || product.temp_harga_jual < 1) {
         toast.warning('Peringatan', { description: 'Harga jual harus lebih dari 0' });
         return;
     }
@@ -131,19 +152,25 @@ const submitCompoundedPrice = (product) => {
         preserveScroll: true,
         onSuccess: () => {
             product.temp_harga_jual = '';
+            closeCompoundingModal();
         }
     });
 };
 
-const calculateHargaJual = (product) => {
+const calculateMargin = (product) => {
     const hpp = parseFloat(product.calculated_hpp) || 0;
     const kemasan = parseFloat(product.biaya_kemasan) || 0;
     const jasa = parseFloat(product.jasa_racik) || 0;
-    const margin = parseFloat(product.margin_percentage) || 0;
+    const hargaJual = parseFloat(product.temp_harga_jual) || 0;
     
     const modal = hpp + kemasan + jasa;
     product.total_modal_buat = modal;
-    product.temp_harga_jual = modal + (modal * margin / 100);
+    
+    if (modal > 0 && hargaJual > 0) {
+        product.margin_percentage = Math.round(((hargaJual - modal) / modal) * 100);
+    } else {
+        product.margin_percentage = 0;
+    }
 };
 </script>
 
@@ -155,10 +182,10 @@ const calculateHargaJual = (product) => {
             <div>
                 <div class="mb-4">
                     <h2 class="text-xl font-bold text-foreground flex items-center gap-2">
-                        Racikan Menunggu Penetapan Harga
-                        <span class="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-xs font-semibold px-2 py-0.5 rounded-md">{{ pendingProducts.length }}</span>
+                        Harga Produk Racikan
+                        <span v-if="compoundedProducts.filter(p => p.pricing_status === 'pending_price').length > 0" class="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-xs font-semibold px-2 py-0.5 rounded-md">{{ compoundedProducts.filter(p => p.pricing_status === 'pending_price').length }} Menunggu</span>
                     </h2>
-                    <p class="text-sm text-muted-foreground mt-1">Produk racikan yang sudah selesai diajukan namun belum memiliki harga jual.</p>
+                    <p class="text-sm text-muted-foreground mt-1">Atur harga jual (selling price) untuk produk racikan.</p>
                 </div>
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
@@ -169,17 +196,17 @@ const calculateHargaJual = (product) => {
                                 <TableHead class="min-w-[220px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Nama Produk / Batch</TableHead>
                                 <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">HPP Bahan Baku</TableHead>
                                 <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Jasa Racik</TableHead>
-                                <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Kemasan</TableHead>
+                                <TableHead class="min-w-[100px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Biaya Kemasan</TableHead>
+                                <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Saat Ini</TableHead>
                                 <TableHead class="min-w-[90px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Margin (%)</TableHead>
-                                <TableHead class="min-w-[130px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums whitespace-nowrap">Harga Jual Baru</TableHead>
                                 <TableHead class="min-w-[90px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-if="pendingProducts.length === 0">
-                                <TableCell colspan="7" class="py-8 px-3 text-center text-muted-foreground text-xs">Semua produk racikan sudah ditetapkan harganya.</TableCell>
+                            <TableRow v-if="compoundedProducts.length === 0">
+                                <TableCell colspan="7" class="py-8 px-3 text-center text-muted-foreground text-xs">Belum ada produk racikan.</TableCell>
                             </TableRow>
-                            <TableRow v-for="product in pendingProducts" :key="product.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <TableRow v-for="product in compoundedProducts" :key="product.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                                 <TableCell class="py-2 px-3 align-middle break-words">
                                     <div class="flex flex-col">
                                         <span class="text-sm font-medium text-foreground leading-snug break-words">{{ product.nama_produk }}</span>
@@ -191,22 +218,39 @@ const calculateHargaJual = (product) => {
                                     </div>
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right">
-                                    <span class="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 block">Rp {{ Number(product.calculated_hpp).toLocaleString('id-ID') }}</span>
+                                    <span class="text-sm font-semibold tabular-nums block" :class="product.calculated_hpp > 0 ? 'text-foreground' : 'text-amber-600 dark:text-amber-400 italic text-xs'">
+                                        {{ product.calculated_hpp > 0 ? 'Rp ' + Number(product.calculated_hpp).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : 'Belum diset' }}
+                                    </span>
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right">
-                                    <input type="number" v-model="product.jasa_racik" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                    <span class="text-sm font-semibold tabular-nums block" :class="product.calculated_jasa > 0 ? 'text-foreground' : 'text-muted-foreground/40 text-xs'">
+                                        {{ product.calculated_jasa > 0 ? 'Rp ' + Number(product.calculated_jasa).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '-' }}
+                                    </span>
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-right">
-                                    <input type="number" v-model="product.biaya_kemasan" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                    <span class="text-sm font-semibold tabular-nums block" :class="product.calculated_kemasan > 0 ? 'text-foreground' : 'text-muted-foreground/40 text-xs'">
+                                        {{ product.calculated_kemasan > 0 ? 'Rp ' + Number(product.calculated_kemasan).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '-' }}
+                                    </span>
+                                </TableCell>
+                                <TableCell class="py-2 px-3 align-middle text-right">
+                                    <span class="text-sm font-semibold tabular-nums block" :class="product.harga_jual > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400 italic text-xs'">
+                                        {{ product.harga_jual > 0 ? 'Rp ' + Number(product.harga_jual).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : 'Belum diset' }}
+                                    </span>
                                 </TableCell>
                                 <TableCell class="py-2 px-3 align-middle text-center">
-                                    <input type="number" v-model="product.margin_percentage" @input="calculateHargaJual(product)" class="w-full h-7 text-xs text-center border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="0">
+                                    <span v-if="product.calculated_margin !== null"
+                                          class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
+                                          :class="product.calculated_margin < 0 ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'">
+                                        <span>{{ product.calculated_margin > 0 ? '+' : '' }}{{ product.calculated_margin }}%</span>
+                                    </span>
+                                    <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-right">
-                                    <input type="number" v-model="product.temp_harga_jual" class="w-full h-7 text-xs text-right border border-input bg-background rounded px-2 focus:border-primary focus:ring-1 focus:ring-primary font-medium tabular-nums" placeholder="Input harga">
-                                </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-center">
-                                    <button @click="submitCompoundedPrice(product)" class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-7 px-3 rounded text-xs transition-colors w-full shadow-sm">Tetapkan</button>
+                                <TableCell class="py-2.5 px-3 align-middle text-center">
+                                    <button @click="openCompoundingModal(product)" 
+                                            class="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 font-medium h-7 px-2.5 rounded text-xs transition-colors inline-flex items-center justify-center gap-1 w-full max-w-[80px]">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                        Atur
+                                    </button>
                                 </TableCell>
                             </TableRow>
                         </TableBody>
@@ -472,6 +516,68 @@ const calculateHargaJual = (product) => {
                 <div class="p-4 sm:p-6 bg-muted/30 border-t border-border flex gap-3">
                     <button @click="closePriceModal" class="flex-1 bg-background border border-input text-foreground hover:bg-accent font-medium h-9 rounded-md text-sm transition-colors">Batal</button>
                     <button @click="submitMedicinePrices" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9 rounded-md text-sm transition-colors shadow-sm">Simpan Harga</button>
+                </div>
+            </div>
+            </div>
+        </Teleport>
+
+        <!-- MODAL ATUR HARGA RACIKAN -->
+        <Teleport to="body">
+            <div v-if="isCompoundingModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-background/80 backdrop-blur-sm" @click="closeCompoundingModal"></div>
+            <div class="relative bg-card rounded-lg shadow-lg w-full max-w-md overflow-hidden flex flex-col border border-border">
+                <div class="p-6 border-b border-border bg-muted/30">
+                    <h3 class="text-base font-semibold text-foreground tracking-tight">Atur Harga Jual Racikan</h3>
+                    <p class="text-xs text-muted-foreground mt-1" v-if="selectedCompounding">Produk: <span class="font-semibold text-foreground">{{ selectedCompounding.nama_produk }}</span></p>
+                </div>
+                
+                <div class="p-6 space-y-4 flex-1 overflow-y-auto" v-if="selectedCompounding">
+                    <!-- HPP Bahan Baku Info -->
+                    <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between">
+                        <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">HPP Bahan Baku (Dari Formula)</span>
+                        <span class="text-sm font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">Rp {{ Number(selectedCompounding.calculated_hpp).toLocaleString('id-ID', { maximumFractionDigits: 0 }) }}</span>
+                    </div>
+
+                    <!-- Input Jasa Racik & Kemasan -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1.5">Jasa Racik (Rp)</label>
+                            <input type="number" v-model="selectedCompounding.jasa_racik" @input="calculateMargin(selectedCompounding)" class="w-full h-9 text-sm border border-input rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-semibold bg-background px-3" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1.5">Kemasan (Rp)</label>
+                            <input type="number" v-model="selectedCompounding.biaya_kemasan" @input="calculateMargin(selectedCompounding)" class="w-full h-9 text-sm border border-input rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-semibold bg-background px-3" placeholder="0">
+                        </div>
+                    </div>
+
+                    <hr class="border-border">
+
+                    <!-- Hasil Akhir -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-semibold text-muted-foreground">Total Modal (HPP + Jasa + Kemasan)</span>
+                            <span class="text-xs font-semibold tabular-nums text-foreground">Rp {{ Number(selectedCompounding.total_modal_buat || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 }) }}</span>
+                        </div>
+                        <label class="block text-xs font-semibold text-foreground mb-1.5 mt-2 flex justify-between">
+                            Harga Jual Baru (Rp)
+                            <span class="text-amber-500 text-[10px] font-normal">(Input)</span>
+                        </label>
+                        <input type="number" v-model="selectedCompounding.temp_harga_jual" @input="calculateMargin(selectedCompounding)" class="w-full h-10 text-base border border-input rounded-md focus:border-emerald-500 focus:ring-emerald-500 font-bold bg-background px-3 text-emerald-600 dark:text-emerald-400" placeholder="0">
+                    </div>
+
+                    <!-- Margin -->
+                    <div class="bg-muted/50 p-3 rounded-lg border border-border flex items-center justify-between mt-2">
+                        <label class="block text-xs font-semibold text-muted-foreground">Margin Dihasilkan (%)</label>
+                        <span class="text-sm font-bold px-2 py-0.5 rounded border flex items-center justify-center min-w-[60px]"
+                              :class="selectedCompounding.margin_percentage < 0 ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'">
+                            {{ selectedCompounding.margin_percentage > 0 ? '+' : '' }}{{ selectedCompounding.margin_percentage || 0 }}%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="p-4 sm:p-6 bg-muted/30 border-t border-border flex gap-3">
+                    <button @click="closeCompoundingModal" class="flex-1 bg-background border border-input text-foreground hover:bg-accent font-medium h-9 rounded-md text-sm transition-colors">Batal</button>
+                    <button @click="submitCompoundedPrice" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9 rounded-md text-sm transition-colors shadow-sm">Tetapkan Harga</button>
                 </div>
             </div>
             </div>

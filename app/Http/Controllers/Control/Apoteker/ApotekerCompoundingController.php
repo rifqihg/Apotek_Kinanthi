@@ -32,7 +32,7 @@ class ApotekerCompoundingController extends Controller
         $status = $request->query('status');
         $unit = $request->query('unit');
 
-        $query = CompoundingSubmission::with(['details.rawMaterial', 'details.medicine', 'label', 'formula', 'user'])
+        $query = CompoundingSubmission::with(['details.rawMaterial', 'details.medicine', 'label', 'formula', 'user', 'compoundedProduct'])
             ->where('user_id', auth()->id());
 
         if ($request->filled('status') && $status !== 'all') {
@@ -77,7 +77,7 @@ class ApotekerCompoundingController extends Controller
     public function submissionsReference()
     {
         return response()->json([
-            'formulas' => CompoundingFormula::active()->select('id', 'nama_resep', 'kategori_sediaan')->get(),
+            'formulas' => CompoundingFormula::with('ingredients')->active()->get(),
             'rawMaterials' => RawMaterial::select('id', 'nama_bahan', 'satuan_dasar_penggunaan', 'satuan_pembelian', 'rasio_konversi')->get(),
             'medicines' => Medicine::select('id', 'nama_obat', 'satuan_stok', 'stok_total')->where('stok_total', '>', 0)->orderBy('nama_obat')->get(),
         ]);
@@ -94,8 +94,8 @@ class ApotekerCompoundingController extends Controller
             'formula_id' => 'nullable|exists:compounding_formulas,id',
             'apoteker_note' => 'nullable|string|max:1000',
             'jumlah_unit' => 'required|numeric|min:1', // Target Jadi
-            'target_unit' => 'required|string|in:Kapsul,Puyer,Botol,Pot',
-            'berat_per_unit' => 'required|numeric|min:0.01', // Berat/Unit (g)
+            'target_unit' => 'required|string|in:Kapsul,Puyer,Botol,Pot,Tube,Sachet',
+            'berat_per_unit' => 'required|numeric|min:0', // 0 diizinkan jika sediaan non-massa (sirup/cair)
             'bahan_baku' => 'required|array|min:1',
             'bahan_baku.*.source_type' => 'nullable|in:raw_material,medicine',
             'bahan_baku.*.id_batch' => 'required', // ID raw_material atau medicine
@@ -236,7 +236,7 @@ class ApotekerCompoundingController extends Controller
             'filler_qty' => $fillerQty,
             'unit_weight_target' => $v['berat_per_unit'],
             'apoteker_note' => $v['apoteker_note'] ?? null,
-            'status' => 'approved', 
+            'status' => 'pending_final_verification',
             'prescription_id' => $v['prescription_id'] ?? null,
             'prescription_item_id' => $v['prescription_item_id'] ?? null,
         ]);
@@ -380,11 +380,8 @@ class ApotekerCompoundingController extends Controller
             }
         }
 
-        // 4. Buat Record Produksi & Label Etiket (AUTO-PRICING ENGINE)
+        // 4. Buat Record Produksi & Label Etiket (PENDING PRICING)
         $hppPerUnit = $totalBaseCost / max($v['jumlah_unit'], 1);
-        $marginMultiplier = 1.30; // 30% Margin apotek standar
-        $jasaResep = 5000; // Flat fee jasa racik (Tuslah)
-        $hargaJual = ceil(($hppPerUnit * $marginMultiplier) + $jasaResep);
 
         $cp = CompoundedProduct::create([
             'compounding_submission_id' => $sub->id,
@@ -396,9 +393,9 @@ class ApotekerCompoundingController extends Controller
             'satuan' => $v['target_unit'],
             'base_cost' => $totalBaseCost,
             'hpp_per_unit' => $hppPerUnit,
-            'harga_jual' => $hargaJual,
-            'status' => 'active',          // Otomatis aktif
-            'pricing_status' => 'priced',  // Otomatis berharga jual
+            'harga_jual' => 0, // Akan di-set oleh Admin di menu Penetapan Harga
+            'status' => 'draft',             // Menunggu approval admin
+            'pricing_status' => 'pending_price', // Dilempar ke antrean pricing admin
             'created_by' => $user->id,
         ]);
 
@@ -427,9 +424,9 @@ class ApotekerCompoundingController extends Controller
             }
         }
 
-        AuditTrail::log($user->id, 'CREATE_COMPOUNDING', "Submit Racikan: {$sub->nama_racikan}. Stok batch dikunci. Harga jual diset otomatis Rp. " . number_format($hargaJual, 0, ',', '.'), CompoundingSubmission::class, $sub->id);
+        AuditTrail::log($user->id, 'CREATE_COMPOUNDING', "Submit Racikan: {$sub->nama_racikan}. Stok batch dikunci. Menunggu penetapan harga oleh Admin.", CompoundingSubmission::class, $sub->id);
 
-        return redirect()->back()->with('success', 'Racikan Selesai! Tagihan telah terbit otomatis (Auto-Margin) dan dapat langsung dibayar di Kasir.');
+        return redirect()->back()->with('success', 'Racikan Selesai! Data diteruskan ke Admin untuk Penetapan Harga (Biaya Kemasan & Margin).');
     }
 
     /**

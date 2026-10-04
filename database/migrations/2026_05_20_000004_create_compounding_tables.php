@@ -58,6 +58,8 @@ return new class extends Migration
             $table->text('admin_note')->nullable();
             $table->decimal('total_hpp_bahan', 15, 2)->default(0);
             $table->decimal('biaya_tuslah', 15, 2)->default(0);
+            $table->decimal('jasa_racik', 15, 2)->default(0);
+            $table->decimal('biaya_kemasan', 15, 2)->default(0);
             $table->decimal('total_hpp_racikan', 15, 2)->default(0);
             $table->decimal('harga_jual_racikan', 15, 2)->default(0);
             $table->timestamp('approved_at')->nullable();

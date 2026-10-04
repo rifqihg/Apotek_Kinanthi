@@ -60,6 +60,8 @@ const resetAllFilters = () => {
 };
 
 const showModal = ref(false);
+const editMode = ref(false);
+const editId = ref(null);
 const form = useForm({ 
     nama_resep: '', 
     kategori_sediaan: '', 
@@ -70,6 +72,35 @@ const form = useForm({
     instruksi_racik: '',
     ingredients: []
 });
+
+const editFormula = (f) => {
+    editMode.value = true;
+    editId.value = f.id;
+    
+    form.clearErrors();
+    form.nama_resep = f.nama_resep || '';
+    form.kategori_sediaan = f.kategori_sediaan || '';
+    form.target_qty = f.target_qty || '';
+    form.target_unit = f.target_unit || '';
+    form.signa_default = f.signa_default || '';
+    form.bud_days = f.bud_days || 14;
+    form.instruksi_racik = f.instruksi_racik || '';
+    
+    form.ingredients = [];
+    if (f.ingredients && f.ingredients.length > 0) {
+        f.ingredients.forEach(ing => {
+            form.ingredients.push({
+                _key: Date.now() + Math.random(),
+                source_type: ing.source_type,
+                source_id: ing.source_id,
+                qty_required: ing.qty_required,
+                unit_label: ing.unit || ''
+            });
+        });
+    }
+    
+    showModal.value = true;
+};
 
 const addIngredient = (type) => {
     form.ingredients.push({
@@ -92,7 +123,7 @@ const updateUnit = (index) => {
         ing.unit_label = med ? med.satuan_stok : '';
     } else {
         const rm = props.rawMaterials.find(r => r.id === ing.source_id);
-        ing.unit_label = rm ? rm.satuan : '';
+        ing.unit_label = rm ? rm.satuan_dasar_penggunaan : '';
     }
 };
 
@@ -121,13 +152,25 @@ const stats = computed(() => {
 });
 
 function submit() { 
-    form.post(route('control.apoteker.formulas.store'), { 
-        preserveScroll: true,
-        onSuccess: () => { 
-            showModal.value = false; 
-            form.reset(); 
-        } 
-    }); 
+    if (editMode.value && editId.value) {
+        form.put(route('control.apoteker.formulas.update', editId.value), {
+            preserveScroll: true,
+            onSuccess: () => { 
+                showModal.value = false; 
+                form.reset(); 
+                editMode.value = false;
+                editId.value = null;
+            }
+        });
+    } else {
+        form.post(route('control.apoteker.formulas.store'), { 
+            preserveScroll: true,
+            onSuccess: () => { 
+                showModal.value = false; 
+                form.reset(); 
+            } 
+        }); 
+    }
 }
 </script>
 
@@ -179,7 +222,7 @@ function submit() {
                         <option value="Salep">Salep</option>
                     </select>
 
-                    <button @click="showModal=true;form.reset();form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <button @click="editMode=false;editId=null;showModal=true;form.reset();form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                         <span>Buat Formula</span>
                     </button>
@@ -254,17 +297,26 @@ function submit() {
                 <p v-else class="text-muted-foreground text-xs mt-1 max-w-sm">Klik tombol Tambah Formula Baru untuk mulai membangun basis data instruksi racikan standar.</p>
             </div>
 
-            <div v-for="f in (formulas?.data || [])" :key="f.id" class="bg-card border border-border rounded-lg p-5 shadow-sm hover:shadow-md transition-all flex flex-col group">
-                <div class="flex items-start justify-between mb-3">
-                    <div class="w-9 h-9 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    </div>
-                    <span class="inline-flex items-center bg-muted text-muted-foreground border border-border text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider">
-                        {{ f.kategori_sediaan || 'Kustom' }}
-                    </span>
+            <div v-for="f in (formulas?.data || [])" :key="f.id" class="bg-card border border-slate-300 dark:border-slate-700 rounded-md p-5 transition-colors hover:border-emerald-500 flex flex-col group relative">
+                <!-- Edit Action -->
+                <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" @click="editFormula(f)" class="p-1.5 text-muted-foreground hover:text-emerald-600 bg-background border border-border hover:border-emerald-500 rounded-md shadow-sm transition-colors" title="Lihat/Edit Formula">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </button>
                 </div>
-                <h2 class="text-foreground font-semibold text-sm leading-tight mb-2">{{ f.nama_resep }}</h2>
-                <p class="text-muted-foreground text-xs leading-relaxed line-clamp-3 flex-1">{{ f.instruksi_racik || 'Tidak ada instruksi khusus pemrosesan.' }}</p>
+                
+                <h2 class="text-foreground font-bold text-base sm:text-lg leading-tight pr-8 mb-1 tracking-tight">{{ f.nama_resep }}</h2>
+                <div class="flex items-center gap-1.5 mb-4">
+                    <span class="text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] uppercase tracking-wider">{{ f.kategori_sediaan || 'Kustom' }}</span>
+                    <span class="text-slate-300 dark:text-slate-600 text-[10px]">&bull;</span>
+                    <span class="text-muted-foreground text-[10px] font-medium">{{ f.ingredients?.length || 0 }} Komposisi</span>
+                </div>
+                
+                <div class="bg-muted/30 border border-border/50 rounded-md p-3 flex-1 mt-auto">
+                    <p class="text-muted-foreground text-xs leading-relaxed line-clamp-2" :class="!f.instruksi_racik ? 'italic opacity-70' : ''">
+                        {{ f.instruksi_racik || 'Tidak ada instruksi khusus pemrosesan.' }}
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -302,7 +354,7 @@ function submit() {
             <div class="relative bg-card rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-border">
                 <div class="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
                     <div>
-                        <h3 class="text-foreground font-semibold text-base">Registrasi Formula Baru</h3>
+                        <h3 class="text-foreground font-semibold text-base">{{ editMode ? 'Lihat / Edit Formula' : 'Registrasi Formula Baru' }}</h3>
                         <p class="text-xs text-muted-foreground mt-0.5">Standarisasi alur kerja compounding.</p>
                     </div>
                 </div>
@@ -372,10 +424,10 @@ function submit() {
                             </div>
                             
                             <!-- Input Kuantitas -->
-                            <div class="w-28 relative flex-shrink-0 flex items-center">
-                                <input v-model="ing.qty_required" type="number" min="0.01" step="any" placeholder="Qty" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground pr-[42px] pl-2 focus:ring-1 focus:ring-ring outline-none" required />
+                            <div class="w-40 sm:w-44 relative flex-shrink-0 flex items-center">
+                                <input v-model="ing.qty_required" type="number" min="0.01" step="any" placeholder="Qty" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground pr-[92px] pl-2 focus:ring-1 focus:ring-ring outline-none" required />
                                 <div class="absolute right-1 flex items-center justify-center pointer-events-none">
-                                    <span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider truncate max-w-[38px]" :title="ing.unit_label || '-'">{{ ing.unit_label || '-' }}</span>
+                                    <span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider truncate max-w-[85px]" :title="ing.unit_label || '-'">{{ ing.unit_label || '-' }}</span>
                                 </div>
                             </div>
                             
@@ -408,7 +460,7 @@ function submit() {
 
                     <div class="flex justify-end gap-2 pt-4 border-t border-border">
                         <button type="button" @click="showModal=false" class="px-4 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-md text-sm font-medium transition-colors">Batal</button>
-                        <button type="submit" :disabled="form.processing || form.ingredients.length === 0" class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors disabled:opacity-50">Simpan Formula Master</button>
+                        <button type="submit" :disabled="form.processing || form.ingredients.length === 0" class="px-4 h-9 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm font-medium shadow-sm transition-colors disabled:opacity-50">{{ editMode ? 'Simpan Perubahan' : 'Simpan Formula Master' }}</button>
                     </div>
                 </form>
             </div>

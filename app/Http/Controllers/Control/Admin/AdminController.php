@@ -47,20 +47,25 @@ class AdminController extends Controller
     {
         // 1. FILTER 1D: HARI INI PER MENIT DALAM JAM OPERASIONAL APOTEK (08:00 - 22:00)
         if ($period === '1D') {
-            $today = Carbon::today();
-            $startOfDay = $today->copy()->setTime(8, 0, 0);
-            $endOfDay = $today->copy()->setTime(22, 0, 0);
+            $today = Carbon::today('Asia/Jakarta');
+            $localStart = $today->copy()->setTime(8, 0, 0);
+            $localEnd = $today->copy()->setTime(22, 0, 0);
+
+            // Konversi ke UTC untuk query database karena Laravel menyimpan timestamp UTC
+            $utcStart = $localStart->copy()->timezone('UTC');
+            $utcEnd = $localEnd->copy()->timezone('UTC');
 
             // Ambil seluruh penjualan kasir hari ini dalam rentang jam operasional
             $salesToday = Sale::query()
                 ->where('status', 'paid')
-                ->where('created_at', '>=', $startOfDay)
-                ->where('created_at', '<=', $endOfDay)
+                ->where('created_at', '>=', $utcStart)
+                ->where('created_at', '<=', $utcEnd)
                 ->get(['created_at', 'total_amount']);
 
             $salesByMinute = [];
             foreach ($salesToday as $sale) {
-                $m = $sale->created_at->format('H:i');
+                // Konversi kembali timestamp UTC ke WIB (Asia/Jakarta) sebelum melabeli sumbu X
+                $m = $sale->created_at->timezone('Asia/Jakarta')->format('H:i');
                 if (!isset($salesByMinute[$m])) {
                     $salesByMinute[$m] = ['sales' => 0.0, 'tx' => 0];
                 }
@@ -68,10 +73,10 @@ class AdminController extends Controller
                 $salesByMinute[$m]['tx'] += 1;
             }
 
-            // Bangun deret waktu per menit dari 08:00 hingga 22:00 (gaya chart intraday Stockbit)
+            // Bangun deret waktu per menit dari 08:00 hingga 22:00
             $trend = [];
-            $cursor = $startOfDay->copy();
-            while ($cursor <= $endOfDay) {
+            $cursor = $localStart->copy();
+            while ($cursor <= $localEnd) {
                 $timeLabel = $cursor->format('H:i');
                 $hasData = isset($salesByMinute[$timeLabel]);
 
