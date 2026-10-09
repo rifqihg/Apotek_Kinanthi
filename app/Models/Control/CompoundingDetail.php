@@ -76,7 +76,7 @@ class CompoundingDetail extends Model
     {
         $query = $type === 'raw_material'
             ? RawMaterialStock::where('raw_material_id', $itemId)
-            : WarehouseInventory::where('medicine_id', $itemId);
+            : WarehouseInventory::where('medicine_id', $itemId)->where('location_type', 'gudang');
 
         return $query->where('stock_on_hand', '>', 0)
             ->where('expired_date', '>', now())

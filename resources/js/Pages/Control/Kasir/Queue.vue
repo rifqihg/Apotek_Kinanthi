@@ -16,13 +16,15 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
-const date = ref(props.filters?.date || new Date().toISOString().split('T')[0]);
+const startDate = ref(props.filters?.start_date || new Date().toISOString().split('T')[0]);
+const endDate = ref(props.filters?.end_date || new Date().toISOString().split('T')[0]);
 const isSearching = ref(false);
 
 const applyFilters = () => {
     isSearching.value = true;
     router.get(route(route().current()), {
-        date: date.value || undefined,
+        start_date: startDate.value || undefined,
+        end_date: endDate.value || undefined,
         search: search.value || undefined,
         page: 1,
     }, {
@@ -43,7 +45,7 @@ watch(search, (newVal, oldVal) => {
     if (newVal !== oldVal) debouncedSearch();
 });
 
-watch(date, () => {
+watch([startDate, endDate], () => {
     applyFilters();
 });
 
@@ -286,7 +288,7 @@ const submitVoid = () => {
                     </div>
                     <div>
                         <h3 class="text-base font-bold text-foreground">Ringkasan Kas Shift Berjalan</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi transaksi kasir aktif pada tanggal {{ formatDate(date) }}.</p>
+                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi transaksi kasir aktif pada periode {{ startDate === endDate ? formatDate(startDate) : formatDate(startDate) + ' s/d ' + formatDate(endDate) }}.</p>
                     </div>
                 </div>
                 <button
@@ -338,7 +340,9 @@ const submitVoid = () => {
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <input type="date" v-model="date" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" />
+                    <input type="date" v-model="startDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Awal" />
+                    <span class="text-muted-foreground text-xs font-medium">-</span>
+                    <input type="date" v-model="endDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Akhir" />
                 </div>
             </div>
 
@@ -351,12 +355,12 @@ const submitVoid = () => {
                     <thead class="bg-muted/50 border-b border-border">
                         <tr>
                             <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[150px] whitespace-nowrap">No Invoice</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[150px] whitespace-nowrap">Pasien</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[120px] whitespace-nowrap">Total</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[90px] whitespace-nowrap">Metode</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[120px] whitespace-nowrap">Pasien</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[150px] whitespace-nowrap">Total Pembelian</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Metode</th>
                             <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Status</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[90px] whitespace-nowrap">Waktu</th>
-                            <th class="no-print px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[100px] whitespace-nowrap">Aksi</th>
+                            <th class="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[90px] whitespace-nowrap">Waktu</th>
+                            <th class="no-print px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
@@ -364,15 +368,15 @@ const submitVoid = () => {
                             <td class="px-4 py-3">
                                 <span class="font-semibold text-foreground text-sm">{{ sale.sale_number }}</span>
                             </td>
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 text-center">
                                 <span class="font-medium text-foreground text-sm">{{ sale.prescription?.patient?.name || 'OTC' }}</span>
                             </td>
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 text-right">
                                 <span :class="sale.status === 'cancelled' ? 'line-through text-muted-foreground' : 'text-emerald-600 dark:text-emerald-400'" class="font-semibold text-sm">
                                     {{ formatRupiah(sale.total_amount) }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 text-center">
                                 <span class="uppercase font-medium text-xs bg-muted border border-border text-muted-foreground px-2 py-0.5 rounded-md">
                                     {{ sale.payment_method }}
                                 </span>
@@ -385,10 +389,10 @@ const submitVoid = () => {
                                     Lunas
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs text-muted-foreground">{{ formatTime(sale.created_at) }}</span>
+                            <td class="px-4 py-3 text-center">
+                                <span class="font-medium text-foreground text-sm">{{ formatTime(sale.created_at) }}</span>
                             </td>
-                            <td class="no-print px-4 py-3 text-right">
+                            <td class="no-print px-4 py-3 text-center">
                                 <div class="inline-flex items-center gap-3">
                                     <Link :href="route('control.kasir.sales.receipt', sale.id)" class="text-primary hover:underline font-medium text-xs">
                                         Lihat Struk

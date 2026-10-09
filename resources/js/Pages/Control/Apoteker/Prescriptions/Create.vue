@@ -28,9 +28,14 @@ const form = useForm({
             medicine_id: '',
             compounded_product_id: '',
             custom_formula_name: '',
+            custom_formula_notes: '',
             quantity: 1,
             unit: '',
+            dosage_instruction: '',
             usage_instructions: '',
+            item_notes: '',
+            is_iter: false,
+            iter_count: 0,
             racikan_source: 'master' // local ui state: 'master' or 'baru'
         }
     ]
@@ -80,9 +85,14 @@ const addItem = () => {
         medicine_id: '',
         compounded_product_id: '',
         custom_formula_name: '',
+        custom_formula_notes: '',
         quantity: 1,
         unit: '',
+        dosage_instruction: '',
         usage_instructions: '',
+        item_notes: '',
+        is_iter: false,
+        iter_count: 0,
         racikan_source: 'master'
     });
 };
@@ -182,17 +192,13 @@ const savePatient = async () => {
                     <!-- SIP Dokter -->
                     <div class="md:col-span-4">
                         <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                            SIP Dokter
-                            <span v-if="hasControlledMedicine" class="text-red-500 font-bold ml-0.5">* (Wajib SIP)</span>
-                            <span v-else class="text-muted-foreground font-normal ml-0.5">(Opsional)</span>
+                            SIP Dokter <span class="text-muted-foreground font-normal ml-0.5">(Opsional)</span>
                         </label>
                         <input 
                             v-model="form.doctor_sip" 
                             type="text" 
-                            class="w-full bg-background border rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors"
-                            :class="hasControlledMedicine && !form.doctor_sip ? 'border-red-500 ring-1 ring-red-500/30' : 'border-input'"
+                            class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors"
                             placeholder="Contoh: 446/123/SIP.D/2026" 
-                            :required="hasControlledMedicine"
                         />
                         <p v-if="form.errors.doctor_sip" class="text-red-600 text-xs mt-1">{{ form.errors.doctor_sip }}</p>
                     </div>
@@ -239,16 +245,17 @@ const savePatient = async () => {
                         </button>
                         
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
-                            <div class="md:col-span-3">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tipe Item</label>
+                            <!-- Baris 1: Tipe, Nama, Qty, Iter -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Tipe Item <span class="text-red-500">*</span></label>
                                 <select v-model="item.item_type" @change="handleItemTypeChange(idx)" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors">
                                     <option value="obat_jadi">Obat Jadi</option>
                                     <option value="racikan">Racikan</option>
                                 </select>
                             </div>
 
-                            <div class="md:col-span-6">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Item</label>
+                            <div class="md:col-span-5">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Item <span class="text-red-500">*</span></label>
                                 
                                 <template v-if="item.item_type === 'obat_jadi'">
                                     <select v-model="item.medicine_id" @change="handleMedicineChange(idx)" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" required>
@@ -261,11 +268,11 @@ const savePatient = async () => {
                                     <div class="flex gap-4 mb-1.5">
                                         <label class="flex items-center gap-1.5 text-xs font-medium text-foreground cursor-pointer">
                                             <input type="radio" v-model="item.racikan_source" value="master" class="text-emerald-600 focus:ring-emerald-500" @change="item.custom_formula_name='';item.unit=''" />
-                                            Pilih dari Master
+                                            Master
                                         </label>
                                         <label class="flex items-center gap-1.5 text-xs font-medium text-foreground cursor-pointer">
                                             <input type="radio" v-model="item.racikan_source" value="baru" class="text-emerald-600 focus:ring-emerald-500" @change="item.compounded_product_id='';item.unit=''" />
-                                            Formula Baru
+                                            Baru
                                         </label>
                                     </div>
 
@@ -282,16 +289,44 @@ const savePatient = async () => {
                             </div>
 
                             <div class="md:col-span-3">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Instruksi Pakai</label>
-                                <input v-model="item.usage_instructions" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="3x1 sesudah makan" />
-                            </div>
-
-                            <div class="md:col-span-3">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Quantity</label>
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Quantity <span class="text-red-500">*</span></label>
                                 <div class="flex gap-2">
                                     <input v-model.number="item.quantity" type="number" step="0.01" min="0.01" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm font-semibold focus:ring-1 focus:ring-ring outline-none transition-colors" required />
                                     <input v-model="item.unit" type="text" class="w-20 bg-muted border border-input rounded-md px-2 h-9 text-foreground text-xs font-medium focus:ring-1 focus:ring-ring outline-none text-center" :readonly="item.item_type === 'obat_jadi' || item.racikan_source === 'master'" placeholder="Satuan" required />
                                 </div>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Iter (Pengulangan)</label>
+                                <div class="flex items-center gap-2 h-9">
+                                    <label class="flex items-center gap-1.5 text-xs font-medium text-foreground cursor-pointer shrink-0">
+                                        <input type="checkbox" v-model="item.is_iter" class="text-emerald-600 rounded focus:ring-emerald-500" />
+                                        Ya
+                                    </label>
+                                    <input v-if="item.is_iter" v-model.number="item.iter_count" type="number" min="1" class="w-full bg-background border border-input rounded-md h-8 px-2 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Berapa x" required />
+                                </div>
+                            </div>
+
+                            <!-- Baris 2: Dosis, Instruksi Pakai, Keterangan Tambahan -->
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Dosis <span class="text-red-500">*</span></label>
+                                <input v-model="item.dosage_instruction" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Cth: 500mg, 1 Tab, 1 Cth" required />
+                            </div>
+
+                            <div class="md:col-span-4">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Aturan Pakai (Sig) <span class="text-red-500">*</span></label>
+                                <input v-model="item.usage_instructions" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Cth: 3x1 sesudah makan" required />
+                            </div>
+
+                            <div class="md:col-span-5">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Keterangan Spesifik</label>
+                                <input v-model="item.item_notes" type="text" class="w-full bg-background border border-input rounded-md h-9 px-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors" placeholder="Cth: Habiskan, Bila Demam, Telinga Kiri" />
+                            </div>
+
+                            <!-- Baris 3: Komposisi Racikan Kustom (Hanya jika racikan baru) -->
+                            <div v-if="item.item_type === 'racikan' && item.racikan_source === 'baru'" class="md:col-span-12 mt-1">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Isi / Komposisi Resep Dokter <span class="text-red-500">*</span></label>
+                                <textarea v-model="item.custom_formula_notes" rows="2" class="w-full bg-background border border-input rounded-md p-3 text-foreground text-sm focus:ring-1 focus:ring-ring outline-none transition-colors resize-none" placeholder="Salin persis dari resep dokter. Cth: R/ Paracetamol 250mg, CTM 2mg, m.f. pulv dtd no X..." required></textarea>
                             </div>
                         </div>
                     </div>

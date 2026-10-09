@@ -66,7 +66,6 @@ class AdminStockOpnameController extends Controller
                 ])
                 ->orderBy('nama_obat')
                 ->get(),
-            'categories' => Category::select(['id', 'name'])->orderBy('name')->get(),
             'rawMaterials' => RawMaterial::where('status', 'active')
                 ->select(['id', 'nama_bahan', 'satuan_dasar_penggunaan as satuan_ukur', 'category_id'])
                 ->with([
@@ -88,8 +87,8 @@ class AdminStockOpnameController extends Controller
             'tanggal_opname' => 'required|date',
             'keterangan' => 'nullable|string|max:1000',
             'mode' => 'nullable|in:worksheet,manual',
-            'scope_type' => 'nullable|in:all,category,raw_materials',
-            'category_id' => 'nullable|exists:categories,id',
+            'scope_type' => 'nullable|in:all,raw_materials,sipnap',
+            'classification' => 'nullable|in:narkotika,psikotropika,prekursor,oot',
             'items' => 'nullable|array',
             'items.*.type' => 'nullable|in:medicine,raw_material',
             'items.*.medicine_id' => 'nullable|exists:medicines,id',
@@ -139,9 +138,9 @@ class AdminStockOpnameController extends Controller
                         ->where('stock_on_hand', '>', 0)
                         ->where(fn($q) => $q->where('location_type', '!=', 'kasir')->orWhereNull('location_type'));
 
-                    if ($scope === 'category' && !empty($v['category_id'])) {
-                        $catId = $v['category_id'];
-                        $inventoryQuery->whereHas('medicine', fn($q) => $q->where('category_id', $catId));
+                    if ($scope === 'sipnap' && !empty($v['classification'])) {
+                        $classification = strtolower($v['classification']);
+                        $inventoryQuery->whereHas('medicine', fn($q) => $q->where('classification', $classification));
                     }
 
                     $batches = $inventoryQuery->orderBy('medicine_id')->get();

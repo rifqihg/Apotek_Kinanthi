@@ -36,7 +36,7 @@ class ApotekerInventoryController extends Controller
             ->get();
 
         $medicines = Medicine::select(['id', 'kode_obat', 'nama_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total', 'category_id'])
-            ->with(['warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'shelf_location', 'rack_location'])
+            ->with(['warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'location_type', 'shelf_location', 'rack_location'])
                 ->active()
                 ->where('stock_on_hand', '>', 0)
                 ->orderBy('expired_date')
@@ -61,16 +61,6 @@ class ApotekerInventoryController extends Controller
 
 
     /**
-     * Display audit trail log of stock movements for Apoteker.
-     */
-    public function auditLogs()
-    {
-        return Inertia::render('Control/Apoteker/StockAudit', [
-            'logs' => StockLog::with(['user', 'rawMaterial', 'medicine'])->latest()->paginate(25),
-        ]);
-    }
-
-    /**
      * Compute SIPNAP data for a given Y-m month.
      */
     private function getSipnapData(string $month): array
@@ -92,36 +82,57 @@ class ApotekerInventoryController extends Controller
             ->get();
 
         $reportData = $controlledMedicines->map(function ($med) use ($startOfMonth, $endOfMonth) {
-            // 1. Mutasi SEBELUM tanggal 1 bulan terpilih
-            $masukBefore = (float) IncomingStock::where('medicine_id', $med->id)
-                ->where('status_gate', 'active')
-                ->where('created_at', '<', $startOfMonth)
-                ->sum('qty_converted');
+            // Ambil semua mutasi dari Ledger (StockMutation)
+            $mutations = \App\Models\Control\StockMutation::where('item_id', $med->id)
+                ->where('item_type', \App\Models\Control\Medicine::class)
+                ->get();
 
-            $keluarBefore = (float) SaleItem::where('medicine_id', $med->id)
-                ->whereHas('sale', fn($q) => $q->where('status', 'paid'))
-                ->where('created_at', '<', $startOfMonth)
-                ->sum('quantity');
+            $masukBefore = 0.0;
+            $keluarBefore = 0.0;
+            $masukBulan = 0.0;
+            $keluarBulan = 0.0;
 
+            foreach ($mutations as $mut) {
+                $qty = (float) $mut->quantity;
+                $typeLower = strtolower($mut->type ?? '');
+                
+                $isMasuk = in_array($typeLower, ['masuk', 'distribusi masuk', 'penyesuaian masuk', 'retur']);
+                $isKeluar = in_array($typeLower, ['keluar', 'distribusi keluar', 'penyesuaian keluar', 'pemusnahan']);
+                
+                // Fallback untuk tipe lama (opname_adjustment) tanpa arah eksplisit
+                if (!$isMasuk && !$isKeluar) {
+                    if (str_contains($typeLower, 'opname_adjustment') || str_contains($typeLower, 'penyesuaian opname')) {
+                        if (str_contains($mut->note ?? '', '+')) {
+                            $isMasuk = true;
+                        } else {
+                            $isKeluar = true;
+                        }
+                    }
+                }
+
+                if ($mut->created_at < $startOfMonth) {
+                    if ($isMasuk) $masukBefore += $qty;
+                    if ($isKeluar) $keluarBefore += $qty;
+                } elseif ($mut->created_at <= $endOfMonth) {
+                    if ($isMasuk) $masukBulan += $qty;
+                    if ($isKeluar) $keluarBulan += $qty;
+                }
+            }
+
+            // 3. Kalkulasi Berantai
             $stokAwal = max(0, $masukBefore - $keluarBefore);
-
-            // 2. Mutasi DALAM bulan terpilih
-            $masukBulan = (float) IncomingStock::where('medicine_id', $med->id)
-                ->where('status_gate', 'active')
-                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->sum('qty_converted');
-
-            $keluarBulan = (float) SaleItem::where('medicine_id', $med->id)
-                ->whereHas('sale', fn($q) => $q->where('status', 'paid'))
-                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-                ->sum('quantity');
-
-            // 3. Stok Akhir Bulan
             $stokAkhir = max(0, $stokAwal + $masukBulan - $keluarBulan);
+
+            $batchNos = \App\Models\Control\WarehouseInventory::where('medicine_id', $med->id)
+                ->where('status', 'active')
+                ->pluck('batch_no')
+                ->filter()
+                ->unique()
+                ->implode(', ');
 
             return [
                 'id' => $med->id,
-                'kode_obat' => $med->kode_obat,
+                'batch_no' => $batchNos ?: '-',
                 'nama_obat' => $med->nama_obat,
                 'classification' => $med->classification,
                 'satuan' => $med->satuan_terkecil,

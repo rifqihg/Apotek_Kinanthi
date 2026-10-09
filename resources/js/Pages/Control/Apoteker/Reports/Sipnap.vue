@@ -125,10 +125,10 @@ const formatMonthLabel = (m) => {
                         <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[220px] whitespace-nowrap">Identitas Obat</th>
                         <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Golongan</th>
                         <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[80px] whitespace-nowrap">Satuan</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[100px] whitespace-nowrap">Stok Awal</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right text-emerald-600 min-w-[100px] whitespace-nowrap">Pemasukan</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right text-rose-600 min-w-[100px] whitespace-nowrap">Pengeluaran</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Stok Akhir</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Stok Awal</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center text-emerald-600 min-w-[100px] whitespace-nowrap">Pemasukan</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center text-rose-600 min-w-[100px] whitespace-nowrap">Pengeluaran</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-foreground uppercase tracking-wider text-center min-w-[110px] whitespace-nowrap">Stok Akhir</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -141,26 +141,26 @@ const formatMonthLabel = (m) => {
                         <td class="py-3 px-4 text-center font-medium text-muted-foreground">{{ idx + 1 }}</td>
                         <td class="py-3 px-4">
                             <span class="font-semibold text-foreground text-sm block">{{ item.nama_obat }}</span>
-                            <span class="font-mono text-xs text-muted-foreground">{{ item.kode_obat || '-' }}</span>
+                            <span class="font-mono text-xs text-muted-foreground">{{ item.batch_no || '-' }}</span>
                         </td>
                         <td class="py-3 px-4 text-center">
                             <span :class="classificationBadge(item.classification).cls" class="text-xs px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider border inline-block whitespace-nowrap">
                                 {{ classificationBadge(item.classification).label }}
                             </span>
                         </td>
-                        <td class="py-3 px-4 text-center text-xs font-medium text-muted-foreground">
+                        <td class="py-3 px-4 text-center text-sm font-medium text-foreground">
                             {{ item.satuan }}
                         </td>
-                        <td class="py-3 px-4 text-right font-mono text-sm tabular-nums text-foreground">
+                        <td class="py-3 px-4 text-center text-sm font-medium text-foreground">
                             {{ Number(item.stok_awal).toLocaleString('id-ID') }}
                         </td>
-                        <td class="py-3 px-4 text-right font-mono text-sm tabular-nums text-emerald-600 font-semibold">
+                        <td class="py-3 px-4 text-center text-sm font-medium text-emerald-600">
                             +{{ Number(item.pemasukan).toLocaleString('id-ID') }}
                         </td>
-                        <td class="py-3 px-4 text-right font-mono text-sm tabular-nums text-rose-600 font-semibold">
+                        <td class="py-3 px-4 text-center text-sm font-medium text-rose-600">
                             -{{ Number(item.pengeluaran).toLocaleString('id-ID') }}
                         </td>
-                        <td class="py-3 px-4 text-right font-mono text-sm tabular-nums font-bold text-foreground bg-muted/20">
+                        <td class="py-3 px-4 text-center text-sm font-semibold text-foreground bg-muted/20">
                             {{ Number(item.stok_akhir).toLocaleString('id-ID') }}
                         </td>
                     </tr>

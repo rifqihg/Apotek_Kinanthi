@@ -96,26 +96,15 @@ class ApotekerPrescriptionController extends Controller
             'items.*.custom_formula_name' => 'nullable|string|max:100',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit' => 'required|string|max:20',
-            'items.*.usage_instructions' => 'nullable|string',
+            'items.*.usage_instructions' => 'required|string',
+            'items.*.dosage_instruction' => 'required|string|max:255',
+            'items.*.custom_formula_notes' => 'nullable|string|max:1000',
+            'items.*.item_notes' => 'nullable|string|max:500',
+            'items.*.is_iter' => 'boolean',
+            'items.*.iter_count' => 'nullable|integer|min:0|max:10',
         ]);
 
-        // Validasi: Jika resep memuat obat bertipe 'narkotika' atau 'psikotropika', kolom 'doctor_sip' wajib diisi
-        $hasControlledDrug = false;
-        foreach ($v['items'] as $item) {
-            if ($item['item_type'] === 'obat_jadi' && !empty($item['medicine_id'])) {
-                $med = Medicine::find($item['medicine_id']);
-                if ($med && in_array($med->classification, ['narkotika', 'psikotropika'])) {
-                    $hasControlledDrug = true;
-                    break;
-                }
-            }
-        }
-
-        if ($hasControlledDrug && empty($v['doctor_sip'])) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'doctor_sip' => 'Resep yang memuat obat golongan Narkotika atau Psikotropika wajib mencantumkan Nomor SIP Dokter.'
-            ]);
-        }
+        // Validasi SIP Dokter dicabut sesuai request user
 
         return DB::transaction(function () use ($v) {
             $prescription = Prescription::create([
@@ -139,9 +128,14 @@ class ApotekerPrescriptionController extends Controller
                     'medicine_id' => $item['medicine_id'] ?? null,
                     'compounded_product_id' => $item['compounded_product_id'] ?? null,
                     'custom_formula_name' => $item['custom_formula_name'] ?? null,
+                    'custom_formula_notes' => $item['custom_formula_notes'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit' => $item['unit'],
+                    'dosage_instruction' => $item['dosage_instruction'] ?? null,
                     'usage_instructions' => $item['usage_instructions'] ?? null,
+                    'item_notes' => $item['item_notes'] ?? null,
+                    'is_iter' => $item['is_iter'] ?? false,
+                    'iter_count' => $item['iter_count'] ?? 0,
                     'status' => 'pending',
                 ]);
             }

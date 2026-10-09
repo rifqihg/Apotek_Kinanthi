@@ -1,3 +1,10 @@
+@php
+/**
+ * @var \App\Models\Control\CompoundingSubmission $submission
+ * @var \App\Models\Control\CompoundedProduct|null $compoundedProduct
+ * @var bool $isObatLuar
+ */
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>

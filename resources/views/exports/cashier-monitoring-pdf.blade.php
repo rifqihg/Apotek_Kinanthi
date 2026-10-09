@@ -253,8 +253,8 @@
             <td class="kop-center">
                 <div class="kop-name">APOTEK KINANTHI</div>
                 <div class="kop-tagline">PELAYANAN KEFARMASIAN DAN PENGELOLAAN OBAT</div>
-                <div class="kop-address">Jl. Raya Wonosobo - Kertek KM 03, Sidojoyo, Wonosobo, Jawa Tengah 56315</div>
-                <div class="kop-contact">Telp/WhatsApp: 0812-3456-7890 | Email: apotek.kinanthi@gmail.com</div>
+                <div class="kop-address">Jl. Dieng No.24, Wonosobo Timur, Wonosobo Tim., Kec. Wonosobo, Kabupaten Wonosobo, Jawa Tengah 56311</div>
+                <div class="kop-contact">Telp: 081238575662 | Email: apt.kinanthi@gmail.com</div>
             </td>
             <td class="kop-logo-right">
                 @if(!empty($logoKemenkes))

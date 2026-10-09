@@ -25,7 +25,8 @@ class KasirSaleController extends Controller
 {
     public function index(Request $request)
     {
-        $selectedDate = $request->query('date', today()->format('Y-m-d'));
+        $startDate = $request->query('start_date', today()->format('Y-m-d'));
+        $endDate = $request->query('end_date', today()->format('Y-m-d'));
         $search = $request->query('search');
 
         $prescriptionsQuery = Prescription::with(['patient', 'prescriptionItems'])
@@ -46,7 +47,7 @@ class KasirSaleController extends Controller
 
         $sales = Sale::with(['prescription:id,patient_id', 'prescription.patient:id,name'])
             ->where('kasir_id', auth()->id())
-            ->whereDate('created_at', $selectedDate)
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->latest()
             ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']);
 
@@ -54,7 +55,8 @@ class KasirSaleController extends Controller
             'prescriptions' => $prescriptions,
             'sales' => $sales,
             'filters' => [
-                'date' => $selectedDate,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'search' => $search,
             ]
         ]);

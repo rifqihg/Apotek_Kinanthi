@@ -17,7 +17,7 @@ echo "=== Testing Defer Closures in Controllers ===\n";
 // 1. Mock Authentication
 $user = User::first();
 if ($user) {
-    auth()->login($user);
+    \Illuminate\Support\Facades\Auth::login($user);
 }
 
 // 2. Test ApotekerController::dashboard()

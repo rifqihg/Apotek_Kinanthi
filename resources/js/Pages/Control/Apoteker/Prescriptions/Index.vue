@@ -230,8 +230,8 @@ const isControlledRx = (rx) => {
                             </div>
                         </td>
                         <td class="px-4 py-3 font-medium text-foreground">{{ rx.patient?.name }}</td>
-                        <td class="px-4 py-3 text-muted-foreground text-sm">{{ rx.doctor_name }}</td>
-                        <td class="px-4 py-3 text-center text-muted-foreground text-sm">{{ formatDate(rx.prescription_date) }}</td>
+                        <td class="px-4 py-3 font-medium text-foreground">{{ rx.doctor_name }}</td>
+                        <td class="px-4 py-3 text-center font-medium text-foreground">{{ formatDate(rx.prescription_date) }}</td>
                         <td class="px-4 py-3 text-center font-semibold text-foreground text-sm">{{ rx.prescription_items?.length || 0 }}</td>
                         <td class="px-4 py-3 text-center">
                             <span :class="statusColor(rx.status)" class="text-xs px-2.5 py-0.5 rounded-md font-semibold uppercase tracking-wider border inline-block whitespace-nowrap">

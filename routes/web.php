@@ -145,7 +145,6 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
     Route::patch('/prescriptions/items/{id}/complete', [ApotekerPrescriptionController::class, 'completeItem'])->name('prescriptions.items.complete');
 
     // Laporan & Log Audit
-    Route::get('/stock-audit', [ApotekerInventoryController::class, 'auditLogs'])->name('stock-audit');
     Route::get('/reports/sipnap', [ApotekerInventoryController::class, 'sipnapReport'])->name('reports.sipnap');
     Route::get('/reports/sipnap/export-pdf', [ApotekerInventoryController::class, 'exportSipnapPdf'])->name('reports.sipnap.export-pdf');
 });

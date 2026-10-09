@@ -11,7 +11,6 @@ const props = defineProps({
     opnames: Object,
     medicines: Array,
     rawMaterials: Array,
-    categories: Array,
     filters: {
         type: Object,
         default: () => ({}),
@@ -83,7 +82,7 @@ const form = useForm({
     keterangan: '',
     mode: 'worksheet',
     scope_type: 'all',
-    category_id: '',
+    classification: '',
     items: [
         {
             type: 'medicine',
@@ -510,9 +509,9 @@ const submit = () => {
                                             <input type="radio" v-model="form.scope_type" value="all" class="text-primary focus:ring-primary h-4 w-4" />
                                             <span class="text-xs">Semua Obat Reguler</span>
                                         </label>
-                                        <label class="flex items-center gap-2.5 p-3 rounded-md border cursor-pointer transition-colors" :class="form.scope_type === 'category' ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-input bg-background text-muted-foreground hover:bg-muted/30'">
-                                            <input type="radio" v-model="form.scope_type" value="category" class="text-primary focus:ring-primary h-4 w-4" />
-                                            <span class="text-xs">Kategori Tertentu</span>
+                                        <label class="flex items-center gap-2.5 p-3 rounded-md border cursor-pointer transition-colors" :class="form.scope_type === 'sipnap' ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-input bg-background text-muted-foreground hover:bg-muted/30'">
+                                            <input type="radio" v-model="form.scope_type" value="sipnap" class="text-primary focus:ring-primary h-4 w-4" />
+                                            <span class="text-xs">Golongan SIPNAP (Hukum)</span>
                                         </label>
                                         <label class="flex items-center gap-2.5 p-3 rounded-md border cursor-pointer transition-colors" :class="form.scope_type === 'raw_materials' ? 'border-primary bg-primary/5 text-foreground font-semibold' : 'border-input bg-background text-muted-foreground hover:bg-muted/30'">
                                             <input type="radio" v-model="form.scope_type" value="raw_materials" class="text-primary focus:ring-primary h-4 w-4" />
@@ -521,11 +520,14 @@ const submit = () => {
                                     </div>
                                 </div>
 
-                                <div v-if="form.scope_type === 'category'" class="space-y-1.5">
-                                    <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Pilih Kategori (misal: Narkotika / Psikotropika)</label>
-                                    <select v-model="form.category_id" class="w-full h-9 px-3 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
-                                        <option value="" disabled>Pilih Kategori...</option>
-                                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                <div v-if="form.scope_type === 'sipnap'" class="space-y-1.5">
+                                    <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Pilih Golongan Hukum (SIPNAP)</label>
+                                    <select v-model="form.classification" class="w-full h-9 px-3 text-xs border border-input rounded-md text-foreground bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors font-medium" required>
+                                        <option value="" disabled>Pilih Golongan...</option>
+                                        <option value="narkotika">Narkotika</option>
+                                        <option value="psikotropika">Psikotropika</option>
+                                        <option value="prekursor">Prekursor</option>
+                                        <option value="oot">OOT (Obat-Obat Tertentu)</option>
                                     </select>
                                 </div>
 

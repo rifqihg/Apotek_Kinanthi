@@ -46,11 +46,15 @@ return new class extends Migration
             $table->enum('item_type', ['obat_jadi', 'racikan']);
             $table->foreignId('medicine_id')->nullable()->constrained('medicines')->nullOnDelete();
             $table->string('custom_formula_name')->nullable();
+            $table->text('custom_formula_notes')->nullable();
             $table->string('item_name')->nullable();
             $table->decimal('quantity', 10, 2);
             $table->string('unit');
-            $table->string('usage_instructions')->nullable();
             $table->string('dosage_instruction')->nullable();
+            $table->string('usage_instructions')->nullable();
+            $table->string('item_notes')->nullable();
+            $table->boolean('is_iter')->default(false);
+            $table->integer('iter_count')->default(0);
             $table->enum('status', ['pending', 'dikerjakan', 'selesai'])->default('pending');
             $table->timestamps();
 

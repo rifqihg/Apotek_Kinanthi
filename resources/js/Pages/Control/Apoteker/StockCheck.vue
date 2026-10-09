@@ -209,67 +209,69 @@ const stats = computed(() => {
                 </div>
             </div>
 
-            <div v-for="rm in filteredRawMaterials" :key="rm.id" class="bg-card border border-border rounded-lg shadow-sm overflow-hidden transition-colors">
-                <!-- Header Card -->
-                <div class="px-6 py-4 border-b border-border bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-11 h-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center font-bold text-sm uppercase">
-                            {{ rm.nama_bahan?.substring(0, 2) || 'RM' }}
-                        </div>
-                        <div>
-                            <h3 class="text-foreground font-semibold text-base leading-tight">{{ rm.nama_bahan || 'Bahan Baku' }}</h3>
-                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                                <div class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
-                                    <span class="text-xs text-muted-foreground">Kode:</span>
-                                    <span class="text-xs font-medium text-foreground">{{ rm.kode_bahan || '-' }}</span>
-                                </div>
-                                <div class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
-                                    <span class="text-xs text-muted-foreground">Bentuk:</span>
-                                    <span class="text-xs font-medium text-foreground">{{ rm.bentuk_sediaan || '-' }}</span>
-                                </div>
-                                <span class="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">{{ rm.satuan_dasar_penggunaan || '-' }}</span>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                <details v-for="rm in filteredRawMaterials" :key="rm.id" class="group bg-card border border-border rounded-md shadow-sm overflow-hidden transition-colors">
+                    <!-- Header Card -->
+                    <summary class="px-5 py-3 border-b border-border bg-slate-50 dark:bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer list-none select-none hover:bg-slate-100 dark:hover:bg-muted/40 transition-colors [&::-webkit-details-marker]:hidden">
+                        <div class="flex items-center gap-4">
+                            <div class="text-slate-400 group-open:rotate-180 transition-transform duration-200">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="w-11 h-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center font-bold text-sm uppercase shrink-0">
+                                {{ rm.nama_bahan?.substring(0, 2) || 'RM' }}
+                            </div>
+                            <div>
+                                <h3 class="text-foreground font-semibold text-base leading-tight">{{ rm.nama_bahan || 'Bahan Baku' }}</h3>
+                                <!-- Details moved to inside -->
                             </div>
                         </div>
-                    </div>
-                    <div class="flex flex-col sm:items-end">
-                        <span class="text-xs text-muted-foreground mb-1">Total Ketersediaan</span>
-                        <div :class="Number(rm.stok_total || 0) < (rm.threshold_min || 0) ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="px-3 py-1 rounded-md font-semibold border text-xs">
-                            {{ Number(rm.stok_total || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ rm.satuan_dasar_penggunaan || '' }}
+                        <div class="flex flex-col sm:items-end shrink-0 pl-9 sm:pl-0">
+                            <span class="text-xs text-muted-foreground mb-1">Total Ketersediaan</span>
+                            <div :class="Number(rm.stok_total || 0) < (rm.threshold_min || 0) ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="px-3 py-1 rounded-md font-semibold border text-xs">
+                                {{ Number(rm.stok_total || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ rm.satuan_dasar_penggunaan || '' }}
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </summary>
 
-                <!-- Batch Details Grid -->
-                <div v-if="rm.stocks?.length" class="bg-card">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y md:divide-y-0 divide-border">
-                        <div v-for="(inv, index) in rm.stocks" :key="inv.id" class="px-4 py-3 flex flex-col gap-2 hover:bg-muted/40 transition-colors">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs text-muted-foreground">BATCH</span>
-                                    <span class="text-xs font-semibold text-foreground tracking-wide">{{ inv.batch_no || 'NO-BATCH' }}</span>
-                                </div>
-                                <span v-if="index === 0" class="text-xs font-semibold text-white bg-emerald-600 px-2 py-0.5 rounded-md">FEFO</span>
-                            </div>
-                            
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-1.5 text-xs">
-                                    <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
-                                    <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-semibold' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-semibold' : 'text-muted-foreground'" class="text-xs">
-                                        Exp: {{ new Date(inv.expired_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                                    </span>
-                                    <span v-else class="text-muted-foreground italic text-xs">Tanpa Kadaluarsa</span>
-                                </div>
-                                <div class="flex flex-col items-end">
-                                    <span class="text-xs text-muted-foreground leading-none mb-0.5">Batch Qty</span>
-                                    <span class="text-foreground font-semibold text-xs tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ rm.satuan_dasar_penggunaan || '' }}</span>
+                    <!-- Accordion Content -->
+                    <div class="group-open:animate-in group-open:slide-in-from-top-2 group-open:fade-in-0 duration-200">
+                        <!-- Batch Details List -->
+                        <div v-if="rm.stocks?.length" class="bg-card p-3">
+                            <div class="flex flex-col gap-2">
+                                <div v-for="(inv, index) in rm.stocks" :key="inv.id" class="px-4 py-2.5 rounded-md border border-slate-200 dark:border-border bg-slate-50/50 dark:bg-muted/20 hover:bg-slate-50 dark:hover:bg-muted/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                                        <div class="flex items-center min-w-[120px]">
+                                            <span class="text-sm font-bold text-slate-800 dark:text-foreground tracking-wide">#{{ inv.batch_no || 'NO-BATCH' }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 min-w-[140px]">
+                                            <svg class="w-3.5 h-3.5 text-slate-400 dark:text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
+                                            <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-semibold' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-semibold' : 'text-slate-600 dark:text-foreground'" class="text-[13px] font-medium">
+                                                {{ new Date(inv.expired_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                                            </span>
+                                            <span v-else class="text-slate-400 dark:text-muted-foreground italic text-[13px]">Tanpa ED</span>
+                                            <span v-if="index === 0 && inv.expired_date" class="ml-2 text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">FEFO</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- QTY & Gudang removed, replaced by Kode and Bentuk -->
+                                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                        <div v-if="rm.kode_bahan" class="flex items-center gap-1.5 bg-white dark:bg-background px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-border">
+                                            <span class="text-[10px] text-muted-foreground">Kode:</span>
+                                            <span class="text-[10px] font-semibold text-slate-700 dark:text-foreground">{{ rm.kode_bahan }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 bg-white dark:bg-background px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-border">
+                                            <span class="text-[10px] text-muted-foreground">Bentuk:</span>
+                                            <span class="text-[10px] font-semibold text-slate-700 dark:text-foreground">{{ rm.bentuk_sediaan || '-' }}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <div v-else class="px-6 py-6 text-center bg-muted/20">
+                            <span class="text-xs font-medium text-muted-foreground">Tidak ada inventaris batch aktif untuk bahan ini</span>
+                        </div>
                     </div>
-                </div>
-                <div v-else class="px-6 py-6 text-center bg-muted/20">
-                    <span class="text-xs font-medium text-muted-foreground">Tidak ada inventaris batch aktif untuk bahan ini</span>
-                </div>
+                </details>
             </div>
         </div>
 
@@ -283,72 +285,76 @@ const stats = computed(() => {
                 </div>
             </div>
 
-            <div v-for="med in filteredMedicines" :key="med.id" class="bg-card border border-border rounded-lg shadow-sm overflow-hidden transition-colors">
-                <!-- Header Card -->
-                <div class="px-6 py-4 border-b border-border bg-muted/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-11 h-11 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm uppercase">
-                            {{ med.nama_obat?.substring(0, 2) || 'OB' }}
-                        </div>
-                        <div>
-                            <h3 class="text-foreground font-semibold text-base leading-tight">{{ med.nama_obat || 'Obat' }}</h3>
-                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                                <div class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
-                                    <span class="text-xs text-muted-foreground">Kode:</span>
-                                    <span class="text-xs font-medium text-foreground">{{ med.kode_obat || '-' }}</span>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                <details v-for="med in filteredMedicines" :key="med.id" class="group bg-card border border-border rounded-md shadow-sm overflow-hidden transition-colors">
+                    <!-- Header Card -->
+                    <summary class="px-5 py-3 border-b border-border bg-slate-50 dark:bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer list-none select-none hover:bg-slate-100 dark:hover:bg-muted/40 transition-colors [&::-webkit-details-marker]:hidden">
+                        <div class="flex items-center gap-4">
+                            <div class="text-slate-400 group-open:rotate-180 transition-transform duration-200">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                            <div class="w-11 h-11 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm uppercase shrink-0">
+                                {{ med.nama_obat?.substring(0, 2) || 'OB' }}
+                            </div>
+                            <div>
+                                <h3 class="text-foreground font-semibold text-base leading-tight">{{ med.nama_obat || 'Obat' }}</h3>
+                                <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                    <div v-if="med.kode_obat" class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
+                                        <span class="text-xs text-muted-foreground">Kode:</span>
+                                        <span class="text-xs font-medium text-foreground">{{ med.kode_obat }}</span>
+                                    </div>
+                                    <div v-if="med.kategori" class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
+                                        <span class="text-xs text-muted-foreground">Kategori:</span>
+                                        <span class="text-xs font-medium text-foreground">{{ med.kategori }}</span>
+                                    </div>
                                 </div>
-                                <div v-if="med.kategori" class="flex items-center gap-1.5 bg-background px-2.5 py-0.5 rounded-md border border-border">
-                                    <span class="text-xs text-muted-foreground">Kategori:</span>
-                                    <span class="text-xs font-medium text-foreground">{{ med.kategori }}</span>
-                                </div>
-                                <span class="text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/20">{{ med.satuan_stok || med.satuan_terkecil || '-' }}</span>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex flex-col sm:items-end">
-                        <span class="text-xs text-muted-foreground mb-1">Total Stok Global</span>
-                        <div :class="Number(med.stok_total || 0) <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-muted text-foreground border-border'" class="px-3 py-1 rounded-md font-semibold border text-xs">
-                            {{ Number(med.stok_total || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}
+                        <div class="flex flex-col sm:items-end shrink-0 pl-9 sm:pl-0">
+                            <span class="text-xs text-muted-foreground mb-1">Total Stok Global</span>
+                            <div :class="Number(med.stok_total || 0) <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-muted text-foreground border-border'" class="px-3 py-1 rounded-md font-semibold border text-xs">
+                                {{ Number(med.stok_total || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </summary>
 
-                <!-- Batch Details Grid -->
-                <div v-if="med.warehouse_inventories?.length" class="bg-card">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-y md:divide-y-0 divide-border">
-                        <div v-for="(inv, index) in med.warehouse_inventories" :key="inv.id" class="px-4 py-3 flex flex-col gap-2 hover:bg-muted/40 transition-colors">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs text-muted-foreground">BATCH</span>
-                                    <span class="text-xs font-semibold text-foreground tracking-wide">{{ inv.batch_no || 'NO-BATCH' }}</span>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <span v-if="index === 0" class="text-xs font-semibold text-white bg-emerald-600 px-2 py-0.5 rounded-md">FEFO</span>
-                                    <span :class="inv.location_type === 'kasir' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-muted text-muted-foreground border-border'" class="text-xs font-medium px-2 py-0.5 rounded-md border">
-                                        {{ inv.location_type === 'kasir' ? 'Kasir' : 'Gudang' }}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-1.5 text-xs">
-                                    <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
-                                    <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-semibold' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-semibold' : 'text-muted-foreground'" class="text-xs">
-                                        Exp: {{ new Date(inv.expired_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
-                                    </span>
-                                    <span v-else class="text-muted-foreground italic text-xs">Tanpa Kadaluarsa</span>
-                                </div>
-                                <div class="flex flex-col items-end">
-                                    <span class="text-xs text-muted-foreground leading-none mb-0.5">Batch Qty</span>
-                                    <span class="text-foreground font-semibold text-xs tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}</span>
+                    <!-- Accordion Content -->
+                    <div class="group-open:animate-in group-open:slide-in-from-top-2 group-open:fade-in-0 duration-200">
+                        <!-- Batch Details List -->
+                        <div v-if="med.warehouse_inventories?.length" class="bg-card p-3">
+                            <div class="flex flex-col gap-2">
+                                <div v-for="(inv, index) in med.warehouse_inventories" :key="inv.id" class="px-4 py-2.5 rounded-md border border-slate-200 dark:border-border bg-slate-50/50 dark:bg-muted/20 hover:bg-slate-50 dark:hover:bg-muted/40 transition-colors flex items-center justify-between gap-4">
+                                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                                        <div class="flex items-center w-32">
+                                            <span class="text-sm font-bold text-slate-800 dark:text-foreground tracking-wide">#{{ inv.batch_no || 'NO-BATCH' }}</span>
+                                        </div>
+                                        <div class="flex items-center w-24">
+                                            <span :class="inv.location_type === 'kasir' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800' : 'bg-white dark:bg-background text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border'" class="border text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                {{ inv.location_type === 'kasir' ? 'Kasir' : 'Gudang' }}
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 min-w-[160px]">
+                                            <svg class="w-3.5 h-3.5 text-slate-400 dark:text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"></path></svg>
+                                            <span v-if="inv.expired_date" :class="isExpired(inv.expired_date) ? 'text-rose-600 font-semibold' : isNearExpiry(inv.expired_date) ? 'text-amber-600 font-semibold' : 'text-slate-600 dark:text-foreground'" class="text-[13px] font-medium">
+                                                {{ new Date(inv.expired_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                                            </span>
+                                            <span v-else class="text-slate-400 dark:text-muted-foreground italic text-[13px]">Tanpa ED</span>
+                                            <span v-if="index === 0 && inv.expired_date" class="ml-2 text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">FEFO</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="inline-flex items-center gap-2 bg-white dark:bg-background border border-slate-200 dark:border-border px-3 py-1.5 rounded-md shadow-2xs shrink-0">
+                                        <span class="text-slate-400 dark:text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Qty</span>
+                                        <span class="text-slate-800 dark:text-foreground font-bold text-sm tabular-nums">{{ Number(inv.stock_on_hand || 0).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ med.satuan_stok || med.satuan_terkecil || '' }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <div v-else class="px-6 py-6 text-center bg-muted/20">
+                            <span class="text-xs font-medium text-muted-foreground">Tidak ada inventaris batch aktif untuk obat ini</span>
+                        </div>
                     </div>
-                </div>
-                <div v-else class="px-6 py-6 text-center bg-muted/20">
-                    <span class="text-xs font-medium text-muted-foreground">Tidak ada inventaris batch aktif untuk obat ini</span>
-                </div>
+                </details>
             </div>
         </div>
     </div>

@@ -121,6 +121,7 @@ class ApotekerCompoundingController extends Controller
                 if (!$med) continue;
 
                 $totalAvailable = (float) WarehouseInventory::where('medicine_id', $med->id)
+                    ->where('location_type', 'gudang')
                     ->where('stock_on_hand', '>', 0)
                     ->where('status', 'active')
                     ->where('is_frozen', false)
@@ -162,6 +163,7 @@ class ApotekerCompoundingController extends Controller
 
             if ($sourceType === 'medicine') {
                 $nearestBatchExp = WarehouseInventory::where('medicine_id', $itemId)
+                    ->where('location_type', 'gudang')
                     ->where('stock_on_hand', '>', 0)
                     ->where('status', 'active')
                     ->where('is_frozen', false)
@@ -273,6 +275,7 @@ class ApotekerCompoundingController extends Controller
                 $remaining = (float) $d['qty_taken_pcs'];
                 /** @var \Illuminate\Database\Eloquent\Collection<int, WarehouseInventory> $inventories */
                 $inventories = WarehouseInventory::where('medicine_id', $med->id)
+                    ->where('location_type', 'gudang')
                     ->where('stock_on_hand', '>', 0)
                     ->where('status', 'active')
                     ->where('is_frozen', false)

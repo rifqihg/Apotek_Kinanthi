@@ -20,7 +20,7 @@ const getPackaging = (item) => {
     const rSmall = Math.max(1, Number(inc?.small_to_mid_ratio) || 1);
     const rMid = Math.max(1, Number(inc?.mid_to_big_ratio) || 1);
     const rBig = (rMid > 1 && rSmall > 1) ? (rMid * rSmall) : (Number(inc?.unit_conversion_factor) || (rMid * rSmall));
-    const satuanPrimer = item.medicine?.satuan_stok || item.raw_material?.satuan_dasar_penggunaan || 'Unit';
+    const satuanPrimer = item.medicine?.satuan_stok || item.raw_material?.satuan_ukur || item.raw_material?.satuan_dasar_penggunaan || 'Unit';
 
     return {
         satuan_input: inc?.satuan_input || null,
@@ -172,10 +172,18 @@ const finalizeOpname = () => {
                         Draft Lembar Kerja
                     </span>
                 </div>
-                <div class="text-xs text-muted-foreground space-y-0.5">
-                    <p><span class="font-medium text-foreground">Dibuat Oleh:</span> {{ opname.creator?.name || '-' }}</p>
-                    <p v-if="opname.catatan"><span class="font-medium text-foreground">Keterangan:</span> {{ opname.catatan }}</p>
-                    <p v-if="opname.status === 'completed' && opname.finalizer"><span class="font-medium text-foreground">Difinalisasi Oleh:</span> {{ opname.finalizer.name }} ({{ formatDateTime(opname.finalized_at) }})</p>
+                <div class="text-xs text-muted-foreground space-y-1 mt-1 sm:mt-0">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span>{{ opname.creator?.name || '-' }}</span>
+                        <span v-if="opname.status === 'completed' && opname.finalizer" class="text-emerald-600 dark:text-emerald-400 font-medium">
+                            &rarr; Difinalisasi oleh {{ opname.finalizer.name }}
+                        </span>
+                    </div>
+                    <div v-if="opname.catatan" class="flex items-start gap-2">
+                        <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span class="italic text-muted-foreground/80">{{ opname.catatan }}</span>
+                    </div>
                 </div>
             </div>
             
@@ -200,10 +208,10 @@ const finalizeOpname = () => {
                     <tr class="bg-muted/50 border-b border-border h-10">
                         <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[220px] whitespace-nowrap">Nama Item</th>
                         <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[150px] whitespace-nowrap">Batch & ED</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[130px] whitespace-nowrap">Stok Sistem</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[360px] whitespace-nowrap">Qty Fisik</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right tabular-nums min-w-[110px] whitespace-nowrap">Selisih</th>
-                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[220px] whitespace-nowrap">Alasan Selisih</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center tabular-nums min-w-[130px] whitespace-nowrap">Stok Sistem</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center tabular-nums min-w-[260px] whitespace-nowrap">Qty Fisik</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center tabular-nums min-w-[110px] whitespace-nowrap">Selisih</th>
+                        <th class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[220px] whitespace-nowrap">Alasan Selisih</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -241,13 +249,13 @@ const finalizeOpname = () => {
                         </td>
 
                         <!-- System Stock -->
-                        <td class="py-2.5 px-3 align-middle text-right">
-                            <div class="flex flex-col items-end gap-0.5">
+                        <td class="py-2.5 px-3 align-middle text-center">
+                            <div class="flex flex-col items-center gap-0.5">
                                 <span class="text-sm font-semibold text-foreground tabular-nums">
                                     {{ Number(row.system_stock).toLocaleString('id-ID') }}
                                     <span class="text-[10px] text-muted-foreground font-normal lowercase">{{ getPackaging(row.raw_item).satuan_stok }}</span>
                                 </span>
-                                <div v-if="getPackaging(row.raw_item).hasBig || getPackaging(row.raw_item).hasMid" class="flex items-center gap-1 flex-wrap justify-end">
+                                <div v-if="getPackaging(row.raw_item).hasBig || getPackaging(row.raw_item).hasMid" class="flex items-center gap-1 flex-wrap justify-center">
                                     <span v-for="(u, uIdx) in getStockUnits(row.system_stock, row.raw_item)" :key="uIdx" class="text-[10px] text-muted-foreground font-medium">
                                         {{ u.qty }} {{ u.unit }}<span v-if="uIdx < getStockUnits(row.system_stock, row.raw_item).length - 1" class="text-slate-300 dark:text-slate-600 ml-1">·</span>
                                     </span>
@@ -256,45 +264,45 @@ const finalizeOpname = () => {
                         </td>
 
                         <!-- Physical Stock Input / Display -->
-                        <td class="py-2.5 px-3 align-middle text-right">
+                        <td class="py-2.5 px-3 align-middle text-center">
                             <!-- Editable in Draft -->
                             <div v-if="opname.status === 'draft'">
-                                <div v-if="row.medicine_id && (getPackaging(row.raw_item).hasBig || getPackaging(row.raw_item).hasMid)" class="flex items-center justify-end gap-2">
+                                <div v-if="row.medicine_id && (getPackaging(row.raw_item).hasBig || getPackaging(row.raw_item).hasMid)" class="flex items-center justify-center gap-2">
                                     <!-- Big Unit -->
-                                    <div v-if="getPackaging(row.raw_item).hasBig" class="flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs w-28 sm:w-32">
-                                        <input type="number" v-model.number="row.qty_besar" @input="onRowInput(row)" min="0" class="w-full h-8 px-2.5 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
-                                        <span class="pr-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                    <div v-if="getPackaging(row.raw_item).hasBig" class="flex items-center border border-border/80 bg-muted/20 hover:bg-muted/40 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 rounded-md transition-all shadow-sm w-20 sm:w-24">
+                                        <input type="number" v-model.number="row.qty_besar" @input="onRowInput(row)" min="0" class="w-full h-7 px-2 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                        <span class="pr-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
                                             {{ getPackaging(row.raw_item).satuan_input }}
                                         </span>
                                     </div>
                                     <!-- Mid Unit -->
-                                    <div v-if="getPackaging(row.raw_item).hasMid" class="flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs w-28 sm:w-32">
-                                        <input type="number" v-model.number="row.qty_menengah" @input="onRowInput(row)" min="0" class="w-full h-8 px-2.5 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
-                                        <span class="pr-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                    <div v-if="getPackaging(row.raw_item).hasMid" class="flex items-center border border-border/80 bg-muted/20 hover:bg-muted/40 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 rounded-md transition-all shadow-sm w-20 sm:w-24">
+                                        <input type="number" v-model.number="row.qty_menengah" @input="onRowInput(row)" min="0" class="w-full h-7 px-2 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                        <span class="pr-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
                                             {{ getPackaging(row.raw_item).mid_unit }}
                                         </span>
                                     </div>
                                     <!-- Small Unit -->
-                                    <div class="flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs w-28 sm:w-32">
-                                        <input type="number" v-model.number="row.qty_kecil" @input="onRowInput(row)" min="0" step="0.01" class="w-full h-8 px-2.5 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
-                                        <span class="pr-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                    <div class="flex items-center border border-border/80 bg-muted/20 hover:bg-muted/40 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 rounded-md transition-all shadow-sm w-20 sm:w-24">
+                                        <input type="number" v-model.number="row.qty_kecil" @input="onRowInput(row)" min="0" step="0.01" class="w-full h-7 px-2 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                        <span class="pr-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
                                             {{ getPackaging(row.raw_item).satuan_stok }}
                                         </span>
                                     </div>
                                 </div>
                                 
                                 <!-- Single Unit Input (Raw Material or simple medicine) -->
-                                <div v-else class="flex items-center justify-end">
-                                    <div class="flex items-center border border-border/80 bg-muted/40 hover:bg-muted/60 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 rounded-md transition-all shadow-2xs w-36">
-                                        <input type="number" v-model.number="row.qty_kecil" @input="onRowInput(row)" min="0" step="0.01" class="w-full h-8 px-3 text-sm font-bold text-right text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
-                                        <span class="pr-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
+                                <div v-else class="flex items-center justify-center">
+                                    <div class="flex items-center border border-border/80 bg-muted/20 hover:bg-muted/40 focus-within:bg-background focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 rounded-md transition-all shadow-sm w-32 sm:w-36">
+                                        <input type="number" v-model.number="row.qty_kecil" @input="onRowInput(row)" min="0" step="0.01" class="w-full h-7 px-2 text-sm font-bold text-center text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 tabular-nums no-spinner [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-muted-foreground/40" placeholder="0">
+                                        <span class="pr-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none shrink-0">
                                             {{ getPackaging(row.raw_item).satuan_stok }}
                                         </span>
                                     </div>
                                 </div>
 
                                 <!-- Total Equivalent Base Unit (Crisp & Ergonomic) -->
-                                <div class="text-[11px] text-right font-medium text-muted-foreground mt-1 tabular-nums flex items-center justify-end gap-1">
+                                <div class="text-[11px] text-center font-medium text-muted-foreground mt-1 tabular-nums flex items-center justify-center gap-1">
                                     <span class="text-muted-foreground/70">=</span>
                                     <span class="font-bold text-foreground">{{ Number(row.physical_stock).toLocaleString('id-ID') }}</span>
                                     <span class="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{{ getPackaging(row.raw_item).satuan_stok }}</span>
@@ -302,12 +310,12 @@ const finalizeOpname = () => {
                             </div>
 
                             <!-- Readonly in Completed -->
-                            <div v-else class="flex flex-col items-end gap-0.5">
+                            <div v-else class="flex flex-col items-center gap-0.5">
                                 <span class="text-sm font-semibold text-foreground tabular-nums">
                                     {{ Number(row.physical_stock).toLocaleString('id-ID') }}
                                     <span class="text-[10px] text-muted-foreground font-normal lowercase">{{ getPackaging(row.raw_item).satuan_stok }}</span>
                                 </span>
-                                <div v-if="getPackaging(row.raw_item).hasBig || getPackaging(row.raw_item).hasMid" class="flex items-center gap-1 flex-wrap justify-end">
+                                <div v-if="getPackaging(row.raw_item).hasBig || getPackaging(row.raw_item).hasMid" class="flex items-center gap-1 flex-wrap justify-center">
                                     <span v-for="(u, uIdx) in getStockUnits(row.physical_stock, row.raw_item)" :key="uIdx" class="text-[10px] text-muted-foreground font-medium">
                                         {{ u.qty }} {{ u.unit }}<span v-if="uIdx < getStockUnits(row.physical_stock, row.raw_item).length - 1" class="text-slate-300 dark:text-slate-600 ml-1">·</span>
                                     </span>
@@ -316,7 +324,7 @@ const finalizeOpname = () => {
                         </td>
 
                         <!-- Difference -->
-                        <td class="py-2.5 px-3 align-middle text-right">
+                        <td class="py-2.5 px-3 align-middle text-center">
                             <span v-if="row.difference < 0" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-destructive bg-destructive/10 border border-destructive/20 tabular-nums">
                                 {{ Number(row.difference).toLocaleString('id-ID') }}
                             </span>

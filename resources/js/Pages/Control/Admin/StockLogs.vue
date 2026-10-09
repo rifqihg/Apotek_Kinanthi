@@ -84,10 +84,13 @@ const clearFilters = () => {
 };
 
 const displayType = (l) => {
+    if (l.reference_type === 'App\\Models\\Control\\CompoundingSubmission') return 'Racik';
+    if (l.reference_type === 'App\\Models\\Control\\Sale') return 'Terjual';
     if ((l.note && l.note.toLowerCase().includes('distribusi')) || (l.type && l.type.includes('Distribusi'))) return 'Distribusi';
     if (l.type === 'Masuk' || l.type === 'Penyesuaian Masuk') return 'Masuk';
     if (l.reference_type === 'App\\Models\\Control\\ReturnForm' || l.type === 'Retur') return 'Retur';
-    if (l.type === 'Keluar' || l.type === 'Penjualan' || l.type === 'Penyesuaian Keluar') return 'Terjual';
+    const t = l.type ? l.type.toLowerCase() : '';
+    if (t === 'keluar' || t === 'penjualan' || t === 'penyesuaian keluar') return 'Terjual';
     return l.type;
 };
 
@@ -96,10 +99,11 @@ const getLogTypeClass = (type) => ({
     Retur: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40',
     Terjual: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800/40',
     Distribusi: 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800/40',
+    Racik: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100 dark:bg-fuchsia-950/30 dark:text-fuchsia-400 dark:border-fuchsia-800/40',
 }[type] || 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-800');
 
 // Format Referensi
-const refTitles = { ReturnForm: 'Retur Pembelian', Sale: 'Penjualan (Kasir)', StockOpname: 'Stock Opname', IncomingStock: 'Faktur Masuk' };
+const refTitles = { ReturnForm: 'Retur Pembelian', Sale: 'Penjualan (Kasir)', StockOpname: 'Stock Opname', IncomingStock: 'Faktur Masuk', CompoundingSubmission: 'Peracikan' };
 const formatReference = (l) => {
     if (l.reference_type) {
         const type = l.reference_type.split('\\').pop();
@@ -448,14 +452,14 @@ const formatAuditDate = (dateStr) => {
         <!-- Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <Table class="w-full min-w-[960px]">
+                <Table class="w-full min-w-[880px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
-                            <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jenis</TableHead>
+                            <TableHead class="min-w-[130px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="min-w-[90px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jenis</TableHead>
                             <TableHead class="min-w-[220px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Item (Obat / Bahan)</TableHead>
-                            <TableHead class="min-w-[120px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
-                            <TableHead class="min-w-[140px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
+                            <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
+                            <TableHead class="min-w-[130px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
                             <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Mutasi</TableHead>
                             <TableHead class="min-w-[110px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Sisa Stok</TableHead>
                         </TableRow>
@@ -485,7 +489,7 @@ const formatAuditDate = (dateStr) => {
                                 <div class="flex flex-col min-w-0 text-left">
                                     <div class="flex items-center justify-start gap-2 truncate">
                                         <span class="text-sm font-medium text-foreground leading-tight truncate">
-                                            {{ l.inventory?.medicine?.nama_obat || l.raw_material_stock?.raw_material?.nama_bahan || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || '-' }}
+                                            {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || l.item?.nama_produk || '-' }}
                                         </span>
                                         <span v-if="l.inventory?.medicine?.classification === 'narkotika' || l.inventory?.medicine?.classification === 'psikotropika'" 
                                             class="inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0"
@@ -496,13 +500,13 @@ const formatAuditDate = (dateStr) => {
                                         </span>
                                     </div>
                                     <span class="text-xs text-muted-foreground leading-tight mt-0.5">
-                                        {{ l.inventory?.medicine ? 'Obat Jadi' : ((l.rawMaterialStock || l.raw_material_stock) ? 'Bahan Baku Racikan' : 'Item') }}
+                                        {{ l.inventory?.medicine ? 'Obat Jadi' : (l.rawMaterialStock ? 'Bahan Baku Racikan' : (l.item?.nama_produk ? 'Produk Racikan' : 'Item')) }}
                                     </span>
                                 </div>
                             </TableCell>
                             <!-- Batch -->
                             <TableCell class="py-2.5 px-3 align-middle text-center text-sm font-medium text-foreground tracking-tight truncate">
-                                {{ l.inventory?.batch_no || l.raw_material_stock?.batch_no || l.rawMaterialStock?.batch_no || '-' }}
+                                {{ l.inventory?.batch_no || l.rawMaterialStock?.batch_no || l.item?.batch_no || l.item?.kode_bahan || l.rawMaterialStock?.rawMaterial?.kode_bahan || '-' }}
                             </TableCell>
                             <!-- Referensi -->
                             <TableCell class="py-2.5 px-3 align-middle">
@@ -523,11 +527,13 @@ const formatAuditDate = (dateStr) => {
                                     </template>
                                 </div>
                                 <!-- Base Unit Display for Raw Materials -->
-                                <div v-else class="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                                    <span class="text-sm font-semibold tabular-nums" :class="l.type === 'Masuk' || l.type === 'Penyesuaian Masuk' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
-                                        {{ Number(l.quantity) }}
-                                    </span>
-                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_dasar_penggunaan || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                <div v-else class="flex items-center justify-center gap-1.5">
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
+                                        <span class="font-semibold tabular-nums" :class="l.type === 'Masuk' || l.type === 'Penyesuaian Masuk' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">
+                                            {{ Number(l.quantity) }}
+                                        </span>
+                                        <span class="text-muted-foreground uppercase text-[11px] tracking-wide">{{ l.rawMaterialStock?.rawMaterial?.satuan_dasar_penggunaan || l.rawMaterialStock?.rawMaterial?.satuan || l.item?.satuan_dasar_penggunaan || l.item?.satuan || '' }}</span>
+                                    </div>
                                 </div>
                             </TableCell>
                             <!-- Sisa Stok -->
@@ -542,9 +548,11 @@ const formatAuditDate = (dateStr) => {
                                     </template>
                                 </div>
                                 <!-- Base Unit Display -->
-                                <div v-else class="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                                    <span class="text-sm font-semibold text-foreground tabular-nums">{{ Number(l.balance_after) }}</span>
-                                    <span class="uppercase text-[11px] tracking-wide text-muted-foreground">{{ l.rawMaterialStock?.rawMaterial?.satuan_dasar_penggunaan || l.rawMaterialStock?.rawMaterial?.satuan || '' }}</span>
+                                <div v-else class="flex items-center justify-center gap-1.5">
+                                    <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
+                                        <span class="font-semibold text-foreground tabular-nums">{{ Number(l.balance_after) }}</span>
+                                        <span class="text-muted-foreground uppercase text-[11px] tracking-wide">{{ l.rawMaterialStock?.rawMaterial?.satuan_dasar_penggunaan || l.rawMaterialStock?.rawMaterial?.satuan || l.item?.satuan_dasar_penggunaan || l.item?.satuan || '' }}</span>
+                                    </div>
                                 </div>
                             </TableCell>
                         </TableRow>

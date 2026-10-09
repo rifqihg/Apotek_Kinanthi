@@ -174,26 +174,14 @@
         .font-bold { font-weight: bold; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
 
-        .badge-narkotika {
-            display: inline-block;
-            padding: 1px 4px;
-            font-size: 7.5pt;
+        .text-narkotika {
             font-weight: bold;
             color: #991B1B;
-            border: 0.5px solid #DC2626;
-            background-color: #FEF2F2;
-            border-radius: 2px;
             text-transform: uppercase;
         }
-        .badge-psikotropika {
-            display: inline-block;
-            padding: 1px 4px;
-            font-size: 7.5pt;
+        .text-psikotropika {
             font-weight: bold;
             color: #5B21B6;
-            border: 0.5px solid #7C3AED;
-            background-color: #F5F3FF;
-            border-radius: 2px;
             text-transform: uppercase;
         }
 
@@ -245,8 +233,8 @@
             <td class="kop-center">
                 <div class="kop-name">APOTEK KINANTHI</div>
                 <div class="kop-tagline">PELAYANAN KEFARMASIAN & PENGELOLAAN OBAT RESMI</div>
-                <div class="kop-address">Jl. Dieng No. 45, Wonosobo, Jawa Tengah 56311</div>
-                <div class="kop-contact">SIA: 503/SIA/01/2024 &bull; Telp: 0812-3456-7890 &bull; Email: apt.kinanthi@gmail.com</div>
+                <div class="kop-address">Jl. Dieng No.24, Wonosobo Timur, Wonosobo Tim., Kec. Wonosobo, Kabupaten Wonosobo, Jawa Tengah 56311</div>
+                <div class="kop-contact">Telp: 081238575662 &bull; Email: apt.kinanthi@gmail.com</div>
             </td>
             <td class="kop-logo-right">
                 @if($logoKemenkes)
@@ -302,13 +290,13 @@
         <thead>
             <tr>
                 <th style="width: 4%;">NO</th>
-                <th style="width: 11%;">KODE OBAT</th>
+                <th style="width: 11%;">NO. BATCH</th>
                 <th style="width: 27%;">NAMA SEDIAAN</th>
                 <th style="width: 12%;">GOLONGAN</th>
                 <th style="width: 8%;">SATUAN</th>
                 <th style="width: 9%;">STOK AWAL</th>
-                <th style="width: 9%;">PEMASUKAN<br><span style="font-size: 6.5pt; font-weight: normal;">(FAKTUR MASUK)</span></th>
-                <th style="width: 10%;">PENGELUARAN<br><span style="font-size: 6.5pt; font-weight: normal;">(RESEP PASIEN)</span></th>
+                <th style="width: 9%;">PEMASUKAN<br><span style="font-size: 6.5pt; font-weight: normal;">(Stok Masuk)</span></th>
+                <th style="width: 10%;">PENGELUARAN<br><span style="font-size: 6.5pt; font-weight: normal;">(Stok Keluar)</span></th>
                 <th style="width: 10%;">STOK AKHIR</th>
             </tr>
         </thead>
@@ -316,22 +304,22 @@
             @forelse($reportData as $index => $row)
                 <tr>
                     <td class="text-center font-mono">{{ $index + 1 }}</td>
-                    <td class="text-center font-mono" style="font-size: 8pt;">{{ $row['kode_obat'] ?? '-' }}</td>
+                    <td class="text-center font-bold" style="font-size: 8pt;">{{ $row['batch_no'] ?? '-' }}</td>
                     <td class="text-left font-bold">{{ $row['nama_obat'] }}</td>
                     <td class="text-center">
                         @if($row['classification'] === 'narkotika')
-                            <span class="badge-narkotika">Narkotika</span>
+                            <span class="text-narkotika">Narkotika</span>
                         @elseif($row['classification'] === 'psikotropika')
-                            <span class="badge-psikotropika">Psikotropika</span>
+                            <span class="text-psikotropika">Psikotropika</span>
                         @else
                             <span>{{ strtoupper($row['classification'] ?? '-') }}</span>
                         @endif
                     </td>
-                    <td class="text-center">{{ $row['satuan'] ?: '-' }}</td>
-                    <td class="text-right font-mono">{{ number_format($row['stok_awal'], 0, ',', '.') }}</td>
-                    <td class="text-right font-mono font-bold" style="color: #047857;">+{{ number_format($row['pemasukan'], 0, ',', '.') }}</td>
-                    <td class="text-right font-mono font-bold" style="color: #B91C1C;">-{{ number_format($row['pengeluaran'], 0, ',', '.') }}</td>
-                    <td class="text-right font-mono font-bold" style="background-color: #F8FAFC;">{{ number_format($row['stok_akhir'], 0, ',', '.') }}</td>
+                    <td class="text-center font-bold">{{ $row['satuan'] ?: '-' }}</td>
+                    <td class="text-center font-bold">{{ number_format($row['stok_awal'], 0, ',', '.') }}</td>
+                    <td class="text-center font-bold" style="color: #047857;">+{{ number_format($row['pemasukan'], 0, ',', '.') }}</td>
+                    <td class="text-center font-bold" style="color: #B91C1C;">-{{ number_format($row['pengeluaran'], 0, ',', '.') }}</td>
+                    <td class="text-center font-bold" style="background-color: #F8FAFC;">{{ number_format($row['stok_akhir'], 0, ',', '.') }}</td>
                 </tr>
             @empty
                 <tr>
@@ -344,10 +332,10 @@
         <tfoot>
             <tr class="total-row">
                 <td colspan="5" class="text-center font-bold">TOTAL AGREGAT MUTASI</td>
-                <td class="text-right font-mono font-bold">{{ number_format(collect($reportData)->sum('stok_awal'), 0, ',', '.') }}</td>
-                <td class="text-right font-mono font-bold" style="color: #047857;">+{{ number_format(collect($reportData)->sum('pemasukan'), 0, ',', '.') }}</td>
-                <td class="text-right font-mono font-bold" style="color: #B91C1C;">-{{ number_format(collect($reportData)->sum('pengeluaran'), 0, ',', '.') }}</td>
-                <td class="text-right font-mono font-bold">{{ number_format(collect($reportData)->sum('stok_akhir'), 0, ',', '.') }}</td>
+                <td class="text-center font-bold">{{ number_format(collect($reportData)->sum('stok_awal'), 0, ',', '.') }}</td>
+                <td class="text-center font-bold" style="color: #047857;">+{{ number_format(collect($reportData)->sum('pemasukan'), 0, ',', '.') }}</td>
+                <td class="text-center font-bold" style="color: #B91C1C;">-{{ number_format(collect($reportData)->sum('pengeluaran'), 0, ',', '.') }}</td>
+                <td class="text-center font-bold">{{ number_format(collect($reportData)->sum('stok_akhir'), 0, ',', '.') }}</td>
             </tr>
         </tfoot>
     </table>
@@ -362,8 +350,7 @@
                 <div class="signoff-box">
                     <div class="signoff-date">Wonosobo, {{ $dateNow }}</div>
                     <div class="signoff-role">Apoteker Pengelola Apotek (APA),</div>
-                    <div class="signoff-name">( apt. Kinanthi Rahayu, S.Farm. )</div>
-                    <div class="signoff-sipa">SIPA: 19930412/SIPA_33.07/2024/2001</div>
+                    <div class="signoff-name">( Apt. Ika Kantiningtyas,S.Farm,CIPC )</div>
                 </div>
             </td>
         </tr>
