@@ -130,35 +130,114 @@ class AdminProcurementController extends Controller
             'stocks' => $stocks,
             'settings' => $settings,
             'suppliers' => $suppliers,
+            'medicines' => $this->getMedicinesCatalog(),
+            'past_invoices' => $this->getPastInvoicesData(),
             'filters' => $request->only('search'),
         ]);
     }
 
-    public function searchMedicines(Request $request)
+    protected function getMedicinesCatalog(?string $search = null)
     {
-        $search = $request->query('query');
-        
-        $medicines = Medicine::select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
-            ->addSelect([
-                'current_price' => \App\Models\Control\IncomingStock::select('harga_jual_akhir')
-                    ->whereColumn('medicine_id', 'medicines.id')
-                    ->where('status_gate', 'active')
-                    ->orderByDesc('id')
-                    ->limit(1)
-            ])
+        return Medicine::select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
+            ->with(['latestIncomingStock' => function ($q) {
+                $q->select([
+                    'incoming_stocks.id', 'incoming_stocks.medicine_id', 'incoming_stocks.satuan_input', 'incoming_stocks.mid_unit',
+                    'incoming_stocks.mid_to_big_ratio', 'incoming_stocks.small_to_mid_ratio', 'incoming_stocks.unit_conversion_factor',
+                    'incoming_stocks.harga_beli_satuan', 'incoming_stocks.diskon_persen', 'incoming_stocks.harga_jual_akhir'
+                ]);
+            }])
             ->when($search, function ($q) use ($search) {
                 $q->where('nama_obat', 'like', "%{$search}%");
             })
             ->orderBy('nama_obat')
-            ->limit(20)
             ->get()
             ->map(function ($m) {
-                $m->current_price = $m->current_price ?? 0;
+                $latest = $m->latestIncomingStock;
+                $m->current_price = (float) ($latest?->harga_jual_akhir ?? 0);
+                $m->latest_harga_beli = (float) ($latest?->harga_beli_satuan ?? 0);
+                $m->latest_diskon = (float) ($latest?->diskon_persen ?? 0);
+                $m->latest_satuan_input = $latest?->satuan_input ?? $m->satuan_besar;
+                $m->latest_mid_unit = $latest?->mid_unit ?? $m->satuan_menengah;
+                $m->latest_mid_to_big = (int) ($latest?->mid_to_big_ratio ?? 1);
+                $m->latest_small_to_mid = (int) ($latest?->small_to_mid_ratio ?? ($m->rasio_konversi ?: 1));
+                $m->latest_unit_conversion = (int) ($latest?->unit_conversion_factor ?? ($m->rasio_konversi ?: 1));
+                unset($m->latestIncomingStock);
                 return $m;
             });
+    }
+
+    public function searchMedicines(Request $request)
+    {
+        return response()->json([
+            'medicines' => $this->getMedicinesCatalog($request->query('query')),
+        ]);
+    }
+
+    protected function getPastInvoicesData(?int $supplierId = null, ?string $search = null): array
+    {
+        $query = IncomingStock::with(['supplier:id,nama_pbf', 'medicine:id,nama_obat,satuan_stok,threshold_min'])
+            ->select([
+                'id', 'faktur_no', 'supplier_id', 'medicine_id', 'tanggal_faktur',
+                'satuan_input', 'mid_unit', 'mid_to_big_ratio', 'small_to_mid_ratio',
+                'unit_conversion_factor', 'harga_beli_satuan', 'diskon_persen', 'qty_masuk',
+                'created_at'
+            ]);
+
+        if ($supplierId) {
+            $query->where('supplier_id', $supplierId);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('faktur_no', 'like', "%{$search}%")
+                  ->orWhereHas('supplier', fn($sq) => $sq->where('nama_pbf', 'like', "%{$search}%"))
+                  ->orWhereHas('medicine', fn($mq) => $mq->where('nama_obat', 'like', "%{$search}%"));
+            });
+        }
+
+        $stocks = $query->orderBy('tanggal_faktur', 'desc')->orderBy('id', 'desc')->limit(200)->get();
+        $invoices = [];
+
+        foreach ($stocks as $stock) {
+            $fakturNo = $stock->faktur_no;
+            if (!isset($invoices[$fakturNo])) {
+                $invoices[$fakturNo] = [
+                    'faktur_no' => $fakturNo,
+                    'supplier_id' => $stock->supplier_id,
+                    'supplier_name' => $stock->supplier?->nama_pbf ?? '-',
+                    'tanggal_faktur' => $stock->tanggal_faktur ? \Carbon\Carbon::parse($stock->tanggal_faktur)->format('Y-m-d') : null,
+                    'items_count' => 0,
+                    'items' => [],
+                ];
+            }
+
+            $invoices[$fakturNo]['items_count']++;
+            $invoices[$fakturNo]['items'][] = [
+                'medicine_id' => $stock->medicine_id,
+                'medicine_name' => $stock->medicine?->nama_obat ?? '-',
+                'satuan_stok' => $stock->medicine?->satuan_stok ?? 'Pcs',
+                'min_stock_threshold' => $stock->medicine?->threshold_min ?? 10,
+                'satuan_input' => $stock->satuan_input ?: 'Box',
+                'mid_unit' => $stock->mid_unit,
+                'mid_to_big_ratio' => $stock->mid_to_big_ratio ?: 1,
+                'small_to_mid_ratio' => $stock->small_to_mid_ratio ?: 1,
+                'unit_conversion_factor' => $stock->unit_conversion_factor ?: 1,
+                'harga_beli_satuan' => (float) $stock->harga_beli_satuan,
+                'diskon_persen' => (float) $stock->diskon_persen,
+                'qty_masuk' => (int) ($stock->qty_masuk ?: 1),
+            ];
+        }
+
+        return array_values(array_slice($invoices, 0, 30));
+    }
+
+    public function pastInvoices(Request $request)
+    {
+        $supplierId = $request->query('supplier_id') ? (int) $request->query('supplier_id') : null;
+        $search = $request->query('search');
 
         return response()->json([
-            'medicines' => $medicines,
+            'invoices' => $this->getPastInvoicesData($supplierId, $search)
         ]);
     }
 

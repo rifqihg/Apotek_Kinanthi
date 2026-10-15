@@ -10,13 +10,30 @@ import { useDebounceFn } from '@vueuse/core';
 import { formatInventoryThreshold } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/Components/ui/table';
 
-const props = defineProps({ stocks: Object, settings: Object, filters: Object, suppliers: Array });
+const props = defineProps({ stocks: Object, settings: Object, filters: Object, suppliers: Array, medicines: Array, past_invoices: Array });
+const { toast } = useToast();
 const showModal = ref(false);
 const searchInvoiceQuery = ref(props.filters?.search || '');
 const isSearching = ref(false);
 
-const medicines = ref([]);
-const isSearchingMedicine = ref(false);
+const allMedicines = ref(props.medicines || []);
+watch(() => props.medicines, (val) => {
+    if (val && val.length) {
+        allMedicines.value = val;
+    }
+});
+
+// State untuk Salin dari Faktur Lampau
+const showPastInvoicesModal = ref(false);
+const allPastInvoices = ref(props.past_invoices || []);
+watch(() => props.past_invoices, (val) => {
+    if (val && val.length) {
+        allPastInvoices.value = val;
+    }
+});
+const isLoadingPastInvoices = ref(false);
+const pastInvoiceSearch = ref('');
+const pastInvoiceSupplierFilter = ref('');
 
 watch(() => props.filters?.search, (newSearch) => {
     if (newSearch !== undefined && newSearch !== searchInvoiceQuery.value) {
@@ -121,6 +138,7 @@ const invoiceGrandTotal = (group) => {
 const getEmptyItem = () => ({
     medicine_id: '',
     search_query: '',
+    filter_text: '',
     is_new_medicine: false,
     new_medicine_name: '',
     new_medicine_kategori: '',
@@ -154,8 +172,40 @@ const ppnLocker = computed(() => {
     return Number(props.settings?.default_ppn || 11);
 });
 
+const getFilteredMedicines = (filterText) => {
+    if (!filterText) return allMedicines.value;
+    const q = filterText.toLowerCase().trim();
+    return allMedicines.value.filter(m => (m.nama_obat || '').toLowerCase().includes(q));
+};
+
+const toggleMedicineDropdown = (index) => {
+    const key = 'medicine_' + index;
+    activeDropdown.value = activeDropdown.value === key ? null : key;
+    if (activeDropdown.value === key) {
+        setTimeout(() => {
+            const searchEl = document.getElementById(`input-search-${index}`);
+            if (searchEl) {
+                searchEl.focus();
+                if (searchEl.select) searchEl.select();
+            }
+        }, 50);
+    }
+};
+
+const handleInternalSearchEnter = (index) => {
+    const item = form.items[index];
+    const filtered = getFilteredMedicines(item.filter_text);
+    if (filtered.length > 0) {
+        selectMedicine(index, filtered[0]);
+    }
+};
+
 const addItem = () => {
     form.items.push(getEmptyItem());
+    const nextIdx = form.items.length - 1;
+    setTimeout(() => {
+        toggleMedicineDropdown(nextIdx);
+    }, 50);
 };
 
 const removeItem = (index) => {
@@ -164,57 +214,209 @@ const removeItem = (index) => {
     }
 };
 
-const searchMedicineAction = useDebounceFn(async (query) => {
-    if (!query) {
-        medicines.value = [];
-        return;
-    }
-    isSearchingMedicine.value = true;
+const fetchMedicines = async (query = '') => {
     try {
         const response = await axios.get(route('control.admin.incoming-stocks.search-medicines'), { params: { query } });
-        medicines.value = response.data.medicines || [];
+        if (response.data?.medicines) {
+            allMedicines.value = response.data.medicines;
+        }
     } catch (e) {
-        console.error('Gagal mencari obat', e);
-    } finally {
-        isSearchingMedicine.value = false;
+        console.error('Gagal memperbarui katalog obat', e);
     }
-}, 300);
+};
+
+const openInputFakturModal = () => {
+    showModal.value = true;
+    form.reset();
+    form.items = [getEmptyItem()];
+    form.clearErrors();
+    if (!allMedicines.value.length) {
+        fetchMedicines('');
+    }
+};
 
 const selectMedicine = (index, m) => {
     const item = form.items[index];
     item.medicine_id = m.id;
     item.search_query = m.nama_obat;
-    item.active_dropdown = false;
-    item.unit_conversion_factor = Number(m.rasio_konversi) || 1;
+    item.filter_text = '';
+    activeDropdown.value = null;
+    
+    // Smart Memory Autofill: Harga Beli & Diskon Terakhir
+    if (m.latest_harga_beli !== undefined && m.latest_harga_beli > 0) {
+        item.harga_beli_satuan = m.latest_harga_beli;
+    }
+    if (m.latest_diskon !== undefined) {
+        item.diskon_persen = m.latest_diskon;
+    }
+
+    // Smart Memory Autofill: Konversi Kemasan Terakhir
     item.new_medicine_satuan_kecil = m.satuan_stok || 'Tablet';
     if (m.threshold_min !== undefined && m.threshold_min !== null) {
         item.min_stock_threshold = m.threshold_min;
     }
-    if (m.satuan_besar) {
-        item.satuan_input = m.satuan_besar;
-    }
-    if (m.satuan_menengah) {
-        item.mid_unit = m.satuan_menengah;
+
+    const sInput = m.latest_satuan_input || m.satuan_besar || 'Box';
+    const sMid = m.latest_mid_unit || m.satuan_menengah || null;
+    const sBase = m.satuan_stok || 'Tablet';
+    const rMidToBig = Number(m.latest_mid_to_big) || 1;
+    const rSmallToMid = Number(m.latest_small_to_mid) || Number(m.rasio_konversi) || 1;
+    const rConversion = Number(m.latest_unit_conversion) || Number(m.rasio_konversi) || 1;
+
+    item.satuan_input = sInput;
+    item.unit_conversion_factor = rConversion;
+
+    if (sMid && sMid.toLowerCase() !== sBase.toLowerCase()) {
+        item.mid_unit = sMid;
         item.small_unit_skipped = false;
         item.no_multi_unit = false;
-        item.mid_to_big_ratio = 1;
-        item.small_to_mid_ratio = Number(m.rasio_konversi) || 1;
-    } else if (m.satuan_besar && m.satuan_besar === m.satuan_stok && (!m.rasio_konversi || m.rasio_konversi == 1)) {
+        item.mid_to_big_ratio = rMidToBig;
+        item.small_to_mid_ratio = rSmallToMid;
+    } else if (sInput.toLowerCase() === sBase.toLowerCase() && rConversion <= 1) {
+        item.mid_unit = null;
         item.no_multi_unit = true;
         item.small_unit_skipped = false;
         item.mid_to_big_ratio = 1;
         item.small_to_mid_ratio = 1;
-    } else if (m.satuan_besar && m.satuan_besar !== m.satuan_stok) {
+    } else {
+        item.mid_unit = null;
         item.no_multi_unit = false;
         item.small_unit_skipped = true;
         item.mid_to_big_ratio = 1;
-        item.small_to_mid_ratio = Number(m.rasio_konversi) || 1;
-    } else {
-        item.no_multi_unit = false;
-        item.small_unit_skipped = false;
-        item.mid_to_big_ratio = 1;
-        item.small_to_mid_ratio = Number(m.rasio_konversi) || 1;
+        item.small_to_mid_ratio = rConversion;
     }
+
+    // Excel Flow: Auto-focus to Qty input on medicine selection
+    setTimeout(() => {
+        const qtyEl = document.getElementById(`input-qty-${index}`);
+        if (qtyEl) {
+            qtyEl.focus();
+            if (qtyEl.select) qtyEl.select();
+        }
+    }, 50);
+};
+
+// Keyboard Excel-like Navigations
+const focusNextField = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.focus();
+        if (el.select) el.select();
+    }
+};
+
+const handleExpDateEnter = (index) => {
+    if (index === form.items.length - 1) {
+        addItem();
+    } else {
+        setTimeout(() => {
+            toggleMedicineDropdown(index + 1);
+        }, 50);
+    }
+};
+
+// Past Invoices (Faktur Rutin) Management
+const filteredPastInvoices = computed(() => {
+    let list = allPastInvoices.value || [];
+    if (pastInvoiceSupplierFilter.value) {
+        list = list.filter(inv => Number(inv.supplier_id) === Number(pastInvoiceSupplierFilter.value));
+    }
+    if (pastInvoiceSearch.value) {
+        const q = pastInvoiceSearch.value.toLowerCase().trim();
+        list = list.filter(inv => 
+            (inv.faktur_no || '').toLowerCase().includes(q) ||
+            (inv.supplier_name || '').toLowerCase().includes(q) ||
+            (inv.items || []).some(it => (it.medicine_name || '').toLowerCase().includes(q))
+        );
+    }
+    return list;
+});
+
+const openPastInvoicesModal = () => {
+    pastInvoiceSupplierFilter.value = form.supplier_id ? String(form.supplier_id) : '';
+    pastInvoiceSearch.value = '';
+    isLoadingPastInvoices.value = false;
+    showPastInvoicesModal.value = true;
+};
+
+const fetchPastInvoices = async () => {
+    isLoadingPastInvoices.value = true;
+    try {
+        const res = await axios.get(route('control.admin.incoming-stocks.past-invoices'), {
+            params: {
+                supplier_id: pastInvoiceSupplierFilter.value || undefined,
+                search: pastInvoiceSearch.value || undefined,
+            }
+        });
+        if (res.data?.invoices) {
+            const existingNos = new Set((allPastInvoices.value || []).map(i => i.faktur_no));
+            const newItems = res.data.invoices.filter(i => !existingNos.has(i.faktur_no));
+            allPastInvoices.value = [...allPastInvoices.value, ...newItems];
+        }
+    } catch (err) {
+        console.error('Gagal mengambil riwayat faktur lampau', err);
+    } finally {
+        isLoadingPastInvoices.value = false;
+    }
+};
+
+const handlePastInvoiceSearchInput = useDebounceFn(() => {
+    if (filteredPastInvoices.value.length === 0 && pastInvoiceSearch.value.trim().length >= 2) {
+        fetchPastInvoices();
+    }
+}, 300);
+
+const applyPastInvoice = (inv) => {
+    if (!form.supplier_id && inv.supplier_id) {
+        form.supplier_id = inv.supplier_id;
+    }
+
+    form.items = inv.items.map(it => {
+        const sInput = it.satuan_input || 'Box';
+        const sMid = it.mid_unit || null;
+        const sBase = it.satuan_stok || 'Tablet';
+        const rConversion = it.unit_conversion_factor || 1;
+        const isSingle = !sMid && (sInput.toLowerCase() === sBase.toLowerCase() && rConversion <= 1);
+        const isSkipMid = !sMid && (sInput.toLowerCase() !== sBase.toLowerCase() || rConversion > 1);
+
+        return {
+            medicine_id: it.medicine_id,
+            search_query: it.medicine_name,
+            filter_text: '',
+            is_new_medicine: false,
+            new_medicine_name: '',
+            new_medicine_kategori: '',
+            new_medicine_satuan_kecil: sBase,
+            new_medicine_rasio_konversi: it.small_to_mid_ratio || rConversion,
+            no_multi_unit: isSingle,
+            small_unit_skipped: isSkipMid,
+            unit_conversion_factor: rConversion,
+            satuan_input: sInput,
+            mid_unit: sMid,
+            mid_to_big_ratio: it.mid_to_big_ratio || 1,
+            small_to_mid_ratio: it.small_to_mid_ratio || 1,
+            min_stock_threshold: it.min_stock_threshold || 10,
+            batch_no: '',
+            expired_date: '',
+            qty_masuk: it.qty_masuk || 1,
+            harga_beli_satuan: it.harga_beli_satuan || 0,
+            diskon_persen: it.diskon_persen || 0,
+            active_dropdown: false,
+        };
+    });
+
+    showPastInvoicesModal.value = false;
+    toast({
+        title: 'Faktur Berhasil Disalin',
+        description: `${inv.items.length} item obat dari faktur ${inv.faktur_no} berhasil dimuat. Silakan isi Qty, Batch No, dan Exp Date baru.`,
+    });
+
+    setTimeout(() => {
+        const firstBatch = document.getElementById('input-batch-0');
+        if (firstBatch) {
+            firstBatch.focus();
+        }
+    }, 100);
 };
 
 const getPrimaryUnit = (item) => {
@@ -382,7 +584,7 @@ function submit() {
                         </button>
                     </div>
                 </div>
-                <button @click="showModal=true; form.reset(); form.items=[getEmptyItem()]; form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                <button @click="openInputFakturModal" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                     <span>Input Faktur</span>
                 </button>
@@ -644,15 +846,21 @@ function submit() {
 
                 <!-- Bagian 2: Daftar Obat (Multi-Item) -->
                 <div>
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <span class="w-5 h-5 rounded-md bg-muted text-foreground flex items-center justify-center text-xs font-bold">2</span>
                             Daftar Obat (Items) <span class="text-destructive">*</span>
                         </h4>
-                        <button type="button" @click="addItem" class="text-xs font-medium bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 border border-border">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                            Tambah Baris Obat
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="openPastInvoicesModal" class="text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                                <span>Salin Faktur Lampau</span>
+                            </button>
+                            <button type="button" @click="addItem" class="text-xs font-medium bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 border border-border">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                Tambah Baris Obat
+                            </button>
+                        </div>
                     </div>
 
                     <div class="space-y-3">
@@ -676,20 +884,76 @@ function submit() {
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{{ item.is_new_medicine ? 'Nama Obat Baru' : 'Pilih Obat' }} <span class="text-destructive">*</span></label>
                                     
                                     <div v-if="!item.is_new_medicine" class="relative">
-                                        <input type="text" v-model="item.search_query" @input="item.medicine_id = ''; searchMedicineAction(item.search_query)" @focus="item.active_dropdown = true" @blur="hideDropdown(item)" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" placeholder="Ketik nama obat..." required />
-                                        <div v-if="item.active_dropdown" class="absolute z-20 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto p-1">
-                                            <div v-if="isSearchingMedicine" class="px-3 py-2 text-sm text-muted-foreground text-center animate-pulse">
-                                                Mencari...
+                                        <!-- Trigger Box Dropdown -->
+                                        <div 
+                                            @click.stop="toggleMedicineDropdown(index)" 
+                                            class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-medium transition-colors cursor-pointer flex justify-between items-center hover:bg-muted/30"
+                                            :class="{'ring-1 ring-ring border-input': activeDropdown === 'medicine_' + index}"
+                                        >
+                                            <div class="flex items-center gap-2 truncate">
+                                                <span v-if="item.medicine_id" class="font-semibold text-foreground truncate">
+                                                    {{ item.search_query }}
+                                                </span>
+                                                <span v-else class="text-muted-foreground truncate">
+                                                    Pilih Obat dari Katalog...
+                                                </span>
+                                                <span v-if="item.medicine_id && item.new_medicine_satuan_kecil" class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase shrink-0 font-bold border border-border">
+                                                    {{ item.new_medicine_satuan_kecil }}
+                                                </span>
                                             </div>
-                                            <div v-else-if="medicines.length === 0 && item.search_query" class="px-3 py-2 text-sm text-muted-foreground text-center">
-                                                Obat tidak ditemukan
+                                            <svg class="w-4 h-4 text-muted-foreground transition-transform shrink-0" :class="{'rotate-180': activeDropdown === 'medicine_' + index}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+
+                                        <!-- Dropdown Menu with Search -->
+                                        <div v-if="activeDropdown === 'medicine_' + index" class="absolute z-30 w-full mt-1 bg-popover border border-border rounded-md shadow-md overflow-hidden text-popover-foreground animate-in fade-in zoom-in-95 duration-100">
+                                            <!-- Internal Search Bar -->
+                                            <div class="p-2 border-b border-border bg-muted/30 flex items-center gap-1.5" @click.stop>
+                                                <svg class="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                                </svg>
+                                                <input 
+                                                    :id="'input-search-' + index"
+                                                    type="text" 
+                                                    v-model="item.filter_text" 
+                                                    @keydown.enter.prevent="handleInternalSearchEnter(index)"
+                                                    placeholder="Ketik cari obat, Enter..." 
+                                                    class="w-full h-7 bg-background border border-input rounded px-2 text-xs font-medium text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors"
+                                                />
+                                                <button 
+                                                    v-if="item.filter_text" 
+                                                    type="button" 
+                                                    @click.stop="item.filter_text = ''" 
+                                                    class="p-0.5 text-muted-foreground hover:text-foreground rounded"
+                                                >
+                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
                                             </div>
-                                            <div v-else-if="medicines.length === 0" class="px-3 py-2 text-sm text-muted-foreground text-center">
-                                                Ketik nama obat...
-                                            </div>
-                                            <div v-else v-for="m in medicines" :key="m.id" @click.prevent="selectMedicine(index, m)" class="px-3 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer text-sm flex justify-between items-center">
-                                                <span class="font-medium text-foreground">{{ m.nama_obat }}</span>
-                                                <span class="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{{ m.satuan_stok }}</span>
+
+                                            <!-- Filtered List of Medicines -->
+                                            <div class="max-h-56 overflow-y-auto custom-scrollbar p-1">
+                                                <div v-if="getFilteredMedicines(item.filter_text).length === 0" class="px-3 py-3 text-xs text-muted-foreground text-center">
+                                                    Obat "{{ item.filter_text }}" tidak ditemukan di katalog.
+                                                </div>
+                                                <div 
+                                                    v-else 
+                                                    v-for="m in getFilteredMedicines(item.filter_text)" 
+                                                    :key="m.id" 
+                                                    @mousedown.prevent="selectMedicine(index, m)"
+                                                    class="px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer transition-colors flex justify-between items-center"
+                                                    :class="{'bg-accent/60 font-semibold text-accent-foreground': item.medicine_id === m.id}"
+                                                >
+                                                    <div class="flex flex-col gap-0.5">
+                                                        <span class="font-medium text-foreground text-xs">{{ m.nama_obat }}</span>
+                                                        <span v-if="m.latest_harga_beli" class="text-[10px] text-muted-foreground font-mono">
+                                                            Beli Lalu: Rp {{ Number(m.latest_harga_beli).toLocaleString('id-ID') }}
+                                                        </span>
+                                                    </div>
+                                                    <span class="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono border border-border/60">
+                                                        {{ m.satuan_stok }}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -706,7 +970,7 @@ function submit() {
                                 <!-- QTY (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Qty <span class="text-destructive">*</span></label>
-                                    <input v-model="item.qty_masuk" type="number" min="1" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                    <input :id="'input-qty-' + index" v-model="item.qty_masuk" @keydown.enter.prevent="focusNextField('input-batch-' + index)" type="number" min="1" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                     <p v-if="form.errors[`items.${index}.qty_masuk`]" class="mt-1 text-xs text-destructive">
                                         {{ form.errors[`items.${index}.qty_masuk`] }}
                                     </p>
@@ -715,7 +979,7 @@ function submit() {
                                 <!-- HARGA BELI (col-span-2) -->
                                 <div class="col-span-6 md:col-span-2">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Harga Beli <span class="text-destructive">*</span></label>
-                                    <input v-model="item.harga_beli_satuan" type="number" step="0.01" min="0" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                    <input :id="'input-price-' + index" v-model="item.harga_beli_satuan" type="number" step="0.01" min="0" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                     <p v-if="form.errors[`items.${index}.harga_beli_satuan`]" class="mt-1 text-xs text-destructive">
                                         {{ form.errors[`items.${index}.harga_beli_satuan`] }}
                                     </p>
@@ -738,11 +1002,11 @@ function submit() {
                             <div class="grid grid-cols-12 gap-3">
                                 <div class="col-span-6 md:col-span-3">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Batch No <span class="text-destructive">*</span></label>
-                                    <input v-model="item.batch_no" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                    <input :id="'input-batch-' + index" v-model="item.batch_no" @keydown.enter.prevent="focusNextField('input-exp-' + index)" type="text" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
                                 <div class="col-span-6 md:col-span-3">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Exp Date <span class="text-destructive">*</span></label>
-                                    <input v-model="item.expired_date" type="date" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
+                                    <input :id="'input-exp-' + index" v-model="item.expired_date" @keydown.enter.prevent="handleExpDateEnter(index)" type="date" class="w-full h-9 bg-background border border-input rounded-md px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />
                                 </div>
                                 <div v-if="item.is_new_medicine" class="col-span-12 md:col-span-6">
                                     <label class="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Kategori Obat</label>
@@ -1001,6 +1265,139 @@ function submit() {
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+    </Teleport>
+
+    <!-- Modal Salin Faktur Lampau / Rutin -->
+    <Teleport to="body">
+    <div v-if="showPastInvoicesModal" class="fixed inset-0 bg-background/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-card border border-border rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <!-- Modal Header -->
+            <div class="p-4 sm:p-5 border-b border-border flex items-center justify-between shrink-0 bg-muted/20">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-foreground">Salin Faktur Lampau / Rutin</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">
+                            Pilih faktur sebelumnya untuk memuat otomatis daftar obat, satuan, dan riwayat harga beli.
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="showPastInvoicesModal = false" class="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Toolbar Filter & Search -->
+            <div class="p-3.5 sm:p-4 border-b border-border bg-card/60 flex flex-col sm:flex-row gap-2.5 shrink-0">
+                <div class="w-full sm:w-1/3">
+                    <select v-model="pastInvoiceSupplierFilter" class="w-full h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors">
+                        <option value="">Semua Supplier</option>
+                        <option v-for="s in props.suppliers" :key="s.id" :value="s.id">{{ s.nama_pbf }}</option>
+                    </select>
+                </div>
+                <div class="w-full sm:w-2/3 relative">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input 
+                        v-model="pastInvoiceSearch" 
+                        @input="handlePastInvoiceSearchInput" 
+                        type="text" 
+                        placeholder="Cari nomor faktur atau nama obat..." 
+                        class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-md text-xs font-medium text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors" 
+                    />
+                    <button 
+                        v-if="pastInvoiceSearch" 
+                        type="button" 
+                        @click="pastInvoiceSearch = ''" 
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- List Body -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <div v-if="isLoadingPastInvoices" class="py-12 text-center text-muted-foreground text-xs flex flex-col items-center justify-center gap-2">
+                    <svg class="animate-spin w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Memuat arsip faktur...</span>
+                </div>
+
+                <div v-else-if="filteredPastInvoices.length === 0" class="py-12 text-center text-muted-foreground text-xs space-y-1">
+                    <p class="font-medium text-foreground">Tidak ada riwayat faktur yang ditemukan.</p>
+                    <p>Coba gunakan kata kunci pencarian lain atau pilih supplier yang berbeda.</p>
+                </div>
+
+                <div 
+                    v-else 
+                    v-for="inv in filteredPastInvoices" 
+                    :key="inv.faktur_no" 
+                    class="p-3.5 bg-background hover:bg-muted/30 border border-border rounded-lg transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+                >
+                    <div class="space-y-1.5 flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-bold text-sm text-foreground font-mono">{{ inv.faktur_no }}</span>
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                                {{ inv.supplier_name }}
+                            </span>
+                            <span v-if="inv.tanggal_faktur" class="text-[11px] text-muted-foreground">
+                                {{ inv.tanggal_faktur }}
+                            </span>
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                                {{ inv.items_count }} Item Obat
+                            </span>
+                        </div>
+                        <!-- Preview Obat-obat dalam faktur -->
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span 
+                                v-for="(it, idx) in inv.items.slice(0, 4)" 
+                                :key="idx" 
+                                class="text-[11px] bg-muted/60 text-foreground px-2 py-0.5 rounded border border-border/60"
+                            >
+                                {{ it.medicine_name }}
+                            </span>
+                            <span v-if="inv.items.length > 4" class="text-[10px] text-muted-foreground font-medium">
+                                +{{ inv.items.length - 4 }} lainnya
+                            </span>
+                        </div>
+                    </div>
+
+                    <button 
+                        type="button" 
+                        @click="applyPastInvoice(inv)" 
+                        class="h-8 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-md transition-all shrink-0 flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                        </svg>
+                        <span>Salin Faktur Ini</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-3 sm:px-5 border-t border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+                <span class="text-[11px] text-muted-foreground text-center sm:text-left">
+                    * Nomor Batch & Expired Date dikosongkan untuk diisi data batch fisik yang baru datang.
+                </span>
+                <button 
+                    type="button" 
+                    @click="showPastInvoicesModal = false" 
+                    class="h-8 px-4 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                    Tutup
+                </button>
+            </div>
         </div>
     </div>
     </Teleport>
