@@ -74,38 +74,45 @@ class AdminUserController extends Controller
             );
         }
 
-        $kpiCounts = (clone $mutationQuery)
-            ->selectRaw("
-                SUM(CASE WHEN type IN ('Masuk', 'Penyesuaian Masuk', 'Retur') THEN 1 ELSE 0 END) as count_in,
-                SUM(CASE WHEN type IN ('Keluar', 'Pemusnahan', 'Penjualan', 'Penyesuaian Keluar') THEN 1 ELSE 0 END) as count_out
-            ")
-            ->first();
+        $logsClosure = function () use ($mutationQuery) {
+            return (clone $mutationQuery)->latest()->paginate(15, ['*'], 'mutations_page')->withQueryString();
+        };
 
-        $logs = $mutationQuery->latest()->paginate(15, ['*'], 'mutations_page')->withQueryString();
+        $kpiClosure = function () use ($mutationQuery) {
+            $kpiCounts = (clone $mutationQuery)
+                ->selectRaw("
+                    SUM(CASE WHEN type IN ('Masuk', 'Penyesuaian Masuk', 'Retur') THEN 1 ELSE 0 END) as count_in,
+                    SUM(CASE WHEN type IN ('Keluar', 'Pemusnahan', 'Penjualan', 'Penyesuaian Keluar') THEN 1 ELSE 0 END) as count_out
+                ")
+                ->first();
 
-        // 2. Jejak Aktivitas Sistem (Audit Trail)
-        $audits = AuditTrail::with('user')
-            ->latest('performed_at')
-            ->when($request->filled('audit_search'), function ($q) use ($request) {
-                $s = $request->audit_search;
-                $q->where(fn($sub) =>
-                    $sub->where('description', 'like', "%{$s}%")
-                        ->orWhere('action', 'like', "%{$s}%")
-                        ->orWhereHas('user', fn($qu) => $qu->where('name', 'like', "%{$s}%"))
-                );
-            })
-            ->when($request->filled('role'), fn($q) => $q->whereHas('user', fn($qu) => $qu->where('role', $request->role)))
-            ->paginate(15, ['*'], 'audits_page')
-            ->withQueryString();
-
-        return Inertia::render('Control/Admin/StockLogs', [
-            'logs' => $logs,
-            'audits' => $audits,
-            'kpi' => [
+            return [
                 'in' => (int) ($kpiCounts->count_in ?? 0),
                 'out' => (int) ($kpiCounts->count_out ?? 0),
-                'total' => $logs->total()
-            ],
+                'total' => (clone $mutationQuery)->count()
+            ];
+        };
+
+        $auditsClosure = function () use ($request) {
+            return AuditTrail::with('user:id,name,role')
+                ->latest('performed_at')
+                ->when($request->filled('audit_search'), function ($q) use ($request) {
+                    $s = $request->audit_search;
+                    $q->where(fn($sub) =>
+                        $sub->where('description', 'like', "%{$s}%")
+                            ->orWhere('action', 'like', "%{$s}%")
+                            ->orWhereHas('user', fn($qu) => $qu->where('name', 'like', "%{$s}%"))
+                    );
+                })
+                ->when($request->filled('role'), fn($q) => $q->whereHas('user', fn($qu) => $qu->where('role', $request->role)))
+                ->paginate(15, ['*'], 'audits_page')
+                ->withQueryString();
+        };
+
+        return Inertia::render('Control/Admin/StockLogs', [
+            'logs' => $logsClosure,
+            'kpi' => $kpiClosure,
+            'audits' => $auditsClosure,
             'filters' => $request->only(['search', 'start_date', 'end_date', 'type', 'role', 'audit_search', 'tab', 'is_controlled'])
         ]);
     }

@@ -2,7 +2,6 @@
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
-import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -13,45 +12,43 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
-const isSearching = ref(false);
 const showModal = ref(false);
 const editingMaterial = ref(null);
-
-watch(() => props.filters?.search, (newSearch) => {
-    if (newSearch !== undefined && newSearch !== search.value) {
-        search.value = newSearch || '';
-    }
-});
-
-const handleLiveSearch = useDebounceFn((val) => {
-    isSearching.value = true;
-    router.get(route('control.admin.raw-materials'), {
-        search: val || undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        },
-    });
-}, 300);
-
-watch(search, (newVal) => {
-    handleLiveSearch(newVal);
-});
 
 const clearSearch = () => {
     search.value = '';
 };
 
+const activeFilterTab = ref('all'); // 'all' | 'critical' | 'safe'
+
+const getMatStock = (m) => Number(m?.stok_total ?? m?.total_quantity ?? 0);
+const isMatCritical = (m) => getMatStock(m) <= (Number(m?.threshold_min) || 0);
+
 const stats = computed(() => {
     const list = props.materials?.data || [];
     const total = props.materials?.total ?? list.length;
-    const critical = list.filter(m => (Number(m.total_quantity) || 0) <= (Number(m.threshold_min) || 0)).length;
-    const safe = list.filter(m => (Number(m.total_quantity) || 0) > (Number(m.threshold_min) || 0)).length;
+    const critical = list.filter(isMatCritical).length;
+    const safe = list.filter(m => !isMatCritical(m)).length;
     return { total, critical, safe };
+});
+
+const filteredMaterials = computed(() => {
+    let list = props.materials?.data || [];
+    if (activeFilterTab.value === 'critical') {
+        list = list.filter(isMatCritical);
+    } else if (activeFilterTab.value === 'safe') {
+        list = list.filter(m => !isMatCritical(m));
+    }
+    if (search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(m =>
+            m.nama_bahan?.toLowerCase().includes(q) ||
+            m.kode_bahan?.toLowerCase().includes(q) ||
+            m.bentuk_sediaan?.toLowerCase().includes(q) ||
+            m.golongan_bahan?.toLowerCase().includes(q)
+        );
+    }
+    return list;
 });
 
 const farmasiTaksonomi = {
@@ -213,35 +210,98 @@ const deleteMaterial = (m) => {
 <template>
 <Head title="Data Bahan Baku" />
 <div class="space-y-6">
-    <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+    <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        <!-- HERO BANNER CARD (lg:col-span-8) -->
-        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                    MASTER DATA · BAHAN RACIKAN
+        <!-- SISI KIRI: KONSOL OPERASIONAL (lg:col-span-8) -->
+        <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between gap-2.5">
+            <!-- Baris 1: Filter Tabs (Pills) & Tombol Desktop -->
+            <div class="flex items-center justify-between gap-2 w-full">
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'all'"
+                        class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                        :class="activeFilterTab === 'all' 
+                            ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                        <span>Semua Bahan</span>
+                        <span 
+                            v-if="stats.total" 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                        >{{ stats.total }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'critical'"
+                        class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                        :class="activeFilterTab === 'critical' 
+                            ? 'bg-amber-500 text-white shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <svg class="w-3.5 h-3.5" :class="activeFilterTab === 'critical' ? 'text-white' : 'text-amber-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>Stok Kritis</span>
+                        <span 
+                            v-if="stats.critical" 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'critical' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'"
+                        >{{ stats.critical }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'safe'"
+                        class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                        :class="activeFilterTab === 'safe' 
+                            ? 'bg-emerald-600 text-white shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <svg class="w-3.5 h-3.5" :class="activeFilterTab === 'safe' ? 'text-white' : 'text-emerald-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Siap Racik</span>
+                        <span 
+                            v-if="stats.safe" 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'safe' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'"
+                        >{{ stats.safe }}</span>
+                    </button>
                 </div>
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Inventaris Bahan Baku Racikan
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                    Pengelolaan stok bahan dasar kimia, serbuk, dan cairan sediaan murni untuk kebutuhan peracikan internal apoteker.
-                </p>
+
+                <!-- Action Button Desktop -->
+                <button 
+                    @click="openAdd"
+                    class="hidden sm:inline-flex h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Tambah Bahan</span>
+                </button>
             </div>
 
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                <div class="relative w-full sm:w-64">
-                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input v-model="search" type="text" placeholder="Cari nama atau kode bahan baku..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+            <!-- Baris 2: Search Input & Mobile Action Button -->
+            <div class="flex items-center gap-2 w-full">
+                <div class="relative flex-1">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input 
+                        type="text" 
+                        v-model="search" 
+                        placeholder="Cari nama atau kode bahan baku..." 
+                        class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all"
+                    />
                     <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
                         <button 
-                            v-else-if="search" 
+                            v-if="search" 
                             type="button" 
                             @click="clearSearch" 
                             class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
@@ -253,33 +313,39 @@ const deleteMaterial = (m) => {
                         </button>
                     </div>
                 </div>
-                <button @click="openAdd" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                    <span>Tambah Bahan</span>
+
+                <button 
+                    @click="openAdd"
+                    class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Tambah</span>
                 </button>
             </div>
         </div>
 
-        <!-- 2 STAT CARDS (lg:col-span-4) -->
-        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+        <!-- SISI KANAN: 2 STAT CARDS (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
             <!-- Card 1: Stok Kritis -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                         STOK KRITIS
                     </span>
-                    <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.critical > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0" :class="stats.critical > 0 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted text-slate-400 dark:text-muted-foreground'">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.critical > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
                         {{ stats.critical }}
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                     {{ stats.critical > 0 ? 'Perlu restock segera' : 'Semua stok aman' }}
                 </p>
             </div>
@@ -287,27 +353,26 @@ const deleteMaterial = (m) => {
             <!-- Card 2: Siap Racik -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                         SIAP RACIK
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
                         {{ stats.safe }}
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                     Stok aman tersedia
                 </p>
             </div>
         </div>
     </div>
-
 
     <!-- Table -->
     <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
@@ -326,10 +391,12 @@ const deleteMaterial = (m) => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                <TableRow v-if="!materials?.data || materials.data.length === 0">
-                    <TableCell colspan="9" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">Belum ada bahan baku terdaftar.</TableCell>
+                <TableRow v-if="!filteredMaterials || filteredMaterials.length === 0">
+                    <TableCell colspan="9" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
+                        {{ activeFilterTab !== 'all' ? 'Tidak ada bahan baku yang sesuai dengan filter.' : 'Belum ada bahan baku terdaftar.' }}
+                    </TableCell>
                 </TableRow>
-                <TableRow v-for="(m, index) in (materials?.data || [])" :key="m.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                <TableRow v-for="(m, index) in filteredMaterials" :key="m.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                     <!-- NO -->
                     <TableCell class="py-2.5 px-3 text-center align-middle text-xs font-medium text-muted-foreground tabular-nums">
                         {{ ((materials.current_page || 1) - 1) * (materials.per_page || 15) + index + 1 }}

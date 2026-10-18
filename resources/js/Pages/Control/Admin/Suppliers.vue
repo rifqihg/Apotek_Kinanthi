@@ -1,8 +1,7 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
-import { useDebounceFn } from '@vueuse/core';
+import { ref, computed } from 'vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -13,36 +12,12 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
-const isSearching = ref(false);
-
-watch(() => props.filters?.search, (newSearch) => {
-    if (newSearch !== undefined && newSearch !== search.value) {
-        search.value = newSearch || '';
-    }
-});
-
-const handleLiveSearch = useDebounceFn((val) => {
-    isSearching.value = true;
-    router.get(route('control.admin.suppliers'), {
-        search: val || undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        },
-    });
-}, 300);
-
-watch(search, (newVal) => {
-    handleLiveSearch(newVal);
-});
 
 const clearSearch = () => {
     search.value = '';
 };
+
+const activeFilterTab = ref('all'); // 'all' | 'active' | 'inactive'
 
 const stats = computed(() => {
     const list = props.suppliers?.data || [];
@@ -50,6 +25,25 @@ const stats = computed(() => {
     const active = list.filter(s => s.is_active).length;
     const inactive = list.filter(s => !s.is_active).length;
     return { total, active, inactive };
+});
+
+const filteredSuppliers = computed(() => {
+    let list = props.suppliers?.data || [];
+    if (activeFilterTab.value === 'active') {
+        list = list.filter(s => s.is_active);
+    } else if (activeFilterTab.value === 'inactive') {
+        list = list.filter(s => !s.is_active);
+    }
+    if (search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(s =>
+            s.nama_pbf?.toLowerCase().includes(q) ||
+            s.telepon?.toLowerCase().includes(q) ||
+            s.email?.toLowerCase().includes(q) ||
+            s.alamat?.toLowerCase().includes(q)
+        );
+    }
+    return list;
 });
 
 const showModal = ref(false);
@@ -103,73 +97,142 @@ function destroy(supplier) {
     <Head title="Data Supplier PBF" />
 
     <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <!-- HERO BANNER CARD (lg:col-span-8) -->
-            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                        SUPPLY CHAIN · KEMITRAAN
-                    </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Manajemen Supplier & PBF
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Direktori Pedagang Besar Farmasi resmi, kontak penanggung jawab sales, dan tata kelola kemitraan distribusi apotek.
-                    </p>
-                </div>
-
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                <div class="relative w-full sm:w-64">
-                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input v-model="search" type="text" placeholder="Cari nama PBF, kontak..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
-                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <button 
-                            v-else-if="search" 
-                            type="button" 
-                            @click="clearSearch" 
-                            class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
-                            title="Hapus pencarian"
+            <!-- SISI KIRI: KONSOL OPERASIONAL (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Desktop -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="activeFilterTab = 'all'"
+                            class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                            :class="activeFilterTab === 'all' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
                         >
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
+                            <span>Semua PBF</span>
+                            <span 
+                                v-if="stats.total" 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeFilterTab === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ stats.total }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeFilterTab = 'active'"
+                            class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                            :class="activeFilterTab === 'active' 
+                                ? 'bg-emerald-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <svg class="w-3.5 h-3.5" :class="activeFilterTab === 'active' ? 'text-white' : 'text-emerald-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>PBF Aktif</span>
+                            <span 
+                                v-if="stats.active" 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeFilterTab === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'"
+                            >{{ stats.active }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeFilterTab = 'inactive'"
+                            class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                            :class="activeFilterTab === 'inactive' 
+                                ? 'bg-amber-500 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <svg class="w-3.5 h-3.5" :class="activeFilterTab === 'inactive' ? 'text-white' : 'text-amber-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Perlu Tinjauan</span>
+                            <span 
+                                v-if="stats.inactive" 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeFilterTab === 'inactive' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'"
+                            >{{ stats.inactive }}</span>
                         </button>
                     </div>
-                </div>
-                <button @click="openCreate" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                    <span>Tambah Supplier</span>
-                </button>
-            </div>
-        </div>
 
-        <!-- 2 STAT CARDS (lg:col-span-4) -->
-        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+                    <!-- Action Button Desktop -->
+                    <button 
+                        @click="openCreate"
+                        class="hidden sm:inline-flex h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Tambah Supplier</span>
+                    </button>
+                </div>
+
+                <!-- Baris 2: Search Input & Mobile Action Button -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input 
+                            type="text" 
+                            v-model="search" 
+                            placeholder="Cari nama PBF, kontak, alamat..." 
+                            class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all"
+                        />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <button 
+                                v-if="search" 
+                                type="button" 
+                                @click="clearSearch" 
+                                class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                                title="Hapus pencarian"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button 
+                        @click="openCreate"
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Tambah</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SISI KANAN: 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
                 <!-- Card 1: Distributor Aktif -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                     <div class="flex items-center justify-between gap-1">
-                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                             DISTRIBUTOR AKTIF
                         </span>
-                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
                     </div>
-                    <div class="my-0.5">
+                    <div class="my-1 truncate">
                         <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
                             {{ stats.active }}
                         </span>
                     </div>
-                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                         Mitra siap transaksi
                     </p>
                 </div>
@@ -177,48 +240,47 @@ function destroy(supplier) {
                 <!-- Card 2: Perlu Tinjauan -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                     <div class="flex items-center justify-between gap-1">
-                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                             PERLU TINJAUAN
                         </span>
-                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.inactive > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
-                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0" :class="stats.inactive > 0 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted text-slate-400 dark:text-muted-foreground'">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                         </div>
                     </div>
-                    <div class="my-0.5">
+                    <div class="my-1 truncate">
                         <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.inactive > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
                             {{ stats.inactive }}
                         </span>
                     </div>
-                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                         {{ stats.inactive > 0 ? 'Mitra non-aktif / arsip' : 'Semua mitra aktif' }}
                     </p>
                 </div>
             </div>
         </div>
 
-
-            <!-- TABLE CONTAINER -->
-            <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm mt-2">
-                <Table class="w-full min-w-[950px]">
-                    <TableHeader>
-                        <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                            <TableHead class="min-w-[250px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Informasi PBF / Nama Perusahaan</TableHead>
-                            <TableHead class="min-w-[210px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kontak Distributor</TableHead>
-                            <TableHead class="min-w-[250px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alamat / Lokasi</TableHead>
-                            <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status</TableHead>
-                            <TableHead class="min-w-[90px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="!suppliers?.data || suppliers.data.length === 0">
-                            <TableCell colspan="6" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
-                                Data Supplier Belum Tersedia.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="(s, index) in (suppliers?.data || [])" :key="s.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
+        <!-- TABLE CONTAINER -->
+        <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm mt-2">
+            <Table class="w-full min-w-[950px]">
+                <TableHeader>
+                    <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                        <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                        <TableHead class="min-w-[250px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Informasi PBF / Nama Perusahaan</TableHead>
+                        <TableHead class="min-w-[210px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Kontak Distributor</TableHead>
+                        <TableHead class="min-w-[250px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Alamat / Lokasi</TableHead>
+                        <TableHead class="min-w-[100px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Status</TableHead>
+                        <TableHead class="min-w-[90px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Aksi</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-if="!filteredSuppliers || filteredSuppliers.length === 0">
+                        <TableCell colspan="6" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
+                            {{ activeFilterTab !== 'all' ? 'Tidak ada data supplier yang sesuai dengan filter.' : 'Data Supplier Belum Tersedia.' }}
+                        </TableCell>
+                    </TableRow>
+                    <TableRow v-for="(s, index) in filteredSuppliers" :key="s.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <!-- NO -->
                             <TableCell class="py-2.5 px-3 text-center align-middle font-mono text-xs text-muted-foreground tabular-nums">
                                 {{ ((suppliers.current_page || 1) - 1) * (suppliers.per_page || 15) + index + 1 }}

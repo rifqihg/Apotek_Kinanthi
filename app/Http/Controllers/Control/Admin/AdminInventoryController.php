@@ -7,6 +7,7 @@ use App\Models\Control\AuditTrail;
 use App\Models\Control\IncomingStock;
 use App\Models\Control\Medicine;
 use App\Models\Control\ReturnForm;
+use App\Models\Control\Supplier;
 use App\Models\Control\WarehouseInventory;
 use App\Models\User;
 use Exception;
@@ -20,11 +21,32 @@ class AdminInventoryController extends Controller
     {
         $search = $request->query('search');
         $date = $request->query('date');
+        $timeFilter = $request->query('time_filter', 'all');
+        $supplierId = $request->query('supplier_id');
 
-        $query = ReturnForm::with(['incomingStock.medicine', 'supplier', 'creator']);
+        $query = ReturnForm::select([
+            'id', 'incoming_stock_id', 'supplier_id', 'qty_retur', 
+            'alasan_retur', 'status', 'created_by', 'created_at'
+        ])->with([
+            'incomingStock:id,faktur_no,medicine_id,batch_no',
+            'incomingStock.medicine:id,nama_obat,kode_obat,satuan_stok',
+            'supplier:id,nama_pbf',
+            'creator:id,name'
+        ]);
 
-        if ($request->filled('date')) {
-            $query->whereDate('created_at', $date);
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $supplierId);
+        }
+
+        if ($timeFilter === 'today') {
+            $query->whereBetween('created_at', [today()->startOfDay(), today()->endOfDay()]);
+        } elseif ($timeFilter === 'month') {
+            $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+        } elseif ($request->filled('date')) {
+            $query->whereBetween('created_at', [
+                date('Y-m-d 00:00:00', strtotime($date)), 
+                date('Y-m-d 23:59:59', strtotime($date))
+            ]);
         }
 
         if ($request->filled('search')) {
@@ -49,22 +71,55 @@ class AdminInventoryController extends Controller
         }
 
         $returns = $query->latest()
-            ->paginate(20)
+            ->paginate(50)
             ->withQueryString();
 
-        // Fetch active incoming stocks that have available qty_converted > 0
-        $activeIncomingStocks = IncomingStock::with(['medicine', 'supplier'])
-            ->where('qty_converted', '>', 0)
-            ->whereIn('status_gate', ['pending_admin_verify', 'pending_admin_final', 'active'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // 1 Single lightweight aggregate query instead of 5 separate full scans
+        $statsRow = DB::table('return_forms')
+            ->selectRaw('
+                COUNT(*) as total,
+                COUNT(CASE WHEN created_at >= ? AND created_at <= ? THEN 1 END) as this_month,
+                COUNT(CASE WHEN created_at >= ? AND created_at <= ? THEN 1 END) as today,
+                COALESCE(SUM(qty_retur), 0) as total_units,
+                COUNT(DISTINCT supplier_id) as unique_suppliers
+            ', [
+                now()->startOfMonth(), 
+                now()->endOfMonth(), 
+                today()->startOfDay(), 
+                today()->endOfDay()
+            ])
+            ->first();
+
+        $stats = [
+            'total' => (int) ($statsRow->total ?? 0),
+            'this_month' => (int) ($statsRow->this_month ?? 0),
+            'today' => (int) ($statsRow->today ?? 0),
+            'total_units' => (int) ($statsRow->total_units ?? 0),
+            'unique_suppliers' => (int) ($statsRow->unique_suppliers ?? 0),
+        ];
 
         return Inertia::render('Control/Admin/Returns', [
             'returns' => $returns,
-            'activeIncomingStocks' => $activeIncomingStocks,
+            'stats' => $stats,
+            'suppliers' => fn () => Supplier::select(['id', 'nama_pbf'])->orderBy('nama_pbf')->get(),
+            'activeIncomingStocks' => fn () => IncomingStock::select([
+                    'id', 'faktur_no', 'supplier_id', 'medicine_id', 'batch_no', 
+                    'expired_date', 'qty_converted', 'satuan_input', 'mid_unit',
+                    'unit_conversion_factor', 'mid_to_big_ratio', 'small_to_mid_ratio'
+                ])
+                ->with([
+                    'medicine:id,nama_obat,satuan_stok', 
+                    'supplier:id,nama_pbf'
+                ])
+                ->where('qty_converted', '>', 0)
+                ->whereIn('status_gate', ['pending_admin_verify', 'pending_admin_final', 'active'])
+                ->orderBy('created_at', 'desc')
+                ->get(),
             'filters' => [
                 'search' => $search ?? '',
                 'date' => $date ?? '',
+                'time_filter' => $timeFilter,
+                'supplier_id' => $supplierId ?? '',
             ],
         ]);
     }
@@ -135,7 +190,7 @@ class AdminInventoryController extends Controller
 
     public function distribution(Request $request)
     {
-        $kasirs = User::where('role', 'kasir')->get();
+        $kasirs = User::where('role', 'kasir')->get(['id', 'name']);
         $selectedKasirId = $request->query('kasir_id');
         if (!$selectedKasirId && $kasirs->isNotEmpty()) {
             $selectedKasirId = $kasirs->first()->id;

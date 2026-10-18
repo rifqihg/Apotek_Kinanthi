@@ -49,6 +49,7 @@ class KasirSaleController extends Controller
             ->where('kasir_id', auth()->id())
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->latest()
+            ->limit(100)
             ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']);
 
         return Inertia::render('Control/Kasir/Queue', [

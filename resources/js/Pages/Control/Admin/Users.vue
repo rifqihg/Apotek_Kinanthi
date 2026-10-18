@@ -10,13 +10,37 @@ const showModal = ref(false);
 const editing = ref(null);
 const form = useForm({ name:'', email:'', role:'kasir', password:'', password_confirmation:'' });
 
+const search = ref('');
+const activeRoleTab = ref('all');
+
 const stats = computed(() => {
     const list = props.users?.data || [];
     const total = props.users?.total ?? list.length;
     const apoteker = list.filter(u => u.role === 'apoteker').length;
     const kasir = list.filter(u => u.role === 'kasir').length;
-    return { total, apoteker, kasir };
+    const admin = list.filter(u => u.role === 'admin').length;
+    return { total, apoteker, kasir, admin };
 });
+
+const filteredUsers = computed(() => {
+    let list = props.users?.data || [];
+    if (activeRoleTab.value !== 'all') {
+        list = list.filter(u => u.role === activeRoleTab.value);
+    }
+    if (search.value.trim()) {
+        const q = search.value.toLowerCase();
+        list = list.filter(u => 
+            u.name?.toLowerCase().includes(q) || 
+            u.email?.toLowerCase().includes(q) ||
+            u.role?.toLowerCase().includes(q)
+        );
+    }
+    return list;
+});
+
+const clearSearch = () => {
+    search.value = '';
+};
 
 const roleClass = (r) => ({
     admin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -37,52 +61,140 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
 <Head title="Manajemen User" />
 
 <div class="space-y-6">
-    <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+    <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        <!-- HERO BANNER CARD (lg:col-span-8) -->
-        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                    SECURITY · RBAC MANAGEMENT
-                </div>
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Manajemen Pengguna & Hak Akses
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                    Pengaturan akun operasional staf Apotek Kinanthi serta pembagian wewenang role Admin, Apoteker, dan Kasir.
-                </p>
-            </div>
+        <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+        <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Tambah Staff (Desktop) -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="activeRoleTab = 'all'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="activeRoleTab === 'all' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span>Semua</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeRoleTab === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ stats.total }}</span>
+                        </button>
 
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                <button @click="openCreate" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                    <span>Tambah Staff</span>
-                </button>
-            </div>
+                        <button
+                            type="button"
+                            @click="activeRoleTab = 'apoteker'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="activeRoleTab === 'apoteker' 
+                                ? 'bg-emerald-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="activeRoleTab === 'apoteker' ? 'bg-white' : 'bg-emerald-500'"></span>
+                            <span>Apoteker</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeRoleTab === 'apoteker' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'"
+                            >{{ stats.apoteker }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeRoleTab = 'kasir'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="activeRoleTab === 'kasir' 
+                                ? 'bg-blue-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="activeRoleTab === 'kasir' ? 'bg-white' : 'bg-blue-500'"></span>
+                            <span>Kasir</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeRoleTab === 'kasir' ? 'bg-white/20 text-white' : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'"
+                            >{{ stats.kasir }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeRoleTab = 'admin'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="activeRoleTab === 'admin' 
+                                ? 'bg-indigo-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="activeRoleTab === 'admin' ? 'bg-white' : 'bg-indigo-500'"></span>
+                            <span>Admin</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeRoleTab === 'admin' ? 'bg-white/20 text-white' : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'"
+                            >{{ stats.admin }}</span>
+                        </button>
+                    </div>
+
+                    <button 
+                        @click="openCreate" 
+                        class="hidden sm:inline-flex h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        title="Tambah Akun Staff Baru"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Tambah Staff</span>
+                    </button>
+                </div>
+
+                <!-- Baris 2: Search Input & Tombol Tambah Staff (Mobile) -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari nama staf, email pengguna, atau role akun..." 
+                            class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                        />
+                        <button 
+                            v-if="search" 
+                            type="button" 
+                            @click="clearSearch" 
+                            class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                            title="Hapus pencarian"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button 
+                        @click="openCreate" 
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Tambah</span>
+                    </button>
+                </div>
         </div>
 
-        <!-- 2 STAT CARDS (lg:col-span-4) -->
-        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+        <!-- SISI KANAN: 2 METRIK KARTU BERDAMPINGAN (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
             <!-- Card 1: Tim Apoteker -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                         TIM APOTEKER
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
-                        {{ stats.apoteker }}
+                        {{ stats.apoteker }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Staff</span>
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                     Otoritas resep & racikan
                 </p>
             </div>
@@ -90,49 +202,43 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
             <!-- Card 2: Operator Kasir -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                         OPERATOR KASIR
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted border border-slate-200 dark:border-border flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                        {{ stats.kasir }}
+                        {{ stats.kasir }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Staff</span>
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                     Layanan kasir & transaksi
                 </p>
             </div>
         </div>
     </div>
 
-    <div class="flex items-center justify-between mt-4 mb-2">
-        <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-            Daftar Akun Pengguna
-        </h2>
-    </div>
-
-        <!-- Table -->
-        <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table class="w-full text-sm text-left min-w-[650px]">
-                <thead class="bg-muted/50 border-b border-border">
-                    <tr>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[190px] whitespace-nowrap">Nama User</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px] whitespace-nowrap">Email</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Role / Akses</th>
-                        <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-if="users.data.length === 0">
-                        <td colspan="4" class="px-5 py-12 text-center text-muted-foreground font-medium text-sm">Belum ada data user.</td>
-                    </tr>
-                    <tr v-for="u in users.data" :key="u.id" class="hover:bg-muted/40 transition-colors">
+    <!-- Table -->
+    <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+        <table class="w-full text-sm text-left min-w-[650px]">
+            <thead class="bg-muted/50 border-b border-border">
+                <tr>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[190px] whitespace-nowrap">Nama User</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[200px] whitespace-nowrap">Email</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Role / Akses</th>
+                    <th class="px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[130px] whitespace-nowrap">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+                <tr v-if="filteredUsers.length === 0">
+                    <td colspan="4" class="px-5 py-12 text-center text-muted-foreground font-medium text-sm">Belum ada data user yang sesuai.</td>
+                </tr>
+                <tr v-for="u in filteredUsers" :key="u.id" class="hover:bg-muted/40 transition-colors">
                         <td class="px-5 py-3.5 whitespace-nowrap">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-md bg-muted text-foreground border border-border flex items-center justify-center font-bold text-sm uppercase">

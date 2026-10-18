@@ -46,6 +46,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
 
     // ─── MASTER DATA ─────────────────────────────────────────
     Route::get('/medicines/faktur', [AdminMedicineController::class, 'medicinesFaktur'])->name('medicines.faktur');
+    Route::get('/medicines', [AdminMedicineController::class, 'medicinesFaktur'])->name('medicines');
     Route::post('/medicines/{medicine}/photo', [AdminMedicineController::class, 'updateMedicinePhoto'])->name('medicines.updatePhoto');
     Route::put('/medicines/{medicine}', [AdminMedicineController::class, 'updateMedicine'])->name('medicines.update');
     Route::get('/compounded-products', [AdminMedicineController::class, 'compoundedProducts'])->name('compounded-products');
@@ -138,6 +139,9 @@ Route::middleware(['auth', 'role:apoteker'])->prefix('control/apoteker')->name('
     // Prescriptions
     Route::get('/prescriptions', [ApotekerPrescriptionController::class, 'index'])->name('prescriptions.index');
     Route::get('/prescriptions/create', [ApotekerPrescriptionController::class, 'create'])->name('prescriptions.create');
+    Route::get('/prescriptions/search-patients', [ApotekerPrescriptionController::class, 'searchPatients'])->name('prescriptions.search-patients');
+    Route::get('/prescriptions/search-medicines', [ApotekerPrescriptionController::class, 'searchMedicines'])->name('prescriptions.search-medicines');
+    Route::get('/prescriptions/patient-history', [ApotekerPrescriptionController::class, 'patientHistory'])->name('prescriptions.patient-history');
     Route::post('/prescriptions', [ApotekerPrescriptionController::class, 'store'])->name('prescriptions.store');
     Route::get('/prescriptions/{id}', [ApotekerPrescriptionController::class, 'show'])->name('prescriptions.show');
     Route::patch('/prescriptions/{id}/status', [ApotekerPrescriptionController::class, 'updateStatus'])->name('prescriptions.updateStatus');

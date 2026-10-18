@@ -86,47 +86,61 @@ const exportToPdf = () => {
 
     <div class="space-y-6">
 
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-                <h2 class="text-2xl font-bold tracking-tight text-foreground">Monitoring Transaksi</h2>
-                <p class="text-muted-foreground text-sm mt-1">Jurnal transaksi kasir dan rekonsiliasi kas harian.</p>
+        <!-- UNIFIED FILTER & EXPORT ACTION BAR -->
+        <div class="bg-card rounded-lg border border-border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <!-- Sisi Kiri: Filter Rentang Waktu Kompak -->
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Rentang Waktu:
+                </span>
+                <div class="flex items-center gap-2">
+                    <input 
+                        type="date" 
+                        v-model="startDate" 
+                        class="h-9.5 px-3 rounded-md border border-input bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors cursor-pointer" 
+                        title="Dari Tanggal"
+                    />
+                    <span class="text-sm text-muted-foreground font-semibold">-</span>
+                    <input 
+                        type="date" 
+                        v-model="endDate" 
+                        class="h-9.5 px-3 rounded-md border border-input bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors cursor-pointer" 
+                        title="Sampai Tanggal"
+                    />
+                    <svg v-if="isFiltering" class="animate-spin h-4 w-4 text-emerald-600 shrink-0 ml-1" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
             </div>
 
-            <div class="flex items-center gap-3">
-                <button @click="exportToPdf" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            <!-- Sisi Kanan: Tombol Ekspor PDF & Excel (Ukuran Standar, rounded-md) -->
+            <div class="flex items-center gap-2.5 shrink-0">
+                <button 
+                    @click="exportToPdf" 
+                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+                    title="Ekspor Laporan PDF"
+                >
+                    <!-- Official Adobe PDF Icon -->
+                    <svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7.5 2h9l5.5 5.5v12.5a2 2 0 0 1-2 2h-12.5a2 2 0 0 1-2-2v-16a2 2 0 0 1 2-2zm8 1.5v4.5h4.5l-4.5-4.5zm-8.5 7.5v6.5h1.5v-2.25h1.25a2.125 2.125 0 0 0 0-4.25h-2.75zm1.5 1.5h1.25a.625.625 0 0 1 0 1.25h-1.25v-1.25zm4.5-1.5v6.5h2.25a2.5 2.5 0 0 0 2.5-2.5v-1.5a2.5 2.5 0 0 0-2.5-2.5h-2.25zm1.5 1.5h.75a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-.75v-3.5zm5.5-1.5v6.5h1.5v-2.5h2v-1.5h-2v-1h2.25v-1.5h-3.75z"/>
                     </svg>
-                    Export PDF
+                    <span>Export PDF</span>
                 </button>
-                <button @click="exportToExcel" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition-colors shadow-sm">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <button 
+                    @click="exportToExcel" 
+                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+                    title="Ekspor Laporan Excel"
+                >
+                    <!-- Official Microsoft Excel Icon -->
+                    <svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21.17 3.25Q21.5 3.25 21.76 3.5 22 3.74 22 4.08V19.92Q22 20.26 21.76 20.5 21.5 20.75 21.17 20.75H7.83Q7.5 20.75 7.24 20.5 7 20.26 7 19.92V17H2.83Q2.5 17 2.24 16.76 2 16.5 2 16.17V7.83Q2 7.5 2.24 7.24 2.5 7 2.83 7H7V4.08Q7 3.74 7.24 3.5 7.5 3.25 7.83 3.25M7 13H5.5L4.5 11.2 3.5 13H2L3.75 10 2 7H3.5L4.5 8.8 5.5 7H7L5.25 10ZM13 5H9V8H13ZM19 5H15V8H19ZM13 10H9V14H13ZM19 10H15V14H19ZM13 16H9V19H13ZM19 16H15V19H19Z"/>
                     </svg>
-                    Export Excel
+                    <span>Export Excel</span>
                 </button>
-            </div>
-        </div>
-
-        <!-- Filter -->
-        <div class="bg-card rounded-lg border border-border p-5 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filter Rentang Waktu</span>
-                <svg v-if="isFiltering" class="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-4 items-end">
-                <div class="flex-1 w-full">
-                    <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Dari Tanggal</label>
-                    <input type="date" v-model="startDate" class="w-full h-10 rounded-md border-input bg-background focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium text-foreground text-sm">
-                </div>
-                <div class="flex-1 w-full">
-                    <label class="block text-xs font-semibold text-muted-foreground mb-1.5">Sampai Tanggal</label>
-                    <input type="date" v-model="endDate" class="w-full h-10 rounded-md border-input bg-background focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium text-foreground text-sm">
-                </div>
             </div>
         </div>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { toast } from '@/Components/ui/toast';
@@ -12,6 +12,31 @@ const formatCurrency = (val) => Number(val) ? 'Rp ' + Number(val).toLocaleString
 const props = defineProps({
     compoundedProducts: Array,
     medicines: Array,
+});
+
+// Search & Filter State untuk Produk Racikan
+const compoundedSearchQuery = ref('');
+const compoundedFilterStatus = ref('all'); // 'all' | 'pending' | 'loss'
+
+const isCompoundedLoss = (p) => p.calculated_margin !== null && p.calculated_margin < 0;
+const isCompoundedUnpriced = (p) => p.pricing_status === 'pending_price' || !Number(p.harga_jual) || (Number(p.calculated_hpp || 0) > 0 && !Number(p.harga_jual));
+
+const countCompoundedPending = computed(() => (props.compoundedProducts || []).filter(isCompoundedUnpriced).length);
+const countCompoundedLoss = computed(() => (props.compoundedProducts || []).filter(isCompoundedLoss).length);
+
+const filteredCompoundedProducts = computed(() => {
+    let list = props.compoundedProducts || [];
+    if (compoundedFilterStatus.value === 'pending') list = list.filter(isCompoundedUnpriced);
+    else if (compoundedFilterStatus.value === 'loss') list = list.filter(isCompoundedLoss);
+
+    if (compoundedSearchQuery.value.trim()) {
+        const q = compoundedSearchQuery.value.toLowerCase().trim();
+        list = list.filter(p =>
+            p.nama_produk?.toLowerCase().includes(q) ||
+            p.batch_no?.toLowerCase().includes(q)
+        );
+    }
+    return list;
 });
 
 // Search & Filter State untuk Obat Jadi
@@ -46,6 +71,27 @@ const filteredMedicines = computed(() => {
     }
     return list;
 });
+
+// Pagination State (Client-side rendering optimization)
+const currentPage = ref(1);
+const perPage = ref(20);
+
+watch([searchQuery, filterStatus], () => {
+    currentPage.value = 1;
+});
+
+const totalPages = computed(() => Math.ceil(filteredMedicines.value.length / perPage.value) || 1);
+
+const paginatedMedicines = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    return filteredMedicines.value.slice(start, start + perPage.value);
+});
+
+const goToPage = (p) => {
+    if (p >= 1 && p <= totalPages.value) {
+        currentPage.value = p;
+    }
+};
 
 // Modal State untuk Obat Jadi
 const isModalOpen = ref(false);
@@ -189,6 +235,52 @@ const calculateMargin = (product) => {
                 </div>
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+                    <!-- TOOLBAR RACIKAN: FILTER & SEARCH -->
+                    <div class="p-3.5 sm:p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <!-- Filter Tabs -->
+                        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                            <button @click="compoundedFilterStatus = 'all'" 
+                                    class="h-9 px-3 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    :class="compoundedFilterStatus === 'all' 
+                                        ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                        : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'">
+                                <span>Semua Racikan</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :class="compoundedFilterStatus === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'">{{ (compoundedProducts || []).length }}</span>
+                            </button>
+
+                            <button @click="compoundedFilterStatus = 'pending'" 
+                                    class="h-9 px-3 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    :class="compoundedFilterStatus === 'pending' 
+                                        ? 'bg-amber-500 text-white shadow-xs' 
+                                        : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="compoundedFilterStatus === 'pending' ? 'bg-white' : 'bg-amber-500'"></span>
+                                <span>Belum Diset</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :class="compoundedFilterStatus === 'pending' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'">{{ countCompoundedPending }}</span>
+                            </button>
+
+                            <button v-if="countCompoundedLoss > 0 || compoundedFilterStatus === 'loss'" @click="compoundedFilterStatus = 'loss'" 
+                                    class="h-9 px-3 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    :class="compoundedFilterStatus === 'loss' 
+                                        ? 'bg-rose-600 text-white shadow-xs' 
+                                        : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="compoundedFilterStatus === 'loss' ? 'bg-white' : 'bg-rose-500'"></span>
+                                <span>Jual Rugi</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :class="compoundedFilterStatus === 'loss' ? 'bg-white/20 text-white' : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'">{{ countCompoundedLoss }}</span>
+                            </button>
+                        </div>
+
+                        <!-- Search Input -->
+                        <div class="relative w-full md:w-72">
+                            <input type="text" v-model="compoundedSearchQuery" 
+                                   placeholder="Cari nama racikan, batch..." 
+                                   class="w-full text-xs pl-9 pr-8 h-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all font-medium">
+                            <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <button v-if="compoundedSearchQuery" @click="compoundedSearchQuery = ''" class="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground text-xs font-bold">✕</button>
+                        </div>
+                    </div>
+
                     <div class="overflow-x-auto">
                         <Table class="w-full min-w-[850px]">
                         <TableHeader>
@@ -203,10 +295,10 @@ const calculateMargin = (product) => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-if="compoundedProducts.length === 0">
-                                <TableCell colspan="7" class="py-8 px-3 text-center text-muted-foreground text-xs">Belum ada produk racikan.</TableCell>
+                            <TableRow v-if="filteredCompoundedProducts.length === 0">
+                                <TableCell colspan="7" class="py-8 px-3 text-center text-muted-foreground text-xs">Tidak ada data produk racikan yang sesuai filter.</TableCell>
                             </TableRow>
-                            <TableRow v-for="product in compoundedProducts" :key="product.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <TableRow v-for="product in filteredCompoundedProducts" :key="product.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                                 <TableCell class="py-2 px-3 align-middle break-words">
                                     <div class="flex flex-col">
                                         <span class="text-sm font-medium text-foreground leading-snug break-words">{{ product.nama_produk }}</span>
@@ -266,30 +358,37 @@ const calculateMargin = (product) => {
                     <p class="text-sm text-muted-foreground mt-1">Atur harga jual (selling price) untuk obat jadi. Harga ini akan jadi default di Kasir.</p>
                 </div>
 
-                <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
-                    <!-- TOOLBAR: FILTER & SEARCH -->
-                    <div class="p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">                    <!-- TOOLBAR OBAT JADI: FILTER & SEARCH -->
+                    <div class="p-3.5 sm:p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <!-- Filter Tabs -->
-                        <div class="flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                             <button @click="filterStatus = 'all'" 
-                                    class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5"
-                                    :class="filterStatus === 'all' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background border border-input text-muted-foreground hover:bg-accent'">
+                                    class="h-9 px-3 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    :class="filterStatus === 'all' 
+                                        ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                        : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'">
                                 <span>Semua Obat</span>
-                                <span class="px-1.5 py-0.5 rounded-md text-xs" :class="filterStatus === 'all' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground'">{{ (medicines || []).length }}</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :class="filterStatus === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'">{{ (medicines || []).length }}</span>
                             </button>
 
                             <button @click="filterStatus = 'loss'" 
-                                    class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5"
-                                    :class="filterStatus === 'loss' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'bg-background border border-destructive/30 text-destructive hover:bg-destructive/10'">
-                                <span>⚠️ Jual Rugi</span>
-                                <span class="px-1.5 py-0.5 rounded-md text-xs" :class="filterStatus === 'loss' ? 'bg-destructive-foreground/20 text-destructive-foreground' : 'bg-destructive/10 text-destructive'">{{ countLoss }}</span>
+                                    class="h-9 px-3 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    :class="filterStatus === 'loss' 
+                                        ? 'bg-rose-600 text-white shadow-xs' 
+                                        : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="filterStatus === 'loss' ? 'bg-white' : 'bg-rose-500'"></span>
+                                <span>Jual Rugi</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :class="filterStatus === 'loss' ? 'bg-white/20 text-white' : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'">{{ countLoss }}</span>
                             </button>
 
                             <button @click="filterStatus = 'unpriced'" 
-                                    class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5"
-                                    :class="filterStatus === 'unpriced' ? 'bg-amber-600 text-white shadow-sm' : 'bg-background border border-amber-500/30 text-amber-600 hover:bg-amber-500/10'">
+                                    class="h-9 px-3 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                                    :class="filterStatus === 'unpriced' 
+                                        ? 'bg-amber-500 text-white shadow-xs' 
+                                        : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="filterStatus === 'unpriced' ? 'bg-white' : 'bg-amber-500'"></span>
                                 <span>Belum Lengkap</span>
-                                <span class="px-1.5 py-0.5 rounded-md text-xs" :class="filterStatus === 'unpriced' ? 'bg-white/20 text-white' : 'bg-amber-500/10 text-amber-600'">{{ countUnpriced }}</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold" :class="filterStatus === 'unpriced' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'">{{ countUnpriced }}</span>
                             </button>
                         </div>
 
@@ -297,8 +396,8 @@ const calculateMargin = (product) => {
                         <div class="relative w-full md:w-72">
                             <input type="text" v-model="searchQuery" 
                                    placeholder="Cari nama atau kode obat..." 
-                                   class="w-full text-xs pl-9 pr-8 h-9 bg-background border border-input rounded-md focus:border-emerald-500 focus:ring-emerald-500 transition-colors font-medium">
-                            <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                   class="w-full text-xs pl-9 pr-8 h-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all font-medium">
+                            <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                             <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground text-xs font-bold">✕</button>
@@ -329,7 +428,7 @@ const calculateMargin = (product) => {
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                                <TableRow v-for="med in filteredMedicines" :key="med.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                                <TableRow v-for="med in paginatedMedicines" :key="med.id" class="border-b border-border/40 hover:bg-muted/30 transition-colors">
                                     <!-- NAMA OBAT -->
                                     <TableCell class="py-2.5 px-3 align-top break-words">
                                         <div class="flex flex-col">
@@ -459,6 +558,34 @@ const calculateMargin = (product) => {
                                 </TableRow>
                             </TableBody>
                         </Table>
+                    </div>
+
+                    <!-- PAGINATION TOOLBAR -->
+                    <div v-if="filteredMedicines.length > perPage" class="px-5 py-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/30">
+                        <span class="text-xs text-muted-foreground font-medium">
+                            Menampilkan {{ (currentPage - 1) * perPage + 1 }} - {{ Math.min(currentPage * perPage, filteredMedicines.length) }} dari {{ filteredMedicines.length }} obat
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <button 
+                                type="button" 
+                                @click="goToPage(currentPage - 1)" 
+                                :disabled="currentPage <= 1"
+                                class="h-8 min-w-[32px] px-2.5 flex items-center justify-center rounded-md text-xs font-medium transition-colors border bg-background border-input text-foreground hover:bg-accent disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                            >
+                                Sebelumnya
+                            </button>
+                            <span class="text-xs font-semibold text-foreground px-2">
+                                Halaman {{ currentPage }} dari {{ totalPages }}
+                            </span>
+                            <button 
+                                type="button" 
+                                @click="goToPage(currentPage + 1)" 
+                                :disabled="currentPage >= totalPages"
+                                class="h-8 min-w-[32px] px-2.5 flex items-center justify-center rounded-md text-xs font-medium transition-colors border bg-background border-input text-foreground hover:bg-accent disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                            >
+                                Selanjutnya
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

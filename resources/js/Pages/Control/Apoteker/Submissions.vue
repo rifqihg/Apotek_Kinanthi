@@ -40,40 +40,48 @@ const loadReferenceData = async () => {
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || 'all');
 const unitFilter = ref(props.filters?.unit || 'all');
-const isSearching = ref(false);
 
-const applyFilters = () => {
-    isSearching.value = true;
-    router.get(route(route().current()), {
-        search: search.value || undefined,
-        status: statusFilter.value !== 'all' ? statusFilter.value : undefined,
-        unit: unitFilter.value !== 'all' ? unitFilter.value : undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => { isSearching.value = false; }
-    });
-};
-
-const debouncedSearch = useDebounceFn(() => {
-    applyFilters();
-}, 300);
-
-watch(search, (newVal, oldVal) => {
-    if (newVal !== oldVal) debouncedSearch();
+const filteredSubmissions = computed(() => {
+    let list = props.submissions?.data || [];
+    if (statusFilter.value !== 'all') {
+        list = list.filter(s => s.status === statusFilter.value);
+    }
+    if (unitFilter.value !== 'all') {
+        list = list.filter(s => (s.target_unit || '').toLowerCase() === unitFilter.value.toLowerCase());
+    }
+    if (search.value && search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(s => 
+            s.nomor_pengajuan?.toLowerCase().includes(q) ||
+            s.nama_produk?.toLowerCase().includes(q) ||
+            s.user?.name?.toLowerCase().includes(q)
+        );
+    }
+    return list;
 });
 
-watch([statusFilter, unitFilter], () => {
-    applyFilters();
+const performServerSearch = useDebounceFn(() => {
+    router.reload({
+        data: {
+            search: search.value || undefined,
+            page: 1,
+        },
+        preserveState: true,
+        preserveScroll: true,
+        showProgress: false,
+        only: ['submissions', 'filters'],
+    });
+}, 400);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) performServerSearch();
 });
 
 const clearFilters = () => {
     search.value = '';
     statusFilter.value = 'all';
     unitFilter.value = 'all';
-    applyFilters();
+    performServerSearch();
 };
 const showModal = ref(false);
 
@@ -419,50 +427,100 @@ if (prefillItemId) {
 <template>
     <Head title="Log Racikan" />
     <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <!-- HERO BANNER CARD (lg:col-span-8) -->
-            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                        KLINIS · MEJA RACIK
+            <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Buat Racikan (Desktop) -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="statusFilter = 'all'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="statusFilter === 'all' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="hidden sm:inline">Semua Sediaan</span>
+                            <span class="sm:hidden">Semua</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="statusFilter = 'pending_final_verification'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="statusFilter === 'pending_final_verification' 
+                                ? 'bg-amber-500 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="statusFilter === 'pending_final_verification' ? 'bg-white' : 'bg-amber-500'"></span>
+                            <span class="hidden sm:inline">Menunggu Verifikasi</span>
+                            <span class="sm:hidden">Menunggu</span>
+                            <span 
+                                v-if="stats.pending > 0"
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="statusFilter === 'pending_final_verification' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'"
+                            >{{ stats.pending }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="statusFilter = 'active'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="statusFilter === 'active' 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="statusFilter === 'active' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-slate-400'"></span>
+                            <span>Aktif</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="statusFilter = 'rejected'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="statusFilter === 'rejected' 
+                                ? 'bg-rose-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="statusFilter === 'rejected' ? 'bg-white' : 'bg-rose-500'"></span>
+                            <span>Ditolak</span>
+                        </button>
                     </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Log Pengajuan & Racikan Obat
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Pencatatan riwayat compounding farmasi, perhitungan neraca massa bahan aktif, dan validasi mutu sediaan.
-                    </p>
+
+                    <button 
+                        @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:''};form.clearErrors()" 
+                        class="hidden sm:inline-flex h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Buat Racikan</span>
+                    </button>
                 </div>
 
-                <!-- Right Integrated Control Panel -->
-                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                    <div class="relative w-full sm:w-48">
+                <!-- Baris 2: Search Input & Tombol Buat Racikan (Mobile) -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
                         <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input v-model="search" type="text" placeholder="Cari racikan..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari nama racikan, formula, ID batch..." 
+                            class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                        />
                         <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <button v-else-if="search" type="button" @click="search=''; applyFilters()" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                            <button v-if="search" type="button" @click="search=''; performServerSearch()" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
                                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                     </div>
-                    
-                    <select v-model="statusFilter" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer">
-                        <option value="all">Status: Semua</option>
-                        <option value="pending_final_verification">Verifikasi</option>
-                        <option value="active">Aktif</option>
-                        <option value="rejected">Ditolak</option>
-                        <option value="cancelled">Batal</option>
-                    </select>
 
-                    <button @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:''};form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                        <span>Buat Racikan</span>
+                    <button 
+                        @click="showModal=true;form.reset();form.bahan_baku=[{source_type:'raw_material',id_batch:'',nama_bahan:'',qty_taken_pcs:'',qty_neto_mass:0,original_stock:0,fefo_info:null}];form.label={tanggal_racik:'',bud_hari:30,aturan_pakai:'',keterangan:''};form.clearErrors()" 
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Buat</span>
                     </button>
                 </div>
             </div>
@@ -515,32 +573,26 @@ if (prefillItemId) {
             </div>
         </div>
 
-        <!-- ACTION BAR -->
-        <div class="flex items-center justify-between mt-4">
-            <div>
-                <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-                    Daftar Riwayat Pengajuan Racikan
-                </h2>
+        <!-- TABLE TOOLBAR -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Daftar Riwayat Pengajuan Racikan
+            </h2>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground font-medium">Bentuk Kemasan:</span>
+                <select v-model="unitFilter" class="h-8 bg-card border border-input rounded-lg px-2.5 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer">
+                    <option value="all">Semua Satuan</option>
+                    <option value="Bungkus">Bungkus</option>
+                    <option value="Kapsul">Kapsul</option>
+                    <option value="Botol">Botol</option>
+                    <option value="Tube">Tube</option>
+                    <option value="Pot">Pot</option>
+                </select>
+                <button v-if="search || statusFilter !== 'all' || unitFilter !== 'all'" @click="clearFilters" class="h-8 px-2.5 text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 rounded-lg cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Reset
+                </button>
             </div>
-        </div>
-
-        <!-- ADDITIONAL FILTERS -->
-        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">
-            <!-- Unit Dropdown -->
-            <select v-model="unitFilter" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">
-                <option value="all">Semua Satuan Sediaan</option>
-                <option value="Kapsul">Kapsul</option>
-                <option value="Puyer">Puyer</option>
-                <option value="Botol">Botol</option>
-                <option value="Pot">Pot</option>
-                <option value="Tube">Tube</option>
-            </select>
-
-            <!-- Reset Button -->
-            <button v-if="search || statusFilter !== 'all' || unitFilter !== 'all'" @click="clearFilters" class="h-9 px-3 text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 rounded-md cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Reset Filter
-            </button>
         </div>
 
         <!-- Table View -->
@@ -558,8 +610,8 @@ if (prefillItemId) {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
-                    <tr v-if="!submissions?.data?.length">
-                        <td colspan="6" class="px-6 py-12 text-center">
+                    <tr v-if="!filteredSubmissions.length">
+                        <td colspan="7" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-muted-foreground border border-border">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
@@ -568,7 +620,7 @@ if (prefillItemId) {
                             </div>
                         </td>
                     </tr>
-                    <tr v-for="s in (submissions?.data || [])" :key="s.id" class="hover:bg-muted/30 transition-colors">
+                    <tr v-for="s in filteredSubmissions" :key="s.id" class="hover:bg-muted/30 transition-colors">
                         <td class="px-4 py-3">
                             <span class="font-medium text-foreground text-sm block">{{ s.nama_racikan || 'Tanpa Nama' }}</span>
                             <span class="text-xs text-muted-foreground tracking-wide mt-0.5 block">
@@ -597,8 +649,8 @@ if (prefillItemId) {
                         </td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex items-center justify-center gap-2">
-                                <button @click="printLabel(s.id)" title="Cetak Etiket Aturan Pakai Termal" class="text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 px-2.5 h-8 rounded-md text-xs font-medium transition-colors flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                <button @click="printLabel(s.id)" title="Cetak Etiket Aturan Pakai Termal" class="text-foreground hover:text-foreground bg-background hover:bg-accent border border-input px-2.5 h-8 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shadow-2xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                                     Etiket
                                 </button>
                                 <Link :href="route('control.apoteker.submissions.show', s.id)" class="inline-flex items-center justify-center text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 h-8 rounded-md text-xs font-medium transition-colors">

@@ -9,6 +9,7 @@ use App\Models\Control\CompoundingSubmission;
 use App\Models\Control\IncomingStock;
 use App\Models\Control\Medicine;
 use App\Models\Control\Setting;
+use App\Models\Control\StockOpname;
 use App\Models\Control\WarehouseInventory;
 use App\Models\Prescription;
 use App\Models\Sale;
@@ -62,32 +63,34 @@ class AdminController extends Controller
                 ->where('created_at', '<=', $utcEnd)
                 ->get(['created_at', 'total_amount']);
 
-            $salesByMinute = [];
+            $salesBySlot = [];
             foreach ($salesToday as $sale) {
-                // Konversi kembali timestamp UTC ke WIB (Asia/Jakarta) sebelum melabeli sumbu X
-                $m = $sale->created_at->timezone('Asia/Jakarta')->format('H:i');
-                if (!isset($salesByMinute[$m])) {
-                    $salesByMinute[$m] = ['sales' => 0.0, 'tx' => 0];
+                $time = $sale->created_at->timezone('Asia/Jakarta');
+                $minute = (int) $time->format('i');
+                $slotMinute = $minute < 30 ? '00' : '30';
+                $slotKey = $time->format('H') . ':' . $slotMinute;
+                if (!isset($salesBySlot[$slotKey])) {
+                    $salesBySlot[$slotKey] = ['sales' => 0.0, 'tx' => 0];
                 }
-                $salesByMinute[$m]['sales'] += (float) $sale->total_amount;
-                $salesByMinute[$m]['tx'] += 1;
+                $salesBySlot[$slotKey]['sales'] += (float) $sale->total_amount;
+                $salesBySlot[$slotKey]['tx'] += 1;
             }
 
-            // Bangun deret waktu per menit dari 08:00 hingga 22:00
+            // Bangun deret waktu interval 30 menit dari 08:00 hingga 22:00
             $trend = [];
             $cursor = $localStart->copy();
             while ($cursor <= $localEnd) {
                 $timeLabel = $cursor->format('H:i');
-                $hasData = isset($salesByMinute[$timeLabel]);
+                $hasData = isset($salesBySlot[$timeLabel]);
 
                 $trend[] = [
                     'date' => $today->format('Y-m-d') . ' ' . $timeLabel,
                     'label' => $timeLabel,
-                    'sales' => $hasData ? $salesByMinute[$timeLabel]['sales'] : 0,
-                    'transactions' => $hasData ? $salesByMinute[$timeLabel]['tx'] : 0,
+                    'sales' => $hasData ? $salesBySlot[$timeLabel]['sales'] : 0,
+                    'transactions' => $hasData ? $salesBySlot[$timeLabel]['tx'] : 0,
                 ];
 
-                $cursor->addMinute();
+                $cursor->addMinutes(30);
             }
 
             return $trend;
@@ -171,19 +174,51 @@ class AdminController extends Controller
 
     private function getDashboardStats(): array
     {
+        $today = Carbon::today('Asia/Jakarta');
+        $currentMonth = Carbon::now('Asia/Jakarta')->startOfMonth();
+
+        // 1 & 2. Penjualan & Pendapatan Kasir
+        $todaySalesCount = Sale::where('status', 'paid')
+            ->whereDate('created_at', $today)
+            ->count();
+        $todaySalesTotal = (float) (Sale::where('status', 'paid')
+            ->whereDate('created_at', $today)
+            ->sum('total_amount') ?? 0);
+        $monthSalesCount = Sale::where('status', 'paid')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+        $monthSalesTotal = (float) (Sale::where('status', 'paid')
+            ->where('created_at', '>=', $currentMonth)
+            ->sum('total_amount') ?? 0);
+
+        // 3. Menunggu Penetapan Harga (Katalog Faktur Baru & Racikan Lab)
+        $unpricedMedicinesCount = Medicine::where(function ($q) {
+            $q->whereNull('selling_price')->orWhere('selling_price', '<=', 0);
+        })->count();
+        $unpricedRacikanCount = CompoundedProduct::where('pricing_status', 'pending_price')->count();
+        $pendingPricingCount = $unpricedMedicinesCount + $unpricedRacikanCount;
+
+        // 4. Faktur Masuk PBF
+        $totalInvoicesCount = IncomingStock::distinct('faktur_no')->count('faktur_no');
+        $pendingVerifyInvoicesCount = IncomingStock::whereIn('status_gate', ['pending_admin_verify', 'pending_admin_final'])
+            ->distinct('faktur_no')
+            ->count('faktur_no');
+
+        // 5 & 6. Master Obat & Alert Stok Kritis
         $totalMedicines = Medicine::count();
         $lowStockCount = Medicine::belowThreshold()->count();
+        $lowStockPercentage = ($totalMedicines > 0) ? round(($lowStockCount / $totalMedicines) * 100) : 0;
+
+        // 7. Prioritas FEFO / Expired Alert
         $fefoAlertCount = WarehouseInventory::active()->where('stock_on_hand', '>', 0)->whereNotNull('expired_date')->expiringSoon(90)->count();
         $fefoNearestBatch = WarehouseInventory::active()->where('stock_on_hand', '>', 0)->whereNotNull('expired_date')->orderBy('expired_date', 'asc')->first();
 
+        // 8. Audit Stock Opname (Sesi Opname Draft / Aktif)
+        $draftOpnameCount = StockOpname::where('status', 'draft')->count();
+
+        // Backward compatibility
         $pendingCompounding = CompoundingSubmission::pending()->count();
-
-        $todaySalesCount = Sale::where('status', 'paid')->whereDate('created_at', today())->count();
-        $todaySalesTotal = (float) (Sale::where('status', 'paid')->whereDate('created_at', today())->sum('total_amount') ?? 0);
         $activePrescriptionsCount = Prescription::whereIn('status', ['diproses', 'siap_ambil'])->count();
-        $pendingPricingCount = CompoundedProduct::where('pricing_status', 'pending_price')->count();
-
-        $lowStockPercentage = ($totalMedicines > 0) ? round(($lowStockCount / $totalMedicines) * 100) : 0;
 
         return [
             'total_obat' => $totalMedicines,
@@ -194,8 +229,15 @@ class AdminController extends Controller
             'pending_compounding' => $pendingCompounding,
             'today_sales_count' => $todaySalesCount,
             'today_sales_total' => $todaySalesTotal,
+            'month_sales_count' => $monthSalesCount,
+            'month_sales_total' => $monthSalesTotal,
             'active_prescriptions_count' => $activePrescriptionsCount,
             'pending_pricing_count' => $pendingPricingCount,
+            'unpriced_medicines_count' => $unpricedMedicinesCount,
+            'unpriced_racikan_count' => $unpricedRacikanCount,
+            'total_invoices_count' => $totalInvoicesCount,
+            'pending_verify_invoices_count' => $pendingVerifyInvoicesCount,
+            'draft_opname_count' => $draftOpnameCount,
         ];
     }
 

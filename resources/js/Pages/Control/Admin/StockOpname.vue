@@ -2,15 +2,24 @@
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { ref, computed, watch } from 'vue';
-import { useDebounceFn } from '@vueuse/core';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
 
 const props = defineProps({
     opnames: Object,
-    medicines: Array,
-    rawMaterials: Array,
+    medicines: {
+        type: Array,
+        default: () => [],
+    },
+    rawMaterials: {
+        type: Array,
+        default: () => [],
+    },
+    stats: {
+        type: Object,
+        default: () => null,
+    },
     filters: {
         type: Object,
         default: () => ({}),
@@ -20,54 +29,40 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const status = ref(props.filters?.status || 'all');
 const date = ref(props.filters?.date || '');
-const isSearching = ref(false);
 
-const applyFilters = () => {
-    isSearching.value = true;
-    router.get(route(route().current()), {
-        search: search.value || undefined,
-        status: status.value !== 'all' ? status.value : undefined,
-        date: date.value || undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        }
-    });
-};
-
-const debouncedSearch = useDebounceFn(() => {
-    applyFilters();
-}, 300);
-
-watch(search, (newVal, oldVal) => {
-    if (newVal !== oldVal) debouncedSearch();
-});
-
-watch(status, () => {
-    applyFilters();
-});
-
-watch(date, () => {
-    applyFilters();
+const filteredOpnames = computed(() => {
+    let list = props.opnames?.data || [];
+    if (status.value !== 'all') {
+        list = list.filter(op => op.status === status.value);
+    }
+    if (search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(op =>
+            String(op.id).includes(q) ||
+            (op.catatan && op.catatan.toLowerCase().includes(q)) ||
+            (op.creator?.name && op.creator.name.toLowerCase().includes(q))
+        );
+    }
+    if (date.value) {
+        list = list.filter(op => op.opname_date && op.opname_date.startsWith(date.value));
+    }
+    return list;
 });
 
 const clearSearch = () => {
     search.value = '';
-    applyFilters();
 };
 
 const resetAllFilters = () => {
     search.value = '';
     status.value = 'all';
     date.value = '';
-    applyFilters();
 };
 
 const stats = computed(() => {
+    if (props.stats && typeof props.stats.total === 'number') {
+        return props.stats;
+    }
     const list = props.opnames?.data || [];
     const total = props.opnames?.total ?? list.length;
     const inProgress = list.filter(op => op.status !== 'completed').length;
@@ -76,6 +71,24 @@ const stats = computed(() => {
 });
 
 const showModal = ref(false);
+const isLoadingReferences = ref(false);
+
+const loadReferencesIfNeeded = () => {
+    if ((!props.medicines || props.medicines.length === 0) && !isLoadingReferences.value) {
+        isLoadingReferences.value = true;
+        router.reload({
+            only: ['medicines', 'rawMaterials'],
+            onFinish: () => {
+                isLoadingReferences.value = false;
+            }
+        });
+    }
+};
+
+const openCreateModal = () => {
+    showModal.value = true;
+    loadReferencesIfNeeded();
+};
 
 const form = useForm({
     tanggal_opname: new Date().toISOString().split('T')[0],
@@ -103,7 +116,7 @@ const form = useForm({
 const getMedicinePackaging = (medicineId) => {
     const med = props.medicines?.find(m => m.id === medicineId);
     if (!med) return null;
-    const inc = med.latest_active_incoming_stock || med.latestActiveIncomingStock;
+    const inc = med.packaging || med.latest_active_incoming_stock || med.latestActiveIncomingStock;
     const rSmall = Math.max(1, Number(inc?.small_to_mid_ratio) || 1);
     const rMid = Math.max(1, Number(inc?.mid_to_big_ratio) || 1);
     const rBig = (rMid > 1 && rSmall > 1) ? (rMid * rSmall) : (Number(inc?.unit_conversion_factor) || (rMid * rSmall));
@@ -236,6 +249,12 @@ const removeItem = (index) => {
     }
 };
 
+watch(() => form.mode, (newMode) => {
+    if (newMode === 'manual') {
+        loadReferencesIfNeeded();
+    }
+});
+
 const submit = () => {
     form.post(route('control.admin.stock-opname.store'), {
         preserveScroll: true,
@@ -251,74 +270,141 @@ const submit = () => {
     <Head title="Stock Opname Admin" />
 
     <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <!-- HERO BANNER CARD (lg:col-span-8) -->
-            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                        INVENTORY · PENYESUAIAN STOK
-                    </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Manajemen Stock Opname
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Pencocokan fisik berkala antara persediaan obat di rak apotek dengan saldo data tercatat pada sistem.
-                    </p>
-                </div>
+            <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Buat Stock Opname (Desktop Sejajar) -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="status = 'all'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'all' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span>Semua Sesi</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="status === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ stats.total }}</span>
+                        </button>
 
-                <!-- Right Integrated Control Panel -->
-                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                    <div class="flex items-center gap-2 w-full sm:w-auto">
-                        <div class="relative w-full sm:w-48">
-                            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input v-model="search" type="text" placeholder="Cari ID, catatan..." class="w-full h-9 pl-9 pr-8 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
-                            <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                                <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <button v-else-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
-                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <select v-model="status" class="w-full sm:w-32 h-9 bg-background border border-input rounded-lg px-2 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer">
-                            <option value="all">Semua Status</option>
-                            <option value="draft">Draft</option>
-                            <option value="completed">Selesai</option>
-                        </select>
+                        <button
+                            type="button"
+                            @click="status = 'draft'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'draft' 
+                                ? 'bg-amber-500 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="status === 'draft' ? 'bg-white' : 'bg-amber-500'"></span>
+                            <span>Draft</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="status === 'draft' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'"
+                            >{{ stats.inProgress }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="status = 'completed'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'completed' 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="status === 'completed' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-slate-400'"></span>
+                            <span>Selesai</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="status === 'completed' ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ stats.completed }}</span>
+                        </button>
                     </div>
-                    <button @click="showModal = true" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+
+                    <!-- Tombol Buat Stock Opname di Desktop -->
+                    <button 
+                        @click="openCreateModal" 
+                        class="hidden sm:inline-flex h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                         <span>Buat Stock Opname</span>
                     </button>
                 </div>
+
+                <!-- Baris 2: Search Input, Date Filter, & Mobile Button -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari ID sesi, catatan opname..." 
+                            class="w-full h-9 pl-9 pr-8 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                        />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <button v-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Buat Stock Opname di Mobile -->
+                    <button 
+                        @click="openCreateModal" 
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Opname</span>
+                    </button>
+
+                    <div class="w-32 sm:w-44 shrink-0">
+                        <input 
+                            v-model="date" 
+                            type="date" 
+                            class="w-full h-9 px-2.5 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all cursor-pointer"
+                            title="Filter tanggal sesi opname"
+                        />
+                    </div>
+
+                    <button 
+                        v-if="search || status !== 'all' || date" 
+                        type="button" 
+                        @click="resetAllFilters" 
+                        class="h-9 px-2.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-input bg-slate-50 dark:bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-all shrink-0 flex items-center gap-1 cursor-pointer"
+                        title="Reset Filter"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span class="hidden sm:inline">Reset</span>
+                    </button>
+                </div>
             </div>
 
-            <!-- 2 STAT CARDS (lg:col-span-4) -->
-            <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+            <!-- SISI KANAN: 2 METRIK KARTU BERDAMPINGAN (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
                 <!-- Card 1: Sesi Draft / Aktif -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                     <div class="flex items-center justify-between gap-1">
-                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                             SESI AKTIF / DRAFT
                         </span>
-                        <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.inProgress > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
-                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0" :class="stats.inProgress > 0 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted text-slate-400 dark:text-muted-foreground'">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
                     </div>
-                    <div class="my-0.5">
+                    <div class="my-1 truncate">
                         <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.inProgress > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
-                            {{ stats.inProgress }}
+                            {{ stats.inProgress }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Sesi</span>
                         </span>
                     </div>
-                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                         {{ stats.inProgress > 0 ? 'Perlu finalisasi fisik' : 'Semua sesi selesai' }}
                     </p>
                 </div>
@@ -326,61 +412,24 @@ const submit = () => {
                 <!-- Card 2: Audit Selesai -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                     <div class="flex items-center justify-between gap-1">
-                        <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                             AUDIT SELESAI
                         </span>
-                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
                     </div>
-                    <div class="my-0.5">
+                    <div class="my-1 truncate">
                         <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
-                            {{ stats.completed }}
+                            {{ stats.completed }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Sesi</span>
                         </span>
                     </div>
-                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                         Stok telah diselaraskan
                     </p>
                 </div>
-            </div>
-        </div>
-
-        <div class="flex items-center justify-between mt-4">
-            <div>
-                <h2 class="text-sm font-semibold text-slate-700 dark:text-muted-foreground uppercase tracking-wider">
-                    Daftar Sesi Stock Opname
-                </h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Filter dan pantau riwayat audit fisik persediaan obat dan bahan baku.</p>
-            </div>
-        </div>
-
-        <!-- ADDITIONAL FILTERS -->
-        <div class="bg-card rounded-lg border border-border p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-
-                <!-- Date Filter -->
-                <div class="w-full sm:w-44">
-                    <input 
-                        v-model="date" 
-                        type="date" 
-                        class="w-full h-9 bg-background border border-input rounded-md px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
-                        title="Filter tanggal sesi opname"
-                    />
-                </div>
-            </div>
-
-            <!-- Reset Filter Button -->
-            <div v-if="search || status !== 'all' || date" class="shrink-0">
-                <button 
-                    type="button" 
-                    @click="resetAllFilters" 
-                    class="h-9 px-3 rounded-md text-xs font-medium border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-                >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Reset Filter
-                </button>
             </div>
         </div>
 
@@ -398,7 +447,7 @@ const submit = () => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    <TableRow v-if="opnames.data.length === 0">
+                    <TableRow v-if="filteredOpnames.length === 0">
                         <TableCell colspan="6" class="py-12 px-3 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <div class="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
@@ -411,7 +460,7 @@ const submit = () => {
                             </div>
                         </TableCell>
                     </TableRow>
-                    <TableRow v-for="op in opnames.data" :key="op.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
+                    <TableRow v-for="op in filteredOpnames" :key="op.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                         <TableCell class="py-2.5 px-3 align-middle font-medium text-foreground text-sm tabular-nums">
                             {{ new Date(op.opname_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) }}
                         </TableCell>
@@ -551,6 +600,14 @@ const submit = () => {
                                     <button type="button" @click="addItem" class="text-xs bg-muted text-foreground hover:bg-accent font-medium px-3 py-1.5 rounded-md transition-colors border border-border">
                                         + Tambah Baris
                                     </button>
+                                </div>
+
+                                <div v-if="isLoadingReferences" class="mb-3 p-3 rounded-lg border border-border bg-muted/40 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                    <svg class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>Memuat master obat & bahan baku...</span>
                                 </div>
 
                                 <div class="space-y-3">

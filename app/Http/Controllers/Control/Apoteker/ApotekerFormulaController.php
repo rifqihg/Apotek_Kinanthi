@@ -43,8 +43,8 @@ class ApotekerFormulaController extends Controller
 
         return Inertia::render('Control/Apoteker/Formulas', [
             'formulas' => $formulas,
-            'medicines' => \App\Models\Control\Medicine::select('id', 'nama_obat', 'satuan_stok')->orderBy('nama_obat')->get(),
-            'rawMaterials' => \App\Models\Control\RawMaterial::select('id', 'nama_bahan', 'satuan_dasar_penggunaan')->where('status', 'active')->orderBy('nama_bahan')->get(),
+            'medicines' => fn () => \App\Models\Control\Medicine::select('id', 'nama_obat', 'satuan_stok')->orderBy('nama_obat')->get(),
+            'rawMaterials' => fn () => \App\Models\Control\RawMaterial::select('id', 'nama_bahan', 'satuan_dasar_penggunaan')->where('status', 'active')->orderBy('nama_bahan')->get(),
             'filters' => [
                 'search' => $search ?? '',
                 'kategori' => $kategori ?? 'all',

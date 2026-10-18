@@ -20,7 +20,14 @@ class ApotekerPrescriptionController extends Controller
         $status = $request->query('status');
         $date = $request->query('date');
 
-        $query = Prescription::with(['patient', 'prescriptionItems.medicine']);
+        $query = Prescription::select([
+            'id', 'prescription_number', 'patient_id', 'doctor_name', 
+            'prescription_date', 'status', 'created_at'
+        ])->with([
+            'patient:id,name',
+            'prescriptionItems:id,prescription_id,medicine_id',
+            'prescriptionItems.medicine:id,classification'
+        ]);
 
         if ($request->filled('status')) {
             if ($status !== 'all') {
@@ -60,10 +67,11 @@ class ApotekerPrescriptionController extends Controller
 
     public function create()
     {
-        $patients = Patient::orderBy('name')->get(['id', 'name']);
-        $medicines = Medicine::orderBy('nama_obat')->get(['id', 'nama_obat', 'satuan_stok', 'classification']);
+        $patients = Patient::orderBy('name')->limit(50)->get(['id', 'name']);
+        $medicines = Medicine::orderBy('nama_obat')->limit(50)->get(['id', 'nama_obat', 'satuan_stok', 'classification']);
         $compounded_products = CompoundedProduct::where('harga_jual', '>', 0)
             ->orderBy('nama_produk')
+            ->limit(30)
             ->get(['id', 'nama_produk', 'satuan']);
 
         return Inertia::render('Control/Apoteker/Prescriptions/Create', [
@@ -73,14 +81,108 @@ class ApotekerPrescriptionController extends Controller
         ]);
     }
 
+    /**
+     * Async search patients for prescriptions combobox with index-backed query.
+     */
+    public function searchPatients(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (strlen($q) < 1) {
+            return response()->json([]);
+        }
+
+        $patients = Patient::where('name', 'like', "%{$q}%")
+            ->orWhere('phone', 'like', "%{$q}%")
+            ->orderBy('name')
+            ->limit(30)
+            ->get(['id', 'name']);
+
+        return response()->json($patients);
+    }
+
+    /**
+     * Async search medicines for prescriptions combobox.
+     */
+    public function searchMedicines(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (strlen($q) < 1) {
+            return response()->json([]);
+        }
+
+        $medicines = Medicine::where('nama_obat', 'like', "%{$q}%")
+            ->orWhere('kode_obat', 'like', "%{$q}%")
+            ->orderBy('nama_obat')
+            ->limit(30)
+            ->get(['id', 'nama_obat', 'satuan_stok', 'classification']);
+
+        return response()->json($medicines);
+    }
+
+    /**
+     * Get recent prescriptions for a patient to support fast duplication.
+     */
+    public function patientHistory(Request $request)
+    {
+        $patientId = $request->query('patient_id');
+        if (!$patientId) {
+            return response()->json(['prescriptions' => []]);
+        }
+
+        $prescriptions = Prescription::where('patient_id', $patientId)
+            ->whereNotIn('status', ['batal'])
+            ->with([
+                'prescriptionItems' => function ($q) {
+                    $q->select([
+                        'id', 'prescription_id', 'item_type', 'medicine_id', 
+                        'compounded_product_id', 'custom_formula_name', 
+                        'custom_formula_notes', 'quantity', 'unit', 
+                        'dosage_instruction', 'usage_instructions', 'item_notes',
+                        'is_iter', 'iter_count'
+                    ]);
+                },
+                'prescriptionItems.medicine:id,nama_obat,satuan_stok',
+                'prescriptionItems.compoundedProduct:id,nama_produk,satuan'
+            ])
+            ->select([
+                'id', 'prescription_number', 'patient_id', 'doctor_name', 
+                'doctor_sip', 'clinic_name', 'patient_weight_kg', 
+                'patient_age_years', 'notes', 'screening_notes', 'prescription_date', 'created_at'
+            ])
+            ->orderByDesc('prescription_date')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'prescriptions' => $prescriptions
+        ]);
+    }
+
     public function store(Request $request)
     {
-        $v = $request->validate([
+        // Deteksi apakah ada obat golongan khusus (narkotika / psikotropika)
+        $isControlled = false;
+        $items = $request->input('items', []);
+        if (is_array($items)) {
+            $medIds = collect($items)
+                ->where('item_type', 'obat_jadi')
+                ->pluck('medicine_id')
+                ->filter();
+            if ($medIds->isNotEmpty()) {
+                $isControlled = Medicine::whereIn('id', $medIds)
+                    ->whereIn('classification', ['narkotika', 'psikotropika'])
+                    ->exists();
+            }
+        }
+
+        $rules = [
             'patient_id' => 'required|exists:patients,id',
             'patient_weight_kg' => 'nullable|numeric|min:0|max:300',
             'patient_age_years' => 'nullable|integer|min:0|max:150',
             'doctor_name' => 'required|string|max:100',
-            'doctor_sip' => 'nullable|string|max:60',
+            'doctor_sip' => $isControlled ? 'required|string|max:60' : 'nullable|string|max:60',
+            'verified_hardcopy' => $isControlled ? 'accepted' : 'nullable',
             'clinic_name' => 'nullable|string|max:100',
             'prescription_date' => [
                 'required',
@@ -102,11 +204,22 @@ class ApotekerPrescriptionController extends Controller
             'items.*.item_notes' => 'nullable|string|max:500',
             'items.*.is_iter' => 'boolean',
             'items.*.iter_count' => 'nullable|integer|min:0|max:10',
-        ]);
+        ];
 
-        // Validasi SIP Dokter dicabut sesuai request user
+        $messages = [
+            'doctor_sip.required' => 'Nomor SIP Dokter wajib dicantumkan untuk resep obat khusus (Narkotika/Psikotropika) sesuai regulasi SIPNAP dan Permenkes RI No. 73/2016.',
+            'verified_hardcopy.accepted' => 'Apoteker wajib mengonfirmasi telah memegang dan memeriksa keabsahan fisik lembar resep asli sebelum memproses obat narkotika/psikotropika.',
+        ];
 
-        return DB::transaction(function () use ($v) {
+        $v = $request->validate($rules, $messages);
+
+        return DB::transaction(function () use ($v, $isControlled) {
+            $screeningNotes = $v['screening_notes'] ?? '';
+            if ($isControlled) {
+                $auditAppend = "[VERIFIKASI FISIK RESEP: Sesuai Permenkes RI No. 73/2016 diverifikasi oleh Apoteker pada " . now()->format('d/m/Y H:i') . "]";
+                $screeningNotes = trim($screeningNotes ? $screeningNotes . "\n" . $auditAppend : $auditAppend);
+            }
+
             $prescription = Prescription::create([
                 'patient_id' => $v['patient_id'],
                 'patient_weight_kg' => $v['patient_weight_kg'] ?? null,
@@ -118,7 +231,7 @@ class ApotekerPrescriptionController extends Controller
                 'status' => 'baru',
                 'handled_by' => auth()->id(),
                 'notes' => $v['notes'] ?? null,
-                'screening_notes' => $v['screening_notes'] ?? null,
+                'screening_notes' => $screeningNotes ?: null,
             ]);
 
             foreach ($v['items'] as $item) {

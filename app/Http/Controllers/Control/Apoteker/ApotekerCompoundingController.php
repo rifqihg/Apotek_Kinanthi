@@ -448,13 +448,17 @@ class ApotekerCompoundingController extends Controller
      */
     public function budTracker()
     {
-        $activeCompounding = CompoundingSubmission::with(['label', 'user'])
+        $activeCompounding = CompoundingSubmission::select(['id', 'nama_racikan', 'user_id', 'status', 'target_unit', 'created_at'])
+            ->with([
+                'label:id,compounding_id,tanggal_racik,bud_hari,tanggal_kadaluarsa_bud,aturan_pakai,nama_pasien',
+                'user:id,name'
+            ])
             ->whereHas('label', function ($q) {
                 $q->whereNotNull('tanggal_kadaluarsa_bud');
             })
-            ->where('status', 'approved')
+            ->whereIn('status', ['active', 'pending_final_verification'])
             ->latest()
-            ->paginate(15);
+            ->paginate(20);
 
         return Inertia::render('Control/Apoteker/BudTracker', [
             'submissions' => $activeCompounding,

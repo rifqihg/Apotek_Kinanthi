@@ -18,10 +18,8 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const startDate = ref(props.filters?.start_date || new Date().toISOString().split('T')[0]);
 const endDate = ref(props.filters?.end_date || new Date().toISOString().split('T')[0]);
-const isSearching = ref(false);
 
 const applyFilters = () => {
-    isSearching.value = true;
     router.get(route(route().current()), {
         start_date: startDate.value || undefined,
         end_date: endDate.value || undefined,
@@ -31,15 +29,14 @@ const applyFilters = () => {
         preserveState: true,
         preserveScroll: true,
         replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        }
+        showProgress: false,
+        only: ['prescriptions', 'filters'],
     });
 };
 
 const debouncedSearch = useDebounceFn(() => {
     applyFilters();
-}, 300);
+}, 400);
 
 watch(search, (newVal, oldVal) => {
     if (newVal !== oldVal) debouncedSearch();
@@ -55,9 +52,19 @@ const clearSearch = () => {
 };
 
 const activePrescriptions = computed(() => {
-    if (props.prescriptions?.data) return props.prescriptions.data;
-    if (Array.isArray(props.prescriptions)) return props.prescriptions;
-    return [];
+    let raw = [];
+    if (props.prescriptions?.data) raw = props.prescriptions.data;
+    else if (Array.isArray(props.prescriptions)) raw = props.prescriptions;
+
+    if (search.value && search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        raw = raw.filter(rx => 
+            rx.prescription_number?.toLowerCase().includes(q) ||
+            rx.patient?.name?.toLowerCase().includes(q) ||
+            rx.doctor_name?.toLowerCase().includes(q)
+        );
+    }
+    return raw;
 });
 
 const totalPrescriptions = computed(() => {
@@ -176,18 +183,14 @@ const submitVoid = () => {
                         <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <input v-model="search" type="text" placeholder="Cari no. resep / pasien..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
                         <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <button v-else-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                            <button v-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
                                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                     </div>
                     
-                    <button class="h-9 px-3.5 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm w-full sm:w-auto justify-center cursor-not-allowed opacity-80" title="Fitur scanner sedang dalam pengembangan">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                    <button class="h-9 px-3.5 inline-flex items-center gap-2 border border-input bg-background hover:bg-muted text-muted-foreground rounded-lg text-xs font-medium transition-colors shadow-2xs w-full sm:w-auto justify-center cursor-not-allowed opacity-80" title="Fitur scanner sedang dalam pengembangan">
+                        <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
                         Scan Barcode
                     </button>
                 </div>
@@ -336,10 +339,6 @@ const submitVoid = () => {
                     <p class="text-xs text-muted-foreground mt-0.5">Daftar transaksi yang sudah Anda selesaikan berdasarkan tanggal.</p>
                 </div>
                 <div class="no-print shrink-0 flex items-center gap-2 bg-background rounded-md border border-input px-2 h-9">
-                    <svg v-if="isSearching" class="animate-spin h-4 w-4 text-primary ml-1" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
                     <input type="date" v-model="startDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Awal" />
                     <span class="text-muted-foreground text-xs font-medium">-</span>
                     <input type="date" v-model="endDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Akhir" />

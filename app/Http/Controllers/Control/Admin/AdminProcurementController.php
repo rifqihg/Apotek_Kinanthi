@@ -130,8 +130,8 @@ class AdminProcurementController extends Controller
             'stocks' => $stocks,
             'settings' => $settings,
             'suppliers' => $suppliers,
-            'medicines' => $this->getMedicinesCatalog(),
-            'past_invoices' => $this->getPastInvoicesData(),
+            'medicines' => fn () => $this->getMedicinesCatalog(),
+            'past_invoices' => fn () => $this->getPastInvoicesData(),
             'filters' => $request->only('search'),
         ]);
     }

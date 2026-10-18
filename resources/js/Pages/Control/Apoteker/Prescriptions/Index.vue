@@ -14,40 +14,77 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const status = ref(props.filters?.status || '');
 const date = ref(props.filters?.date || '');
-const isFiltering = ref(false);
 
-const applyFilters = () => {
-    isFiltering.value = true;
-    router.get(route(route().current()), {
-        search: search.value || undefined,
-        status: status.value || undefined,
-        date: date.value || undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => { isFiltering.value = false; }
-    });
-};
-
-const debouncedSearch = useDebounceFn(() => {
-    applyFilters();
-}, 300);
-
-watch(search, (newVal, oldVal) => {
-    if (newVal !== oldVal) debouncedSearch();
+const filteredPrescriptions = computed(() => {
+    let list = props.prescriptions?.data || [];
+    if (status.value && status.value !== 'all') {
+        list = list.filter(p => p.status === status.value);
+    }
+    if (search.value && search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(p => 
+            p.nomor_resep?.toLowerCase().includes(q) ||
+            p.nama_pasien?.toLowerCase().includes(q) ||
+            p.nama_dokter?.toLowerCase().includes(q)
+        );
+    }
+    return list;
 });
 
-watch([status, date], () => {
-    applyFilters();
+const performServerSearch = useDebounceFn(() => {
+    router.reload({
+        data: {
+            search: search.value || undefined,
+            status: status.value || undefined,
+            date: date.value || undefined,
+            page: 1,
+        },
+        preserveState: true,
+        preserveScroll: true,
+        showProgress: false,
+        only: ['prescriptions', 'filters'],
+    });
+}, 400);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) performServerSearch();
+});
+
+watch(status, (newStatus) => {
+    if (newStatus === 'all') {
+        router.reload({
+            data: {
+                search: search.value || undefined,
+                status: 'all',
+                date: date.value || undefined,
+                page: 1,
+            },
+            preserveState: true,
+            preserveScroll: true,
+            only: ['prescriptions', 'filters'],
+        });
+    }
+});
+
+watch(date, () => {
+    router.reload({
+        data: {
+            search: search.value || undefined,
+            status: status.value || undefined,
+            date: date.value || undefined,
+            page: 1,
+        },
+        preserveState: true,
+        preserveScroll: true,
+        only: ['prescriptions', 'filters'],
+    });
 });
 
 const clearFilters = () => {
     search.value = '';
     status.value = '';
     date.value = '';
-    applyFilters();
+    performServerSearch();
 };
 
 const stats = computed(() => {
@@ -77,51 +114,111 @@ const isControlledRx = (rx) => {
 <template>
     <Head title="Daftar Resep Aktif" />
     <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <!-- HERO BANNER CARD (lg:col-span-8) -->
-            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                        KLINIS · ANTRIAN RESEP
+            <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Input Resep (Desktop) -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="status = ''"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === '' 
+                                ? 'bg-emerald-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span>Aktif</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="status = 'baru'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'baru' 
+                                ? 'bg-indigo-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="status === 'baru' ? 'bg-white' : 'bg-indigo-500'"></span>
+                            <span>Menunggu</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="status = 'diproses'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'diproses' 
+                                ? 'bg-amber-500 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="status === 'diproses' ? 'bg-white' : 'bg-amber-500'"></span>
+                            <span>Diracik</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="status = 'siap_ambil'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'siap_ambil' 
+                                ? 'bg-emerald-700 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="w-1.5 h-1.5 rounded-full" :class="status === 'siap_ambil' ? 'bg-white' : 'bg-emerald-500'"></span>
+                            <span class="hidden sm:inline">Siap Ambil</span>
+                            <span class="sm:hidden">Siap</span>
+                            <span 
+                                v-if="stats.ready > 0"
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="status === 'siap_ambil' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'"
+                            >{{ stats.ready }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="status = 'all'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="status === 'all' 
+                                ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="hidden sm:inline">Semua Status</span>
+                            <span class="sm:hidden">Semua</span>
+                        </button>
                     </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Daftar Resep & Skrining Klinis
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Pemeriksaan kelengkapan resep dokter, verifikasi dosis, dan pemrosesan peracikan obat pasien.
-                    </p>
+
+                    <Link 
+                        :href="route('control.apoteker.prescriptions.create')" 
+                        class="hidden sm:inline-flex h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Input Resep</span>
+                    </Link>
                 </div>
 
-                <!-- Right Integrated Control Panel -->
-                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                    <div class="relative w-full sm:w-48">
+                <!-- Baris 2: Search Input & Tombol Input Resep (Mobile) -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
                         <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input v-model="search" type="text" placeholder="Cari no. resep..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari nomor resep, pasien, dokter, faskes..." 
+                            class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                        />
                         <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                            <svg v-if="isFiltering" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <button v-else-if="search" type="button" @click="search=''; applyFilters()" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                            <button v-if="search" type="button" @click="search=''; performServerSearch()" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
                                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                     </div>
-                    
-                    <select v-model="status" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer">
-                        <option value="">Status: Resep Aktif</option>
-                        <option value="all">Semua Status</option>
-                        <option value="baru">Baru</option>
-                        <option value="diproses">Diproses</option>
-                        <option value="siap_ambil">Siap Ambil</option>
-                        <option value="selesai">Selesai</option>
-                    </select>
 
-                    <Link :href="route('control.apoteker.prescriptions.create')" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                        <span>Input Resep</span>
+                    <Link 
+                        :href="route('control.apoteker.prescriptions.create')" 
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Input</span>
                     </Link>
                 </div>
             </div>
@@ -209,7 +306,7 @@ const isControlledRx = (rx) => {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
-                    <tr v-if="!prescriptions?.data?.length">
+                    <tr v-if="!filteredPrescriptions.length">
                         <td colspan="7" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center gap-3">
                                 <div class="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-muted-foreground border border-border">
@@ -219,7 +316,7 @@ const isControlledRx = (rx) => {
                             </div>
                         </td>
                     </tr>
-                    <tr v-for="rx in (prescriptions?.data || [])" :key="rx.id" class="hover:bg-muted/30 transition-colors">
+                    <tr v-for="rx in filteredPrescriptions" :key="rx.id" class="hover:bg-muted/30 transition-colors">
                         <td class="px-4 py-3 font-medium text-foreground text-sm tracking-wide">
                             <div class="flex flex-col items-start gap-1">
                                 <span>{{ rx.prescription_number }}</span>

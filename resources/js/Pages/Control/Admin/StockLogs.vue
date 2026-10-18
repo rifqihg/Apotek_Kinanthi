@@ -36,7 +36,6 @@ const startDate = ref(props.filters?.start_date || '');
 const endDate = ref(props.filters?.end_date || '');
 const filterType = ref(props.filters?.type || 'all');
 const isControlled = ref(props.filters?.is_controlled === '1' || props.filters?.is_controlled === true);
-const filterDropdownOpen = ref(false);
 const isFilteringLogs = ref(false);
 
 const applyMutationFilters = () => {
@@ -53,6 +52,8 @@ const applyMutationFilters = () => {
         preserveState: true,
         preserveScroll: true,
         replace: true,
+        showProgress: false,
+        only: ['logs', 'kpi', 'filters'],
         onFinish: () => { isFilteringLogs.value = false; },
     });
 };
@@ -178,6 +179,8 @@ const applyAuditFilters = () => {
         preserveState: true,
         preserveScroll: true,
         replace: true,
+        showProgress: false,
+        only: ['audits', 'filters'],
         onFinish: () => { isFilteringAudits.value = false; },
     });
 };
@@ -233,66 +236,137 @@ const formatAuditDate = (dateStr) => {
 <template>
 <Head :title="activeTab === 'mutasi' ? 'Riwayat Mutasi Stok' : 'Jejak Audit Aktivitas'" />
 <div class="space-y-6">
-    <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+    <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        <!-- HERO BANNER CARD (lg:col-span-8) -->
-        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Riwayat Mutasi & Jejak Audit
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                    Pemantauan transparan pergerakan fisik stok obat serta rekam jejak aktivitas operasional pengguna.
-                </p>
+        <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+        <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between gap-2.5">
+            <!-- Baris 1: Filter Tabs (Pills) -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                    <button
+                        type="button"
+                        @click="switchTab('mutasi')"
+                        class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                        :class="activeTab === 'mutasi' 
+                            ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        <span>Mutasi Fisik Stok</span>
+                        <span 
+                            v-if="activeKpi.total" 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeTab === 'mutasi' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                        >{{ activeKpi.total }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="switchTab('audit')"
+                        class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                        :class="activeTab === 'audit' 
+                            ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Jejak Aktivitas Sistem</span>
+                        <span 
+                            v-if="activeAudits.total" 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeTab === 'audit' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                        >{{ activeAudits.total }}</span>
+                    </button>
+                </div>
+
+                <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-500 dark:text-muted-foreground bg-slate-100/80 dark:bg-muted/60 shrink-0">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="activeTab === 'mutasi' ? 'bg-emerald-500' : 'bg-blue-500'"></span>
+                    <span>{{ activeTab === 'mutasi' ? 'Log Ledger Fisik' : 'Audit Trail RBAC' }}</span>
+                </div>
             </div>
 
-            <!-- Right Vector Illustration Column (Micro-Housing Container & Duotone) -->
-            <div class="relative z-10 flex items-center justify-center shrink-0">
-                <div class="w-20 h-20 rounded-xl bg-white/80 dark:bg-card/80 border border-slate-200/80 dark:border-border/80 shadow-2xs flex items-center justify-center p-2 backdrop-blur-xs">
-                    <svg class="w-full h-full select-none" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Stock Ledger Sheet (behind left) -->
-                        <rect x="4" y="4" width="31" height="44" rx="4" stroke="#0891B2" stroke-width="2.2" fill="#FFFFFF" />
-                        <rect x="8" y="9" width="15" height="3.5" rx="1.2" fill="#06B6D4" />
-                        <line x1="8" y1="17" x2="28" y2="17" stroke="#0891B2" stroke-opacity="0.25" stroke-width="1.4" />
-                        <line x1="8" y1="23" x2="28" y2="23" stroke="#0891B2" stroke-opacity="0.25" stroke-width="1.4" />
-                        <!-- Dynamic Trend Line Chart -->
-                        <path d="M8 39l6-7 7 3 9-11" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        <circle cx="14" cy="32" r="1.6" fill="#06B6D4" />
-                        <circle cx="21" cy="35" r="1.6" fill="#06B6D4" />
-                        <circle cx="30" cy="24" r="2" fill="#0891B2" />
-                        <!-- In/Out Mutation Badge (in front right) -->
-                        <g transform="translate(23, 16)">
-                            <circle cx="14.5" cy="14.5" r="13.5" stroke="#0891B2" stroke-width="2.2" fill="#FFFFFF" />
-                            <circle cx="14.5" cy="14.5" r="10.5" fill="#ECFEFF" />
-                            <path d="M10.5 19V10M7 13.5l3.5-3.5 3.5 3.5" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                            <path d="M18.5 10v9m-3.5-3.5l3.5 3.5 3.5-3.5" stroke="#0891B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                        </g>
+            <!-- Baris 2: Search Input & Type/Role Selector -->
+            <div class="flex items-center gap-2 w-full">
+                <div class="relative flex-1">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
+                    <input 
+                        v-if="activeTab === 'mutasi'"
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Cari obat, batch, jenis mutasi..." 
+                        class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                    />
+                    <input 
+                        v-else
+                        v-model="auditSearch" 
+                        type="text" 
+                        placeholder="Cari aktivitas, tindakan, user pengubah..." 
+                        class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                    />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                        <button 
+                            v-if="activeTab === 'mutasi' ? search : auditSearch" 
+                            type="button" 
+                            @click="activeTab === 'mutasi' ? (search = '', applyMutationFilters()) : (auditSearch = '', applyAuditFilters())" 
+                            class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                            title="Hapus pencarian"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+
+                <select 
+                    v-if="activeTab === 'mutasi'"
+                    v-model="filterType" 
+                    class="h-9 pl-3 pr-8 min-w-[120px] bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all cursor-pointer shrink-0"
+                >
+                    <option value="all">Semua Log</option>
+                    <option value="Masuk">Masuk</option>
+                    <option value="Retur">Retur</option>
+                    <option value="Jual">Terjual</option>
+                    <option value="Distribusi">Distribusi</option>
+                </select>
+                <select 
+                    v-else
+                    v-model="roleFilter" 
+                    class="h-9 pl-3 pr-8 min-w-[120px] bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all cursor-pointer shrink-0"
+                >
+                    <option value="">Semua Role</option>
+                    <option value="admin">Admin</option>
+                    <option value="apoteker">Apoteker</option>
+                    <option value="kasir">Kasir</option>
+                </select>
             </div>
         </div>
 
-        <!-- 2 STAT CARDS (lg:col-span-4) -->
-        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+        <!-- SISI KANAN: 2 METRIK KARTU BERDAMPINGAN (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
             <!-- Card 1: Arus Stok Masuk -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                         ARUS MASUK
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
-                        {{ activeKpi.in || 0 }}
+                        {{ activeKpi.in || 0 }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Kali</span>
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                     Faktur & penyesuaian masuk
                 </p>
             </div>
@@ -300,159 +374,81 @@ const formatAuditDate = (dateStr) => {
             <!-- Card 2: Arus Stok Keluar -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                         ARUS KELUAR
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted border border-slate-200 dark:border-border flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M17 8v12m0 0l4-4m-4 4l-4-4M7 16V4m0 0L3 8m4-4l4 4" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                        {{ activeKpi.out || 0 }}
+                        {{ activeKpi.out || 0 }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Kali</span>
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
                     Penjualan kasir & racikan
                 </p>
             </div>
         </div>
     </div>
 
-    <!-- ═══ TAB SWITCHER (SEGMENTED CONTROL) ═══ -->
-    <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-3">
-        <div class="inline-flex p-1 bg-slate-100 dark:bg-muted/60 border border-slate-200/80 dark:border-border rounded-xl">
-            <button
-                type="button"
-                @click="switchTab('mutasi')"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer"
-                :class="activeTab === 'mutasi'
-                    ? 'bg-white dark:bg-card text-slate-900 dark:text-foreground shadow-2xs border border-slate-200/50 dark:border-border/50'
-                    : 'text-slate-500 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground'"
+    <!-- KOTAK BARU: PERIODE TANGGAL & FILTER MUTASI TERKONTROL (MEMANJANG KESAMPING) -->
+    <div v-if="activeTab === 'mutasi'" class="w-full bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
+        <!-- Filter Tanggal & Reset -->
+        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <span class="text-xs font-semibold text-slate-500 dark:text-muted-foreground shrink-0 hidden sm:inline">Periode:</span>
+            <div class="flex items-center gap-1.5">
+                <input 
+                    v-model="startDate" 
+                    type="date" 
+                    class="h-8.5 min-w-[125px] sm:w-36 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg px-2.5 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all cursor-pointer" 
+                />
+                <span class="text-muted-foreground text-xs font-medium">s/d</span>
+                <input 
+                    v-model="endDate" 
+                    type="date" 
+                    class="h-8.5 min-w-[125px] sm:w-36 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg px-2.5 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all cursor-pointer" 
+                />
+            </div>
+            <button 
+                v-if="search || startDate || endDate || filterType !== 'all' || isControlled" 
+                @click="clearFilters" 
+                type="button" 
+                class="h-8.5 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
             >
-                <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-                Mutasi Fisik Stok
-                <span v-if="activeKpi.total" class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-100 dark:border-emerald-800/40">
-                    {{ activeKpi.total }}
-                </span>
-            </button>
-            <button
-                type="button"
-                @click="switchTab('audit')"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer"
-                :class="activeTab === 'audit'
-                    ? 'bg-white dark:bg-card text-slate-900 dark:text-foreground shadow-2xs border border-slate-200/50 dark:border-border/50'
-                    : 'text-slate-500 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground'"
-            >
-                <svg class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Jejak Aktivitas Sistem
-                <span v-if="activeAudits.total" class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold border border-blue-100 dark:border-blue-800/40">
-                    {{ activeAudits.total }}
-                </span>
+                Reset Filter
             </button>
         </div>
+
+        <!-- Tombol Filter Mutasi Terkontrol -->
+        <button 
+            @click="isControlled = !isControlled" 
+            type="button" 
+            class="h-8.5 px-3 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 border cursor-pointer shrink-0"
+            :class="isControlled ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800/40 shadow-xs font-semibold' : 'bg-slate-50 dark:bg-background text-muted-foreground border-slate-200 dark:border-input hover:bg-slate-100 dark:hover:bg-muted'"
+        >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <span class="sm:hidden">Terkontrol</span>
+            <span class="hidden sm:inline">Filter Mutasi Terkontrol</span>
+        </button>
+    </div>
+    <div v-else class="w-full bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-2xs flex items-center justify-between gap-2.5 text-xs text-muted-foreground font-medium">
+        <span>Total Catatan Aktivitas: <strong class="text-foreground">{{ activeAudits.total || 0 }}</strong> entri</span>
+        <button v-if="auditSearch || roleFilter" @click="clearAuditFilters" type="button" class="text-xs text-destructive hover:underline cursor-pointer">
+            Reset Filter
+        </button>
     </div>
 
     <!-- ═══ TAB 1: MUTASI FISIK STOK ═══ -->
     <div v-show="activeTab === 'mutasi'" class="space-y-4">
-        <!-- Filters -->
-        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-col md:flex-row gap-3 md:items-center justify-between">
-            <div class="flex flex-1 flex-row gap-2 items-center w-full md:w-auto">
-                <div class="flex-1 min-w-[150px] relative">
-                    <input v-model="search" type="text" placeholder="Cari obat..." 
-                           class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
-                    <svg v-if="!isFilteringLogs" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <button 
-                        v-if="search" 
-                        @click="search = ''; applyMutationFilters()" 
-                        type="button" 
-                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
-                    >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <div class="relative shrink-0">
-                    <button @click="filterDropdownOpen = !filterDropdownOpen" @blur="setTimeout(() => filterDropdownOpen = false, 200)" class="h-9 w-auto bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground hover:bg-accent cursor-pointer outline-none transition-colors flex items-center justify-between gap-2 shadow-sm">
-                        <div class="flex items-center gap-1.5">
-                            <span v-if="filterType === 'all'" class="text-foreground">Semua Log</span>
-                            <span v-else-if="filterType === 'Masuk'" class="text-emerald-600 font-semibold">Masuk</span>
-                            <span v-else-if="filterType === 'Retur'" class="text-amber-600 font-semibold">Retur</span>
-                            <span v-else-if="filterType === 'Jual'" class="text-primary font-semibold">Terjual</span>
-                            <span v-else-if="filterType === 'Distribusi'" class="text-indigo-600 font-semibold">Distribusi</span>
-                        </div>
-                        <svg class="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200" :class="{'rotate-180': filterDropdownOpen}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </button>
-                    <div v-show="filterDropdownOpen" class="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-full min-w-[140px] bg-card border border-border rounded-md shadow-lg overflow-hidden z-20 origin-top-right sm:origin-top-left transition-all">
-                        <div class="p-1 space-y-0.5">
-                            <button @click="filterType = 'all'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'all' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'">
-                                Semua Log
-                                <div v-if="filterType === 'all'" class="w-1.5 h-1.5 rounded-full bg-foreground"></div>
-                            </button>
-                            <div class="h-px bg-border my-1"></div>
-                            <button @click="filterType = 'Masuk'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Masuk' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:bg-muted hover:text-emerald-600'">
-                                Masuk
-                                <div v-if="filterType === 'Masuk'" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                            </button>
-                            <button @click="filterType = 'Retur'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Retur' ? 'bg-amber-500/10 text-amber-600' : 'text-muted-foreground hover:bg-muted hover:text-amber-600'">
-                                Retur
-                                <div v-if="filterType === 'Retur'" class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                            </button>
-                            <button @click="filterType = 'Jual'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Jual' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-primary'">
-                                Terjual
-                                <div v-if="filterType === 'Jual'" class="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                            </button>
-                            <button @click="filterType = 'Distribusi'" class="w-full text-left px-2.5 py-1.5 text-xs font-medium rounded-md flex items-center justify-between group transition-colors" :class="filterType === 'Distribusi' ? 'bg-indigo-50 text-indigo-600' : 'text-muted-foreground hover:bg-muted hover:text-indigo-600'">
-                                Distribusi
-                                <div v-if="filterType === 'Distribusi'" class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scrollable container for dates and extra filters on mobile -->
-            <div class="flex flex-row items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto shrink-0 hide-scrollbar" style="-ms-overflow-style: none; scrollbar-width: none;">
-                <input v-model="startDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0" />
-                <span class="text-muted-foreground text-xs shrink-0">-</span>
-                <input v-model="endDate" type="date" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0" />
-                
-                <button v-if="search || startDate || endDate || filterType !== 'all' || isControlled" @click="clearFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer shrink-0">
-                    Reset
-                </button>
-                
-                <div class="h-6 w-px bg-border hidden md:block mx-1"></div>
-                
-                <button 
-                    @click="isControlled = !isControlled" 
-                    type="button" 
-                    class="h-9 px-3 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 border cursor-pointer shrink-0 ml-auto md:ml-0"
-                    :class="isControlled ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800/40' : 'bg-background text-muted-foreground border-input hover:bg-accent hover:text-foreground'"
-                >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    Filter Mutasi Terkontrol
-                </button>
-            </div>
-        </div>
 
         <!-- Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <Table class="w-full min-w-[880px]">
+                <Table>
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
                             <TableHead class="min-w-[130px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
@@ -486,8 +482,8 @@ const formatAuditDate = (dateStr) => {
                             </TableCell>
                             <!-- Item -->
                             <TableCell class="py-2.5 px-3 align-middle text-left">
-                                <div class="flex flex-col min-w-0 text-left">
-                                    <div class="flex items-center justify-start gap-2 truncate">
+                                <div class="flex flex-col min-w-0">
+                                    <div class="flex items-center gap-2 truncate">
                                         <span class="text-sm font-medium text-foreground leading-tight truncate">
                                             {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || l.item?.nama_produk || '-' }}
                                         </span>
@@ -518,7 +514,7 @@ const formatAuditDate = (dateStr) => {
                             <!-- Qty Mutasi -->
                             <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
-                                <div v-if="l.inventory?.medicine" class="flex flex-nowrap items-center justify-center gap-1.5">
+                                <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getMutationUnits(l.quantity, l.inventory)" :key="i">
                                         <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
                                             <span class="font-semibold tabular-nums" :class="l.type === 'Masuk' || l.type === 'Penyesuaian Masuk' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'">{{ b.qty }}</span>
@@ -539,7 +535,7 @@ const formatAuditDate = (dateStr) => {
                             <!-- Sisa Stok -->
                             <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
-                                <div v-if="l.inventory?.medicine" class="flex flex-nowrap items-center justify-center gap-1.5">
+                                <div v-if="l.inventory?.medicine" class="flex flex-wrap items-center justify-center gap-1.5">
                                     <template v-for="(b, i) in getMutationUnits(l.balance_after, l.inventory)" :key="i">
                                         <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border/80 bg-muted/40 text-xs font-medium text-foreground">
                                             <span class="font-semibold tabular-nums text-foreground">{{ b.qty }}</span>
@@ -572,49 +568,6 @@ const formatAuditDate = (dateStr) => {
 
     <!-- ═══ TAB 2: JEJAK AKTIVITAS SISTEM (AUDIT TRAIL) ═══ -->
     <div v-show="activeTab === 'audit'" class="space-y-4">
-        <!-- Audit Filters -->
-        <div class="bg-card border border-border p-3 rounded-lg shadow-sm flex flex-col md:flex-row gap-4 md:items-center justify-between">
-            <div class="flex flex-col sm:flex-row flex-1 w-full md:w-auto items-stretch sm:items-center gap-3">
-                <div class="flex-1 min-w-[220px] max-w-md relative">
-                    <input v-model="auditSearch" type="text" placeholder="Cari aktivitas, tindakan, atau user..." 
-                           class="w-full h-9 bg-background border border-input rounded-md pl-9 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground" />
-                    <svg v-if="!isFilteringAudits" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <svg v-else class="animate-spin w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <button 
-                        v-if="auditSearch" 
-                        @click="auditSearch = ''; applyAuditFilters()" 
-                        type="button" 
-                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded-full hover:bg-muted transition-colors"
-                        title="Hapus pencarian"
-                    >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-
-                <select v-model="roleFilter" class="h-9 bg-background border border-input rounded-md px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer">
-                    <option value="">Semua Role</option>
-                    <option value="admin">Admin</option>
-                    <option value="apoteker">Apoteker</option>
-                    <option value="kasir">Kasir</option>
-                </select>
-
-                <button v-if="auditSearch || roleFilter" @click="clearAuditFilters" class="h-9 px-3 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer">
-                    Reset
-                </button>
-            </div>
-
-            <div class="text-xs text-muted-foreground font-medium">
-                Total Aktivitas: <span class="font-bold text-foreground">{{ activeAudits.total || 0 }}</span> entri
-            </div>
-        </div>
 
         <!-- Audit Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
@@ -625,7 +578,7 @@ const formatAuditDate = (dateStr) => {
                             <TableHead class="py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Waktu</TableHead>
                             <TableHead class="py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Pengguna</TableHead>
                             <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tindakan</TableHead>
-                            <TableHead class="min-w-[350px] py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Deskripsi Aktivitas</TableHead>
+                            <TableHead class="py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deskripsi Aktivitas</TableHead>
                             <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Model Target</TableHead>
                             <TableHead class="py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Record ID</TableHead>
                         </TableRow>

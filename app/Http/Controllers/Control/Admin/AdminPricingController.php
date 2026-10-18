@@ -20,9 +20,10 @@ class AdminPricingController extends Controller
      */
     public function pricingIndex()
     {
-        $compoundedProducts = CompoundedProduct::select(['id', 'compounding_submission_id', 'nama_produk', 'batch_no', 'qty_hasil', 'hpp_per_unit', 'pricing_status', 'created_at', 'harga_jual', 'satuan'])
+        $compoundedProducts = CompoundedProduct::select(['id', 'compounding_submission_id', 'nama_produk', 'batch_no', 'qty_hasil', 'hpp_per_unit', 'pricing_status', 'harga_jual', 'satuan'])
             ->with(['submission' => fn($q) => $q->select(['id', 'target_quantity', 'total_hpp_racikan', 'total_hpp_bahan', 'biaya_tuslah', 'jasa_racik', 'biaya_kemasan', 'harga_jual_racikan'])])
             ->latest()
+            ->limit(100)
             ->get()
             ->map(function ($product) {
                 $qty = max($product->qty_hasil > 0 ? $product->qty_hasil : ($product->submission?->target_quantity ?: 1), 1);
@@ -56,13 +57,13 @@ class AdminPricingController extends Controller
                 $product->calculated_jasa = $jasaRacik;
                 $product->calculated_kemasan = $biayaKemasan;
                 $product->calculated_margin = $margin;
+                unset($product->submission);
                 
                 return $product;
             });
 
         $medicines = Medicine::select([
                 'id',
-                'category_id',
                 'kode_obat',
                 'nama_obat',
                 'satuan_stok',
@@ -70,13 +71,26 @@ class AdminPricingController extends Controller
                 'selling_price',
                 'selling_price_mid',
                 'selling_price_large',
-                'threshold_min',
-                'rasio_konversi',
-                'conversion_factor',
-                'created_at',
             ])
-            ->with('latestIncomingStock')
-            ->latest()
+            ->with(['latestIncomingStock' => function ($q) {
+                $q->select([
+                    'incoming_stocks.id',
+                    'incoming_stocks.medicine_id',
+                    'incoming_stocks.batch_no',
+                    'incoming_stocks.satuan_input',
+                    'incoming_stocks.mid_unit',
+                    'incoming_stocks.mid_to_big_ratio',
+                    'incoming_stocks.small_to_mid_ratio',
+                    'incoming_stocks.unit_conversion_factor',
+                    'incoming_stocks.qty_converted',
+                    'incoming_stocks.harga_beli_satuan',
+                    'incoming_stocks.diskon_persen',
+                    'incoming_stocks.jumlah_harga',
+                    'incoming_stocks.ppn_persen',
+                    'incoming_stocks.qty_masuk',
+                ]);
+            }])
+            ->latest('id')
             ->get()
             ->map(function ($med) {
                 $latestStock = $med->latestIncomingStock;
@@ -114,6 +128,7 @@ class AdminPricingController extends Controller
                 $med->hpp_kecil = $hppKecil;
                 $med->hpp_menengah = $hppMenengah;
                 $med->hpp_besar = $hppBesar;
+                unset($med->latestIncomingStock);
 
                 return $med;
             });

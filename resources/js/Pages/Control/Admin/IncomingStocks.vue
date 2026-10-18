@@ -14,7 +14,6 @@ const props = defineProps({ stocks: Object, settings: Object, filters: Object, s
 const { toast } = useToast();
 const showModal = ref(false);
 const searchInvoiceQuery = ref(props.filters?.search || '');
-const isSearching = ref(false);
 
 const allMedicines = ref(props.medicines || []);
 watch(() => props.medicines, (val) => {
@@ -35,14 +34,7 @@ const isLoadingPastInvoices = ref(false);
 const pastInvoiceSearch = ref('');
 const pastInvoiceSupplierFilter = ref('');
 
-watch(() => props.filters?.search, (newSearch) => {
-    if (newSearch !== undefined && newSearch !== searchInvoiceQuery.value) {
-        searchInvoiceQuery.value = newSearch || '';
-    }
-});
-
 const handleLiveSearch = useDebounceFn((val) => {
-    isSearching.value = true;
     router.get(route('control.admin.incoming-stocks'), {
         search: val || undefined,
         page: 1,
@@ -50,11 +42,10 @@ const handleLiveSearch = useDebounceFn((val) => {
         preserveState: true,
         preserveScroll: true,
         replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        },
+        showProgress: false,
+        only: ['stocks', 'filters'],
     });
-}, 300);
+}, 400);
 
 watch(searchInvoiceQuery, (newVal) => {
     handleLiveSearch(newVal);
@@ -62,6 +53,7 @@ watch(searchInvoiceQuery, (newVal) => {
 
 const clearSearch = () => {
     searchInvoiceQuery.value = '';
+    handleLiveSearch('');
 };
 
 const activeStocks = computed(() => props.stocks || { data: [], total: 0 });
@@ -120,19 +112,49 @@ const groupedInvoices = computed(() => {
     return result;
 });
 
-const stats = computed(() => {
-    const list = groupedInvoices.value || [];
-    const total = list.length;
-    const pendingPhoto = list.filter(g => !g.foto_faktur_path).length;
-    const uniqueSuppliers = new Set(list.map(g => g.supplier?.id || g.supplier_id || g.nama_pbf).filter(Boolean)).size;
-    return { total, pendingPhoto, uniqueSuppliers };
-});
-
 const invoiceGrandTotal = (group) => {
     const ppnPercent = Number(group.ppn_persen) || 0;
     const ppn = group.subtotal * (ppnPercent / 100);
     return group.subtotal + ppn;
 };
+
+const activeFilterTab = ref('all');
+const selectedSupplierFilter = ref('');
+
+const filteredInvoices = computed(() => {
+    let list = groupedInvoices.value || [];
+    if (activeFilterTab.value === 'pending_photo') {
+        list = list.filter(g => !g.foto_faktur_path);
+    } else if (activeFilterTab.value === 'complete') {
+        list = list.filter(g => !!g.foto_faktur_path);
+    }
+    if (selectedSupplierFilter.value) {
+        list = list.filter(g => String(g.supplier?.id) === String(selectedSupplierFilter.value) || g.supplier?.nama_pbf === selectedSupplierFilter.value);
+    }
+    if (searchInvoiceQuery.value && searchInvoiceQuery.value.trim()) {
+        const q = searchInvoiceQuery.value.toLowerCase().trim();
+        list = list.filter(g => {
+            const matchFaktur = g.faktur_no?.toLowerCase().includes(q);
+            const matchSupplier = g.supplier?.nama_pbf?.toLowerCase().includes(q);
+            const matchItems = g.items?.some(it => 
+                it.medicine?.nama_obat?.toLowerCase().includes(q) ||
+                it.no_batch?.toLowerCase().includes(q)
+            );
+            return matchFaktur || matchSupplier || matchItems;
+        });
+    }
+    return list;
+});
+
+const stats = computed(() => {
+    const list = groupedInvoices.value || [];
+    const total = list.length;
+    const pendingPhoto = list.filter(g => !g.foto_faktur_path).length;
+    const complete = Math.max(0, total - pendingPhoto);
+    const totalAmount = list.reduce((sum, g) => sum + invoiceGrandTotal(g), 0);
+    const uniqueSuppliers = new Set(list.map(g => g.supplier?.id || g.supplier_id || g.nama_pbf).filter(Boolean)).size;
+    return { total, pendingPhoto, complete, totalAmount, uniqueSuppliers };
+});
 
 // MULTI-ITEM FORM LOGIC
 const getEmptyItem = () => ({
@@ -544,35 +566,85 @@ function submit() {
 <template>
 <Head title="Faktur Masuk" />
 <div class="space-y-6">
-    <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+    <!-- BENTO COCKPIT HEADER (KONSEP SLIDE 2 - REFINED) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        <!-- HERO BANNER CARD (lg:col-span-8) -->
-        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                    PURCHASING · VERIFIKASI FAKTUR
+        <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+        <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+            <!-- Baris 1: Filter Tabs (Pills) di kiri & Tombol Input Faktur di kanan (Desktop Sejajar) -->
+            <div class="flex items-center justify-between gap-2 w-full">
+                <!-- Pills Tabs -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'all'"
+                        class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                        :class="activeFilterTab === 'all' 
+                            ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <span>Semua Faktur</span>
+                        <span 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                        >{{ stats.total }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'pending_photo'"
+                        class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                        :class="activeFilterTab === 'pending_photo' 
+                            ? 'bg-amber-500 text-white shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full" :class="activeFilterTab === 'pending_photo' ? 'bg-white' : 'bg-amber-500'"></span>
+                        <span>Perlu Berkas</span>
+                        <span 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'pending_photo' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'"
+                        >{{ stats.pendingPhoto }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'complete'"
+                        class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                        :class="activeFilterTab === 'complete' 
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full" :class="activeFilterTab === 'complete' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-slate-400'"></span>
+                        <span>Lengkap</span>
+                        <span 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'complete' ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                        >{{ stats.complete }}</span>
+                    </button>
                 </div>
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Penerimaan Faktur Masuk
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                    Verifikasi berkas pembelian sediaan farmasi dari distributor, nomor batch, dan tanggal kedaluwarsa.
-                </p>
+
+                <!-- Tombol Input Faktur di Desktop (Sejajar Filter Tabs) -->
+                <button 
+                    @click="openInputFakturModal" 
+                    class="hidden sm:inline-flex h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer justify-center"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Input Faktur</span>
+                </button>
             </div>
 
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                <div class="relative w-full sm:w-64">
+            <!-- Baris 2: Search Input, Dropdown PBF, dan Tombol Mobile Input Faktur -->
+            <div class="flex items-center gap-2 w-full">
+                <div class="relative flex-1">
                     <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input v-model="searchInvoiceQuery" type="text" placeholder="Cari faktur, supplier..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                    <input 
+                        v-model="searchInvoiceQuery" 
+                        type="text" 
+                        placeholder="Cari nomor faktur, supplier, obat..." 
+                        class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                    />
                     <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
                         <button 
-                            v-else-if="searchInvoiceQuery" 
+                            v-if="searchInvoiceQuery" 
                             type="button" 
                             @click="clearSearch" 
                             class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
@@ -584,56 +656,62 @@ function submit() {
                         </button>
                     </div>
                 </div>
-                <button @click="openInputFakturModal" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                    <span>Input Faktur</span>
-                </button>
+
+                <div class="w-36 sm:w-44 shrink-0">
+                    <select 
+                        v-model="selectedSupplierFilter" 
+                        class="w-full h-9 px-2.5 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer truncate transition-all"
+                    >
+                        <option value="">Semua PBF</option>
+                        <option v-for="sup in (suppliers || [])" :key="sup.id" :value="sup.id">
+                            {{ sup.nama_pbf }}
+                        </option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <!-- 2 STAT CARDS (lg:col-span-4) -->
-        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
-            <!-- Card 1: Perlu Bukti Fisik -->
+        <!-- SISI KANAN: 2 METRIK KARTU BERDAMPINGAN (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
+            <!-- Card 1: Total Belanja Faktur -->
             <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
-                        PERLU BUKTI FISIK
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        TOTAL BELANJA
                     </span>
-                    <div class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0" :class="stats.pendingPhoto > 0 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-100 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground'">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <span class="text-[9.5px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900">
+                        Inc. PPN
+                    </span>
+                </div>
+                <div class="my-1 truncate">
+                    <span class="text-lg sm:text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                        Rp {{ stats.totalAmount.toLocaleString('id-ID') }}
+                    </span>
+                </div>
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                    {{ stats.total }} faktur terdata
+                </p>
+            </div>
+
+            <!-- Card 2: Audit Berkas Fisik -->
+            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                <div class="flex items-center justify-between gap-1">
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        AUDIT BERKAS
+                    </span>
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0" :class="stats.pendingPhoto > 0 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-muted text-slate-400 dark:text-muted-foreground'">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
+                <div class="my-1 truncate">
                     <span class="text-2xl sm:text-3xl font-bold tracking-tight leading-none" :class="stats.pendingPhoto > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-foreground'">
-                        {{ stats.pendingPhoto }}
+                        {{ stats.pendingPhoto }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Faktur</span>
                     </span>
                 </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
-                    {{ stats.pendingPhoto > 0 ? 'Belum ada berkas fisik' : 'Semua berkas terlampir' }}
-                </p>
-            </div>
-
-            <!-- Card 2: Total Faktur -->
-            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
-                <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
-                        TOTAL FAKTUR
-                    </span>
-                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="my-0.5">
-                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
-                        {{ stats.total }}
-                    </span>
-                </div>
-                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground leading-tight">
-                    Faktur masuk diverifikasi
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                    {{ stats.pendingPhoto > 0 ? 'Belum ada bukti fisik' : 'Semua berkas lengkap' }}
                 </p>
             </div>
         </div>
@@ -642,11 +720,12 @@ function submit() {
 
     <!-- Accordion List -->
     <div class="mt-4 space-y-3">
-        <div v-if="groupedInvoices.length === 0" class="text-center py-12 bg-card rounded-lg border border-border text-sm text-muted-foreground">
-            <p>Belum ada faktur yang tercatat.</p>
+        <div v-if="filteredInvoices.length === 0" class="text-center py-12 bg-card rounded-lg border border-border text-sm text-muted-foreground">
+            <p v-if="activeFilterTab !== 'all' || selectedSupplierFilter">Tidak ada faktur yang sesuai dengan filter yang dipilih.</p>
+            <p v-else>Belum ada faktur yang tercatat.</p>
         </div>
 
-        <div v-for="group in groupedInvoices" :key="group.faktur_no" class="bg-card rounded-lg border border-border overflow-hidden transition-colors">
+        <div v-for="group in filteredInvoices" :key="group.faktur_no" class="bg-card rounded-lg border border-border overflow-hidden transition-colors">
             <!-- Accordion Header -->
             <button @click="toggleAccordion(group.faktur_no)" class="w-full flex flex-col md:flex-row md:items-center justify-between p-4 md:px-5 hover:bg-muted/50 transition-colors gap-3 text-left">
                 <div class="flex items-center gap-3">
@@ -748,7 +827,7 @@ function submit() {
             <p class="text-xs font-medium text-muted-foreground">Halaman {{ activeStocks.current_page || 1 }} dari {{ activeStocks.last_page || 1 }} (Total {{ activeStocks.total || 0 }} data faktur)</p>
             <div class="flex items-center gap-1">
                 <template v-for="(link, i) in activeStocks.links" :key="i">
-                    <Link v-if="link.url" :href="link.url" preserve-state preserve-scroll 
+                    <Link v-if="link.url" :href="link.url" preserve-state preserve-scroll :only="['stocks', 'filters']"
                         :class="link.active ? 'bg-primary text-primary-foreground border-primary font-semibold' : 'bg-background border-input text-foreground hover:bg-accent'" 
                         class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" v-html="link.label" />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs text-muted-foreground opacity-50 border border-input" v-html="link.label"></span>
@@ -852,8 +931,8 @@ function submit() {
                             Daftar Obat (Items) <span class="text-destructive">*</span>
                         </h4>
                         <div class="flex items-center gap-2">
-                            <button type="button" @click="openPastInvoicesModal" class="text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                            <button type="button" @click="openPastInvoicesModal" class="text-xs font-semibold border border-input bg-background hover:bg-accent text-foreground px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                                <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
                                 <span>Salin Faktur Lampau</span>
                             </button>
                             <button type="button" @click="addItem" class="text-xs font-medium bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider flex items-center gap-1.5 border border-border">

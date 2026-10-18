@@ -73,13 +73,14 @@ const formatMonthLabel = (m) => {
                     <a 
                         :href="route('control.apoteker.reports.sipnap.export-pdf', { month: selectedMonth })" 
                         target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap"
+                        class="inline-flex items-center gap-2 px-3.5 h-9 rounded-md bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap cursor-pointer"
                         title="Unduh Berkas Laporan Resmi SIPNAP (PDF)"
                     >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <!-- Official Adobe PDF Icon -->
+                        <svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7.5 2h9l5.5 5.5v12.5a2 2 0 0 1-2 2h-12.5a2 2 0 0 1-2-2v-16a2 2 0 0 1 2-2zm8 1.5v4.5h4.5l-4.5-4.5zm-8.5 7.5v6.5h1.5v-2.25h1.25a2.125 2.125 0 0 0 0-4.25h-2.75zm1.5 1.5h1.25a.625.625 0 0 1 0 1.25h-1.25v-1.25zm4.5-1.5v6.5h2.25a2.5 2.5 0 0 0 2.5-2.5v-1.5a2.5 2.5 0 0 0-2.5-2.5h-2.25zm1.5 1.5h.75a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-.75v-3.5zm5.5-1.5v6.5h1.5v-2.5h2v-1.5h-2v-1h2.25v-1.5h-3.75z"/>
                         </svg>
-                        Export PDF
+                        <span>Export PDF</span>
                     </a>
                 </div>
             </div>

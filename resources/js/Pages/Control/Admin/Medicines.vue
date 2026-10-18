@@ -14,33 +14,6 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
-const isSearching = ref(false);
-
-// Sync if props.filters.search changes from outside
-watch(() => props.filters?.search, (newSearch) => {
-    if (newSearch !== undefined && newSearch !== search.value) {
-        search.value = newSearch || '';
-    }
-});
-
-const handleLiveSearch = useDebounceFn((query) => {
-    isSearching.value = true;
-    router.get(route('control.admin.medicines.faktur'), {
-        search: query || undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        },
-    });
-}, 300);
-
-watch(search, (newVal) => {
-    handleLiveSearch(newVal);
-});
 
 const clearSearch = () => {
     search.value = '';
@@ -48,6 +21,49 @@ const clearSearch = () => {
 
 // Reactive data bindings (directly from Inertia props)
 const activeFakturStocks = computed(() => props.fakturStocks || { data: [], total: 0 });
+
+const activeFilterTab = ref('all'); // 'all' | 'menipis' | 'nearEd'
+
+const isNearEd = (item) => {
+    if (!item?.expired_date) return false;
+    const exp = new Date(item.expired_date);
+    const now = new Date();
+    const diffDays = (exp - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 90;
+};
+
+const isMenipis = (item) => {
+    const qty = Number(item?.qty_converted) || 0;
+    const threshold = Number(item?.medicine?.threshold_min) || 10;
+    return qty <= threshold;
+};
+
+const stats = computed(() => {
+    const list = activeFakturStocks.value?.data || [];
+    const total = activeFakturStocks.value?.total ?? list.length;
+    const menipis = list.filter(isMenipis).length;
+    const nearEd = list.filter(isNearEd).length;
+    return { total, menipis, nearEd };
+});
+
+const filteredStocks = computed(() => {
+    let list = activeFakturStocks.value?.data || [];
+    if (activeFilterTab.value === 'menipis') {
+        list = list.filter(isMenipis);
+    } else if (activeFilterTab.value === 'nearEd') {
+        list = list.filter(isNearEd);
+    }
+    if (search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(item => 
+            item.medicine?.nama_obat?.toLowerCase().includes(q) ||
+            item.batch_no?.toLowerCase().includes(q) ||
+            item.medicine?.kategori?.toLowerCase().includes(q) ||
+            item.medicine?.classification?.toLowerCase().includes(q)
+        );
+    }
+    return list;
+});
 
 const formatCurrency = (val) => Number(val) ? 'Rp ' + Number(val).toLocaleString('id-ID') : 'Rp 0';
 
@@ -118,147 +134,198 @@ const submitEditMedicine = () => {
     <Head :title="title" />
 
     <div class="space-y-6 animate-in fade-in duration-700">
-            <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-                <!-- HERO BANNER CARD (lg:col-span-8: diperlebar dan dipertinggi proporsional) -->
-                <div 
-                    class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300"
-                >
-                    <!-- Left Text Column -->
-                    <div class="relative z-10 max-w-sm sm:max-w-md">
-                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-900 mb-1.5">
-                            MASTER DATA · INVENTORY STOK
-                        </div>
-                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                            Katalog Obat dari Faktur
-                        </h1>
-                        <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                            Manajemen dan pemantauan menyeluruh data sediaan obat dari faktur pembelian masuk secara terpusat.
-                        </p>
-                    </div>
-
-                    <!-- Right Integrated Control Panel -->
-                    <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                        <div class="relative w-full sm:w-64">
-                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <input 
-                                type="text" 
-                                v-model="search" 
-                                placeholder="Cari obat, batch, kategori..." 
-                                class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-                            />
-                            <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                                <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <button 
-                                    v-else-if="search" 
-                                    type="button" 
-                                    @click="clearSearch" 
-                                    class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-muted transition-colors cursor-pointer"
-                                    title="Hapus pencarian"
-                                >
-                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <Link 
-                            :href="route('control.admin.incoming-stocks')"
-                            class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+        <!-- BENTO COCKPIT HEADER -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            <!-- SISI KIRI: KONSOL OPERASIONAL (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Desktop -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="activeFilterTab = 'all'"
+                            class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                            :class="activeFilterTab === 'all' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
                         >
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
-                            <span>Tambah Faktur</span>
-                        </Link>
+                            <span>Semua Sediaan</span>
+                            <span 
+                                v-if="stats.total" 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeFilterTab === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ stats.total }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeFilterTab = 'menipis'"
+                            class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                            :class="activeFilterTab === 'menipis' 
+                                ? 'bg-amber-500 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <svg class="w-3.5 h-3.5" :class="activeFilterTab === 'menipis' ? 'text-white' : 'text-amber-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Stok Menipis</span>
+                            <span 
+                                v-if="stats.menipis" 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeFilterTab === 'menipis' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'"
+                            >{{ stats.menipis }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeFilterTab = 'nearEd'"
+                            class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                            :class="activeFilterTab === 'nearEd' 
+                                ? 'bg-rose-600 text-white shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <svg class="w-3.5 h-3.5" :class="activeFilterTab === 'nearEd' ? 'text-white' : 'text-rose-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Dekat ED</span>
+                            <span 
+                                v-if="stats.nearEd" 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeFilterTab === 'nearEd' ? 'bg-white/20 text-white' : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300'"
+                            >{{ stats.nearEd }}</span>
+                        </button>
                     </div>
+
+                    <!-- Action Button Desktop -->
+                    <Link 
+                        :href="route('control.admin.incoming-stocks')"
+                        class="hidden sm:inline-flex h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Input Faktur</span>
+                    </Link>
                 </div>
 
-                <!-- 2 STAT CARDS (lg:col-span-4: diperkecil lebarnya, tinggi mengikuti hero banner) -->
-                <div class="lg:col-span-4 grid grid-cols-2 gap-3">
-                    <!-- Card 1: Total Data Faktur -->
-                    <div 
-                        class="bg-white dark:bg-card border border-blue-400/90 ring-2 ring-blue-500/10 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all h-full"
-                    >
-                        <div class="flex items-center justify-between gap-1">
-                            <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
-                                TOTAL DATA FAKTUR
-                            </span>
-                            <div class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                <!-- Baris 2: Search Input & Mobile Action Button -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input 
+                            type="text" 
+                            v-model="search" 
+                            placeholder="Cari obat, batch, kategori..." 
+                            class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all"
+                        />
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                            <button 
+                                v-if="search" 
+                                type="button" 
+                                @click="clearSearch" 
+                                class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                                title="Hapus pencarian"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
-                            </div>
+                            </button>
                         </div>
-                        <div class="my-0.5">
-                            <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                                {{ activeFakturStocks.total || 0 }}
-                            </span>
-                        </div>
-                        <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
-                            Item sediaan faktur masuk
-                        </p>
                     </div>
 
-                    <!-- Card 2: Link ke Katalog Racikan -->
                     <Link 
-                        :href="route('control.admin.compounded-products')" 
-                        class="bg-white dark:bg-card border border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
+                        :href="route('control.admin.incoming-stocks')"
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
                     >
-                        <div class="flex items-center justify-between gap-1">
-                            <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-emerald-600 transition-colors truncate">
-                                PRODUK RACIKAN
-                            </span>
-                            <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M10 2v7.31L4.41 19.59A2 2 0 0 0 6 22h12a2 2 0 0 0 1.59-2.41L14 9.31V2"></path>
-                                    <line x1="8.5" y1="2" x2="15.5" y2="2"></line>
-                                    <path d="M7 16h10"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="my-0.5">
-                            <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                                &rarr;
-                            </span>
-                        </div>
-                        <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
-                            Item racikan aktif apoteker
-                        </p>
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Input</span>
                     </Link>
                 </div>
             </div>
 
-            <!-- CONTENT AREA -->
-            <div class="w-full space-y-4">
-                    <!-- TABLE: KATALOG FAKTUR -->
-                    <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
-                        <Table class="w-full min-w-[960px]">
-                            <TableHeader>
-                                <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                                    <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
-                                    <TableHead class="min-w-[260px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
-                                    <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</TableHead>
-                                    <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Exp Date</TableHead>
-                                    <TableHead class="min-w-[230px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty / Jumlah</TableHead>
-                                    <TableHead class="min-w-[160px] text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Jual</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                <TableRow v-if="!activeFakturStocks.data || activeFakturStocks.data.length === 0">
-                                    <TableCell colspan="6" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
-                                        Belum ada data obat dari faktur pembelian.
-                                    </TableCell>
-                                </TableRow>
-                                <template v-for="(item, index) in activeFakturStocks.data" :key="item.id">
+            <!-- SISI KANAN: 2 STAT CARDS (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
+                <!-- Card 1: Total Data Faktur -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            TOTAL DATA FAKTUR
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-1 truncate">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                            {{ activeFakturStocks.total || 0 }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                        Item sediaan faktur masuk
+                    </p>
+                </div>
+
+                <!-- Card 2: Link ke Katalog Racikan -->
+                <Link 
+                    :href="route('control.admin.compounded-products')" 
+                    class="bg-white dark:bg-card border border-slate-200/80 dark:border-border hover:border-emerald-300 dark:hover:border-emerald-800/60 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
+                >
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-emerald-600 transition-colors truncate">
+                            PRODUK RACIKAN
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 2v7.31L4.41 19.59A2 2 0 0 0 6 22h12a2 2 0 0 0 1.59-2.41L14 9.31V2"></path>
+                                <line x1="8.5" y1="2" x2="15.5" y2="2"></line>
+                                <path d="M7 16h10"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-1 flex items-center gap-1.5">
+                        <span class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 group-hover:underline">Buka Racikan</span>
+                        <span class="text-lg font-bold text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                        Item racikan aktif apoteker
+                    </p>
+                </Link>
+            </div>
+        </div>
+
+        <!-- CONTENT AREA -->
+        <div class="w-full space-y-4">
+            <!-- TABLE: KATALOG FAKTUR -->
+            <div class="w-full overflow-x-auto rounded-lg border border-border bg-card shadow-sm animate-in fade-in duration-300">
+                <Table class="w-full min-w-[960px]">
+                    <TableHeader>
+                        <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
+                            <TableHead class="w-12 min-w-12 text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">NO</TableHead>
+                            <TableHead class="min-w-[260px] text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Identitas Obat</TableHead>
+                            <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Nomor Batch</TableHead>
+                            <TableHead class="min-w-[130px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Exp Date</TableHead>
+                            <TableHead class="min-w-[230px] text-center py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Qty / Jumlah</TableHead>
+                            <TableHead class="min-w-[160px] text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Harga Jual</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-if="!filteredStocks || filteredStocks.length === 0">
+                            <TableCell colspan="6" class="px-6 py-12 text-center text-muted-foreground text-sm font-medium">
+                                {{ activeFilterTab !== 'all' ? 'Tidak ada data sediaan obat yang sesuai dengan filter.' : 'Belum ada data obat dari faktur pembelian.' }}
+                            </TableCell>
+                        </TableRow>
+                        <template v-for="(item, index) in filteredStocks" :key="item.id">
                                 <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors" :class="expandedRows.includes(item.id) ? 'bg-muted/20' : ''">
                                     <!-- NO -->
                                     <TableCell class="py-2 px-3 text-center align-middle text-xs font-medium text-muted-foreground tabular-nums">

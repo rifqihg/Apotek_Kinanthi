@@ -30,10 +30,6 @@ class AdminStockOpnameController extends Controller
             ->whereHas('creator', fn($q) => $q->where('role', 'admin'))
             ->withCount('items');
 
-        if ($request->filled('status') && $status !== 'all') {
-            $query->where('status', $status);
-        }
-
         if ($request->filled('date')) {
             $query->whereDate('opname_date', $date);
         }
@@ -49,14 +45,23 @@ class AdminStockOpnameController extends Controller
             });
         }
 
+        $adminQuery = StockOpname::whereHas('creator', fn($q) => $q->where('role', 'admin'));
+        $stats = [
+            'total' => (clone $adminQuery)->count(),
+            'inProgress' => (clone $adminQuery)->where('status', 'draft')->count(),
+            'completed' => (clone $adminQuery)->where('status', 'completed')->count(),
+        ];
+
         return Inertia::render('Control/Admin/StockOpname', [
-            'opnames' => $query->latest()->paginate(15)->withQueryString(),
+            'opnames' => $query->latest()->paginate(25)->withQueryString(),
+            'stats' => $stats,
             'filters' => [
                 'search' => $search ?? '',
                 'status' => $status ?? 'all',
                 'date' => $date ?? '',
             ],
-            'medicines' => Medicine::where('status', 'active')
+            'medicines' => Inertia::lazy(fn () => Medicine::where('status', 'active')
+                ->whereHas('warehouseInventories', fn($q) => $q->where('status', 'active')->where('stock_on_hand', '>', 0))
                 ->select(['id', 'nama_obat', 'satuan_stok', 'category_id'])
                 ->with([
                     'warehouseInventories' => fn($q) => $q->where('status', 'active')
@@ -65,8 +70,23 @@ class AdminStockOpnameController extends Controller
                     'latestActiveIncomingStock'
                 ])
                 ->orderBy('nama_obat')
-                ->get(),
-            'rawMaterials' => RawMaterial::where('status', 'active')
+                ->get()
+                ->map(function ($med) {
+                    $inc = $med->latestActiveIncomingStock;
+                    if ($inc) {
+                        $med->packaging = [
+                            'satuan_input' => $inc->satuan_input,
+                            'mid_unit' => $inc->mid_unit,
+                            'small_to_mid_ratio' => $inc->small_to_mid_ratio,
+                            'mid_to_big_ratio' => $inc->mid_to_big_ratio,
+                            'unit_conversion_factor' => $inc->unit_conversion_factor,
+                        ];
+                        unset($med->latestActiveIncomingStock);
+                    }
+                    return $med;
+                })),
+            'rawMaterials' => Inertia::lazy(fn () => RawMaterial::where('status', 'active')
+                ->whereHas('stocks', fn($q) => $q->where('status', 'active')->where('stock_on_hand', '>', 0))
                 ->select(['id', 'nama_bahan', 'satuan_dasar_penggunaan as satuan_ukur', 'category_id'])
                 ->with([
                     'stocks' => fn($q) => $q->where('status', 'active')
@@ -74,7 +94,7 @@ class AdminStockOpnameController extends Controller
                         ->select(['id', 'raw_material_id', 'batch_no', 'expired_date', 'stock_on_hand'])
                 ])
                 ->orderBy('nama_bahan')
-                ->get(),
+                ->get()),
         ]);
     }
 
@@ -121,17 +141,28 @@ class AdminStockOpnameController extends Controller
                         ->orderBy('raw_material_id')
                         ->get();
 
+                    $rows = [];
+                    $now = now();
                     foreach ($batches as $batch) {
-                        StockOpnameItem::create([
+                        $rows[] = [
                             'stock_opname_id' => $opname->id,
                             'raw_material_id' => $batch->raw_material_id,
                             'raw_material_stock_id' => $batch->id,
+                            'medicine_id' => null,
+                            'warehouse_inventory_id' => null,
                             'batch_no' => $batch->batch_no ?? '-',
                             'system_stock' => (float) $batch->stock_on_hand,
                             'physical_stock' => (float) $batch->stock_on_hand,
                             'difference' => 0,
                             'reason' => null,
-                        ]);
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                    if (!empty($rows)) {
+                        foreach (array_chunk($rows, 500) as $chunk) {
+                            StockOpnameItem::insert($chunk);
+                        }
                     }
                 } else {
                     $inventoryQuery = WarehouseInventory::where('status', 'active')
@@ -145,17 +176,28 @@ class AdminStockOpnameController extends Controller
 
                     $batches = $inventoryQuery->orderBy('medicine_id')->get();
 
+                    $rows = [];
+                    $now = now();
                     foreach ($batches as $batch) {
-                        StockOpnameItem::create([
+                        $rows[] = [
                             'stock_opname_id' => $opname->id,
                             'medicine_id' => $batch->medicine_id,
                             'warehouse_inventory_id' => $batch->id,
+                            'raw_material_id' => null,
+                            'raw_material_stock_id' => null,
                             'batch_no' => $batch->batch_no ?? '-',
                             'system_stock' => (float) $batch->stock_on_hand,
                             'physical_stock' => (float) $batch->stock_on_hand,
                             'difference' => 0,
                             'reason' => null,
-                        ]);
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                    if (!empty($rows)) {
+                        foreach (array_chunk($rows, 500) as $chunk) {
+                            StockOpnameItem::insert($chunk);
+                        }
                     }
                 }
 

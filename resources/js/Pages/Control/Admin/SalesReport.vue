@@ -44,9 +44,14 @@ watch([startDate, endDate], () => {
 });
 
 const activeMedicines = computed(() => props.medicines || { data: [], links: [] });
-const activeSummary = computed(() => props.summary || { total_items: 0, total_amount: 0, total_laba: 0 });
+const activeSummary = computed(() => props.summary || { total_items: 0, total_amount: 0, total_modal: 0, total_laba: 0 });
 
-
+const averageMargin = computed(() => {
+    const amount = Number(activeSummary.value.total_amount) || 0;
+    const laba = Number(activeSummary.value.total_laba) || 0;
+    if (amount <= 0) return 0;
+    return Math.round((laba / amount) * 100);
+});
 
 const exportToExcel = () => {
     const url = new URL(route('control.admin.reports.sales.export'));
@@ -76,62 +81,94 @@ const formatCurrency = (amount) => {
 <Head title="Laporan Penjualan (Rekap Produk)" />
 
 <div class="space-y-6">
-    
-    <!-- HEADER SECTION: HERO BANNER + 3 STAT CARDS -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        <!-- HERO BANNER CARD (lg:col-span-12) -->
-        <div class="lg:col-span-12 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                    FINANCE · LAPORAN PENJUALAN
-                </div>
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Laporan Penjualan
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                    Rekapitulasi penjualan berdasarkan produk obat.
-                </p>
-            </div>
-
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                <!-- Date Range -->
-                <div class="flex items-center gap-1.5 bg-background border border-input rounded-lg px-2 h-9">
-                    <input type="date" v-model="startDate" class="bg-transparent border-none text-xs h-full w-28 focus:ring-0 p-0 text-foreground" title="Tanggal Mulai" />
-                    <span class="text-muted-foreground text-xs font-semibold">-</span>
-                    <input type="date" v-model="endDate" class="bg-transparent border-none text-xs h-full w-28 focus:ring-0 p-0 text-foreground" title="Tanggal Akhir" />
-                    <svg v-if="isFiltering" class="animate-spin h-3.5 w-3.5 text-emerald-600 ml-1" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-                
-                <button @click="exportToPdf" class="w-full sm:w-auto h-9 px-3 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                    <span>PDF</span>
-                </button>
-                <button @click="exportToExcel" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <span>Excel</span>
-                </button>
+    <!-- UNIFIED FILTER & EXPORT ACTION BAR -->
+    <div class="bg-card rounded-lg border border-border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <!-- Sisi Kiri: Filter Rentang Waktu Kompak -->
+        <div class="flex items-center gap-2.5 flex-wrap">
+            <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Rentang Waktu:
+            </span>
+            <div class="flex items-center gap-2">
+                <input 
+                    type="date" 
+                    v-model="startDate" 
+                    class="h-9.5 px-3 rounded-md border border-input bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors cursor-pointer" 
+                    title="Dari Tanggal"
+                />
+                <span class="text-sm text-muted-foreground font-semibold">-</span>
+                <input 
+                    type="date" 
+                    v-model="endDate" 
+                    class="h-9.5 px-3 rounded-md border border-input bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors cursor-pointer" 
+                    title="Sampai Tanggal"
+                />
+                <svg v-if="isFiltering" class="animate-spin h-4 w-4 text-emerald-600 shrink-0 ml-1" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
             </div>
         </div>
 
-        <!-- 3 STAT CARDS (lg:col-span-12) -->
-        <div class="lg:col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-card border border-border p-4 rounded-lg shadow-sm flex flex-col justify-center">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Item Terjual</p>
-                <p class="text-2xl font-bold tracking-tight text-foreground">{{ activeSummary.total_items }} <span class="text-sm font-medium text-muted-foreground">PCS</span></p>
-            </div>
-            <div class="bg-card border border-border p-4 rounded-lg shadow-sm flex flex-col justify-center">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Penjualan</p>
-                <p class="text-xl font-bold tracking-tight text-foreground">{{ formatCurrency(activeSummary.total_amount) }}</p>
-            </div>
-            <div class="bg-card border border-border p-4 rounded-lg shadow-sm flex flex-col justify-center">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Laba</p>
-                <p class="text-xl font-bold tracking-tight text-emerald-600">{{ formatCurrency(activeSummary.total_laba) }}</p>
-            </div>
+        <!-- Sisi Kanan: Tombol Ekspor PDF & Excel (Ukuran Standar, rounded-md) -->
+        <div class="flex items-center gap-2.5 shrink-0">
+            <button 
+                @click="exportToPdf" 
+                class="inline-flex items-center gap-2 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+                title="Ekspor Laporan PDF"
+            >
+                <!-- Official Adobe PDF Icon -->
+                <svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.5 2h9l5.5 5.5v12.5a2 2 0 0 1-2 2h-12.5a2 2 0 0 1-2-2v-16a2 2 0 0 1 2-2zm8 1.5v4.5h4.5l-4.5-4.5zm-8.5 7.5v6.5h1.5v-2.25h1.25a2.125 2.125 0 0 0 0-4.25h-2.75zm1.5 1.5h1.25a.625.625 0 0 1 0 1.25h-1.25v-1.25zm4.5-1.5v6.5h2.25a2.5 2.5 0 0 0 2.5-2.5v-1.5a2.5 2.5 0 0 0-2.5-2.5h-2.25zm1.5 1.5h.75a1 1 0 0 1 1 1v1.5a1 1 0 0 1-1 1h-.75v-3.5zm5.5-1.5v6.5h1.5v-2.5h2v-1.5h-2v-1h2.25v-1.5h-3.75z"/>
+                </svg>
+                <span>Export PDF</span>
+            </button>
+            <button 
+                @click="exportToExcel" 
+                class="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+                title="Ekspor Laporan Excel"
+            >
+                <!-- Official Microsoft Excel Icon -->
+                <svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.17 3.25Q21.5 3.25 21.76 3.5 22 3.74 22 4.08V19.92Q22 20.26 21.76 20.5 21.5 20.75 21.17 20.75H7.83Q7.5 20.75 7.24 20.5 7 20.26 7 19.92V17H2.83Q2.5 17 2.24 16.76 2 16.5 2 16.17V7.83Q2 7.5 2.24 7.24 2.5 7 2.83 7H7V4.08Q7 3.74 7.24 3.5 7.5 3.25 7.83 3.25M7 13H5.5L4.5 11.2 3.5 13H2L3.75 10 2 7H3.5L4.5 8.8 5.5 7H7L5.25 10ZM13 5H9V8H13ZM19 5H15V8H19ZM13 10H9V14H13ZM19 10H15V14H19ZM13 16H9V19H13ZM19 16H15V19H19Z"/>
+                </svg>
+                <span>Export Excel</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 5 STAT CARDS (PROPORSIONAL, GRID 5 KOLOM) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Card 1: Total Item Terjual -->
+        <div class="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Item Terjual</p>
+            <p class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{{ activeSummary.total_items }} <span class="text-sm font-medium text-muted-foreground">PCS</span></p>
+        </div>
+
+        <!-- Card 2: Total Omzet -->
+        <div class="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Omzet</p>
+            <p class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{{ formatCurrency(activeSummary.total_amount) }}</p>
+        </div>
+
+        <!-- Card 3: Total Modal (HPP) -->
+        <div class="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Modal (HPP)</p>
+            <p class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{{ formatCurrency(activeSummary.total_modal || 0) }}</p>
+        </div>
+
+        <!-- Card 4: Total Laba -->
+        <div class="bg-card p-5 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-sm flex flex-col justify-center">
+            <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">Total Laba</p>
+            <p class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{{ formatCurrency(activeSummary.total_laba) }}</p>
+        </div>
+
+        <!-- Card 5: Rata-Rata Margin -->
+        <div class="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Rata-Rata Margin</p>
+            <p class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{{ averageMargin }}%</p>
         </div>
     </div>
 
@@ -150,7 +187,7 @@ const formatCurrency = (amount) => {
                         <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14 min-w-14 whitespace-nowrap">Terjual</TableHead>
                         <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-14 min-w-14 whitespace-nowrap">Sisa Stok</TableHead>
                         <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[95px] whitespace-nowrap">Total Omzet</TableHead>
-                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[95px] whitespace-nowrap">Laba Kotor</TableHead>
+                        <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[95px] whitespace-nowrap">Laba Bersih</TableHead>
                         <TableHead class="py-2.5 px-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider w-16 min-w-16 whitespace-nowrap">Margin %</TableHead>
                         <TableHead class="py-2.5 px-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider w-20 min-w-20 whitespace-nowrap">Status</TableHead>
                     </TableRow>

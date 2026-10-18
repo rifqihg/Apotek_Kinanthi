@@ -18,45 +18,57 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '');
 const kategori = ref(props.filters?.kategori || 'all');
-const isSearching = ref(false);
 
-const applyFilters = () => {
-    isSearching.value = true;
-    router.get(route(route().current()), {
-        search: search.value || undefined,
-        kategori: kategori.value !== 'all' ? kategori.value : undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        }
-    });
-};
-
-const debouncedSearch = useDebounceFn(() => {
-    applyFilters();
-}, 300);
-
-watch(search, (newVal, oldVal) => {
-    if (newVal !== oldVal) debouncedSearch();
+const filteredFormulas = computed(() => {
+    let list = props.formulas?.data || [];
+    if (kategori.value !== 'all') {
+        const k = kategori.value.toLowerCase();
+        list = list.filter(f => {
+            const kat = (f.kategori_sediaan || '').toLowerCase();
+            if (k.includes('padat')) return kat.includes('padat') || kat.includes('kapsul') || kat.includes('puyer');
+            if (k.includes('cair') || k.includes('larutan') || k.includes('sirup')) return kat.includes('cair') || kat.includes('sirup') || kat.includes('larutan');
+            if (k.includes('topikal') || k.includes('salep')) return kat.includes('topikal') || kat.includes('salep') || kat.includes('krim');
+            return kat.includes(k);
+        });
+    }
+    if (search.value && search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(f => 
+            f.nama_formula?.toLowerCase().includes(q) ||
+            f.kode_formula?.toLowerCase().includes(q) ||
+            f.kategori_sediaan?.toLowerCase().includes(q) ||
+            f.indikasi?.toLowerCase().includes(q)
+        );
+    }
+    return list;
 });
 
-watch(kategori, () => {
-    applyFilters();
+const performServerSearch = useDebounceFn(() => {
+    router.reload({
+        data: {
+            search: search.value || undefined,
+            page: 1,
+        },
+        preserveState: true,
+        preserveScroll: true,
+        showProgress: false,
+        only: ['formulas', 'filters'],
+    });
+}, 400);
+
+watch(search, (newVal, oldVal) => {
+    if (newVal !== oldVal) performServerSearch();
 });
 
 const clearSearch = () => {
     search.value = '';
-    applyFilters();
+    performServerSearch();
 };
 
 const resetAllFilters = () => {
     search.value = '';
     kategori.value = 'all';
-    applyFilters();
+    performServerSearch();
 };
 
 const showModal = ref(false);
@@ -79,6 +91,35 @@ const editFormula = (f) => {
     
     form.clearErrors();
     form.nama_resep = f.nama_resep || '';
+    form.kategori_sediaan = f.kategori_sediaan || '';
+    form.target_qty = f.target_qty || '';
+    form.target_unit = f.target_unit || '';
+    form.signa_default = f.signa_default || '';
+    form.bud_days = f.bud_days || 14;
+    form.instruksi_racik = f.instruksi_racik || '';
+    
+    form.ingredients = [];
+    if (f.ingredients && f.ingredients.length > 0) {
+        f.ingredients.forEach(ing => {
+            form.ingredients.push({
+                _key: Date.now() + Math.random(),
+                source_type: ing.source_type,
+                source_id: ing.source_id,
+                qty_required: ing.qty_required,
+                unit_label: ing.unit || ''
+            });
+        });
+    }
+    
+    showModal.value = true;
+};
+
+const cloneFormula = (f) => {
+    editMode.value = false;
+    editId.value = null;
+    
+    form.clearErrors();
+    form.nama_resep = `${f.nama_resep || 'Formula'} (Salinan)`;
     form.kategori_sediaan = f.kategori_sediaan || '';
     form.target_qty = f.target_qty || '';
     form.target_unit = f.target_unit || '';
@@ -178,58 +219,96 @@ function submit() {
     <Head title="Formula Obat" />
 
     <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <!-- HERO BANNER CARD (lg:col-span-8) -->
-            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-900 mb-1.5">
-                        KLINIS · MASTER FORMULA
-                    </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Pustaka Resep & Formula Obat
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Standarisasi prototipe formula racikan apotek, panduan instruksi pengerjaan, dan takaran bahan baku.
-                    </p>
-                </div>
+            <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+                <!-- Baris 1: Filter Tabs (Pills) & Tombol Buat Formula (Desktop) -->
+                <div class="flex items-center justify-between gap-2 w-full">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="kategori = 'all'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="kategori === 'all' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="hidden sm:inline">Semua Kategori</span>
+                            <span class="sm:hidden">Semua</span>
+                        </button>
 
-                <!-- Right Integrated Control Panel -->
-                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                    <div class="relative w-full sm:w-48">
-                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input v-model="search" type="text" placeholder="Cari formula..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
-                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <button v-else-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
-                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <select v-model="kategori" class="w-full sm:w-auto h-9 bg-background border border-input rounded-lg px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-colors cursor-pointer max-w-[120px] sm:max-w-none">
-                        <option value="all">Kategori: Semua</option>
-                        <option value="Larutan Air/Sirup">Cair</option>
-                        <option value="Sediaan Padat/Puyer/Kapsul">Padat</option>
-                        <option value="Sediaan Topikal/Lainnya">Topikal</option>
-                        <option value="Kapsul">Kapsul</option>
-                        <option value="Puyer">Puyer</option>
-                        <option value="Sirup">Sirup</option>
-                        <option value="Salep">Salep</option>
-                    </select>
+                        <button
+                            type="button"
+                            @click="kategori = 'Sediaan Padat/Puyer/Kapsul'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="kategori === 'Sediaan Padat/Puyer/Kapsul' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span>Padat</span><span class="hidden sm:inline"> / Kapsul</span>
+                        </button>
 
-                    <button @click="editMode=false;editId=null;showModal=true;form.reset();form.clearErrors()" class="w-full sm:w-auto h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <button
+                            type="button"
+                            @click="kategori = 'Larutan Air/Sirup'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="kategori === 'Larutan Air/Sirup' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span>Cair</span><span class="hidden sm:inline"> / Sirup</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="kategori = 'Sediaan Topikal/Lainnya'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="kategori === 'Sediaan Topikal/Lainnya' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span>Topikal</span><span class="hidden sm:inline"> / Salep</span>
+                        </button>
+                    </div>
+
+                    <button 
+                        @click="editMode=false;editId=null;showModal=true;form.reset();form.clearErrors()" 
+                        class="hidden sm:inline-flex h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
                         <span>Buat Formula</span>
                     </button>
                 </div>
+
+                <!-- Baris 2: Search Input & Tombol Buat Formula (Mobile) -->
+                <div class="flex items-center gap-2 w-full">
+                    <div class="relative flex-1">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari nama formula, instruksi racik, atau sediaan..." 
+                            class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                        />
+                        <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                            <button v-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button 
+                        @click="editMode=false;editId=null;showModal=true;form.reset();form.clearErrors()" 
+                        class="sm:hidden h-9 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg transition-all shadow-xs inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                        <span>Buat</span>
+                    </button>
+                </div>
             </div>
 
-            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <!-- SISI KANAN: 2 METRIC CARDS (lg:col-span-4) -->
             <div class="lg:col-span-4 grid grid-cols-2 gap-3">
                 <!-- Card 1: Total Formula -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
@@ -288,7 +367,7 @@ function submit() {
 
         <!-- Cards Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div v-if="!formulas?.data?.length" class="col-span-full py-16 flex flex-col items-center justify-center bg-card border border-border rounded-lg shadow-sm text-center">
+            <div v-if="!filteredFormulas.length" class="col-span-full py-16 flex flex-col items-center justify-center bg-card border border-border rounded-lg shadow-sm text-center">
                 <div class="w-12 h-12 bg-muted text-muted-foreground rounded-md flex items-center justify-center mb-3 border border-border">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 </div>
@@ -297,10 +376,13 @@ function submit() {
                 <p v-else class="text-muted-foreground text-xs mt-1 max-w-sm">Klik tombol Tambah Formula Baru untuk mulai membangun basis data instruksi racikan standar.</p>
             </div>
 
-            <div v-for="f in (formulas?.data || [])" :key="f.id" class="bg-card border border-slate-300 dark:border-slate-700 rounded-md p-5 transition-colors hover:border-emerald-500 flex flex-col group relative">
-                <!-- Edit Action -->
-                <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button type="button" @click="editFormula(f)" class="p-1.5 text-muted-foreground hover:text-emerald-600 bg-background border border-border hover:border-emerald-500 rounded-md shadow-sm transition-colors" title="Lihat/Edit Formula">
+            <div v-for="f in filteredFormulas" :key="f.id" class="bg-card border border-slate-300 dark:border-slate-700 rounded-md p-5 transition-colors hover:border-emerald-500 flex flex-col group relative">
+                <!-- Action Buttons -->
+                <div class="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" @click="cloneFormula(f)" class="p-1.5 text-muted-foreground hover:text-emerald-600 bg-background border border-border hover:border-emerald-500 rounded-md shadow-sm transition-colors cursor-pointer" title="Duplikasi / Salin Formula Ini">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <button type="button" @click="editFormula(f)" class="p-1.5 text-muted-foreground hover:text-emerald-600 bg-background border border-border hover:border-emerald-500 rounded-md shadow-sm transition-colors cursor-pointer" title="Lihat/Edit Formula">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     </button>
                 </div>
@@ -327,15 +409,16 @@ function submit() {
             </span>
             <div class="flex items-center gap-1">
                 <template v-for="l in formulas.links" :key="l.label">
-                    <Link 
-                        v-if="l.url" 
-                        :href="l.url"
-                        preserve-state 
-                        preserve-scroll 
-                        :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
-                        class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
-                        v-html="l.label"
-                    />
+                        <Link 
+                            v-if="l.url" 
+                            :href="l.url"
+                            preserve-state 
+                            preserve-scroll 
+                            :only="['formulas', 'filters']"
+                            :class="l.active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-background border-input text-foreground hover:bg-muted'" 
+                            class="h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md text-xs font-medium transition-colors border" 
+                            v-html="l.label"
+                        />
                     <span v-else class="h-8 min-w-[32px] px-2 flex items-center justify-center text-muted-foreground text-xs font-medium border border-input opacity-50 rounded-md" v-html="l.label"></span>
                 </template>
             </div>

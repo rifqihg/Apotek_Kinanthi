@@ -13,12 +13,10 @@ const props = defineProps({
 
 const activeTab = ref('raw_materials');
 const search = ref(props.filters?.search || '');
-const isSearching = ref(false);
 
-// Debounced Server-Side Live Search via Inertia Partial Reload
+// Silent server sync if needed
 let searchTimer = null;
 const performServerSearch = () => {
-    isSearching.value = true;
     router.reload({
         data: {
             search: search.value || undefined,
@@ -26,9 +24,6 @@ const performServerSearch = () => {
         preserveState: true,
         preserveScroll: true,
         only: ['rawMaterials', 'medicines', 'filters'],
-        onFinish: () => {
-            isSearching.value = false;
-        },
     });
 };
 
@@ -36,7 +31,7 @@ watch(search, () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
         performServerSearch();
-    }, 300);
+    }, 400);
 });
 
 const filteredRawMaterials = computed(() => {
@@ -91,60 +86,71 @@ const stats = computed(() => {
 <template>
     <Head title="Cek Ketersediaan Batch (FEFO)" />
     <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER + 2 STAT CARDS -->
+        <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <!-- HERO BANNER CARD (lg:col-span-8) -->
-            <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-900 mb-1.5">
-                        INVENTORY · CEK KETERSEDIAAN
+            <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+                <!-- Baris 1: Tab Pills (Bahan Baku vs Obat Jadi) & Status Badge -->
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                        <button
+                            type="button"
+                            @click="activeTab = 'raw_materials'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="activeTab === 'raw_materials' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="hidden sm:inline">Bahan Baku Racikan</span>
+                            <span class="sm:hidden">Bahan Baku</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeTab === 'raw_materials' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ filteredRawMaterials.length }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="activeTab = 'medicines'"
+                            class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-none cursor-pointer"
+                            :class="activeTab === 'medicines' 
+                                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                                : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                        >
+                            <span class="hidden sm:inline">Obat Jadi Komersial</span>
+                            <span class="sm:hidden">Obat Jadi</span>
+                            <span 
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                :class="activeTab === 'medicines' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                            >{{ filteredMedicines.length }}</span>
+                        </button>
                     </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Cek Ketersediaan Batch (FEFO)
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Pantau urutan pengeluaran first-expired first-out (FEFO), identifikasi tanggal kedaluwarsa, dan minimalkan risiko stok mati.
-                    </p>
+
+                    <div class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-900/60 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="hidden sm:inline">Urutan FEFO Aktif</span>
+                        <span class="sm:hidden">FEFO</span>
+                    </div>
                 </div>
 
-                <!-- Right Integrated Control Panel -->
-                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                    <div class="relative w-full sm:w-56">
-                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input v-model="search" type="text" placeholder="Cari nama/kode bahan..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
-                        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                            <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <button v-else-if="search" type="button" @click="search=''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
-                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Tab Toggle -->
-                    <div class="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border shrink-0 w-full sm:w-auto h-9">
-                        <button 
-                            @click="activeTab = 'raw_materials'" 
-                            :class="activeTab === 'raw_materials' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                            class="h-full px-3 rounded-md text-xs transition-colors flex-1 sm:flex-none whitespace-nowrap"
-                        >
-                            Bahan Baku ({{ filteredRawMaterials.length }})
-                        </button>
-                        <button 
-                            @click="activeTab = 'medicines'" 
-                            :class="activeTab === 'medicines' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                            class="h-full px-3 rounded-md text-xs transition-colors flex-1 sm:flex-none whitespace-nowrap"
-                        >
-                            Obat Jadi ({{ filteredMedicines.length }})
+                <!-- Baris 2: Full-Width Search Input -->
+                <div class="relative w-full">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input 
+                        v-model="search" 
+                        type="text" 
+                        placeholder="Cari nama atau kode bahan baku / obat jadi..." 
+                        class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                    />
+                    <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                        <button v-if="search" type="button" @click="search=''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- 2 STAT CARDS (lg:col-span-4) -->
+            <!-- SISI KANAN: 2 METRIC CARDS (lg:col-span-4) -->
             <div class="lg:col-span-4 grid grid-cols-2 gap-3">
                 <!-- Card 1: Mendekati ED -->
                 <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">

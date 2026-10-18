@@ -26,12 +26,10 @@ const props = defineProps({
 const activeTab = ref('obat_jadi'); // 'obat_jadi' atau 'racikan'
 const searchQuery = ref(props.filters?.search || '');
 const selectedCategory = ref(props.filters?.category || 'all');
-const isSearching = ref(false);
 
-// Debounced Server-Side Live Search via Inertia Partial Reload
+// Silent server sync via Inertia Partial Reload
 let searchTimer = null;
 const performServerSearch = () => {
-    isSearching.value = true;
     router.reload({
         data: {
             search: searchQuery.value || undefined,
@@ -40,9 +38,6 @@ const performServerSearch = () => {
         preserveState: true,
         preserveScroll: true,
         only: ['medicines', 'compoundedProducts', 'filters'],
-        onFinish: () => {
-            isSearching.value = false;
-        },
     });
 };
 
@@ -341,11 +336,7 @@ onUnmounted(() => {
                     <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     <input v-model="searchQuery" type="text" placeholder="Cari obat atau scan barcode..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
                     <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <button v-else-if="searchQuery" type="button" @click="searchQuery = ''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
+                        <button v-if="searchQuery" type="button" @click="searchQuery = ''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
@@ -389,7 +380,7 @@ onUnmounted(() => {
                     <div v-if="activeTab === 'obat_jadi' && categoryList.length > 0" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
                         <button 
                             @click="selectedCategory = 'all'"
-                            :class="selectedCategory === 'all' ? 'bg-emerald-600 text-white font-medium shadow-xs' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground border border-border'"
+                            :class="selectedCategory === 'all' ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium shadow-xs' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground border border-border'"
                             class="px-2.5 py-1 rounded-md whitespace-nowrap transition-colors text-xs flex items-center gap-1"
                         >
                             <svg v-if="selectedCategory === 'all'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
@@ -399,7 +390,7 @@ onUnmounted(() => {
                             v-for="cat in categoryList" 
                             :key="cat.name"
                             @click="selectedCategory = cat.name"
-                            :class="selectedCategory === cat.name ? 'bg-emerald-600 text-white font-medium shadow-xs' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground border border-border'"
+                            :class="selectedCategory === cat.name ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium shadow-xs' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground border border-border'"
                             class="px-2.5 py-1 rounded-md whitespace-nowrap transition-colors text-xs flex items-center gap-1"
                         >
                             <svg v-if="selectedCategory === cat.name" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>

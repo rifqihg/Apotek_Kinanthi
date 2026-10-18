@@ -1,8 +1,7 @@
 <script setup>
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
-import { useDebounceFn } from '@vueuse/core';
+import { ref, computed } from 'vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 
 defineOptions({ layout: ControlLayout });
@@ -12,27 +11,35 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) }
 });
 
-const search = ref(props.filters?.search || '');
-const isSearching = ref(false);
+const activeFilterTab = ref('all');
 
-const handleLiveSearch = useDebounceFn((val) => {
-    isSearching.value = true;
-    router.get(route(route().current()), {
-        search: val || undefined,
-        page: 1,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        onFinish: () => {
-            isSearching.value = false;
-        },
-    });
-}, 300);
-
-watch(search, (newVal) => {
-    handleLiveSearch(newVal);
+const stats = computed(() => {
+    const list = props.products?.data || [];
+    const total = props.products?.total ?? list.length;
+    const nearBud = list.filter(p => getDiff(p.beyond_use_date) <= 30).length;
+    const safeBud = list.filter(p => getDiff(p.beyond_use_date) > 30).length;
+    return { total, nearBud, safeBud };
 });
+
+const filteredProducts = computed(() => {
+    let list = props.products?.data || [];
+    if (activeFilterTab.value === 'near_bud') {
+        list = list.filter(p => getDiff(p.beyond_use_date) <= 30);
+    } else if (activeFilterTab.value === 'safe') {
+        list = list.filter(p => getDiff(p.beyond_use_date) > 30);
+    }
+    if (search.value && search.value.trim()) {
+        const q = search.value.toLowerCase().trim();
+        list = list.filter(p => 
+            p.nama_produk?.toLowerCase().includes(q) ||
+            p.nomor_batch?.toLowerCase().includes(q) ||
+            p.tipe_racikan?.toLowerCase().includes(q)
+        );
+    }
+    return list;
+});
+
+const search = ref(props.filters?.search || '');
 
 const clearSearch = () => {
     search.value = '';
@@ -55,106 +62,141 @@ const budLabel = (bud) => {
 <Head title="Data Obat Racikan" />
 
 <div class="space-y-6">
-    <!-- HEADER SECTION: HERO BANNER + STAT CARDS -->
+    <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        <!-- HERO BANNER CARD (lg:col-span-8: diperlebar dan dipertinggi proporsional) -->
-        <div class="lg:col-span-8 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                    MASTER DATA · PRODUK RACIKAN
+        <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
+        <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-center gap-2.5">
+            <!-- Baris 1: Filter Tabs (Pills) -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'all'"
+                        class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                        :class="activeFilterTab === 'all' 
+                            ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <span>Semua Racikan</span>
+                        <span 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'all' ? 'bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-card text-slate-700 dark:text-foreground'"
+                        >{{ stats.total }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'near_bud'"
+                        class="h-9 px-2 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-auto sm:flex-none sm:w-auto whitespace-nowrap cursor-pointer"
+                        :class="activeFilterTab === 'near_bud' 
+                            ? 'bg-amber-500 text-white shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full" :class="activeFilterTab === 'near_bud' ? 'bg-white' : 'bg-amber-500'"></span>
+                        <span>Dekat Batas BUD</span>
+                        <span 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'near_bud' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'"
+                        >{{ stats.nearBud }}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="activeFilterTab = 'safe'"
+                        class="h-9 px-2.5 sm:px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 flex-none w-auto whitespace-nowrap cursor-pointer"
+                        :class="activeFilterTab === 'safe' 
+                            ? 'bg-emerald-600 text-white shadow-xs' 
+                            : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200/70 dark:hover:bg-muted/80'"
+                    >
+                        <span class="w-1.5 h-1.5 rounded-full" :class="activeFilterTab === 'safe' ? 'bg-white' : 'bg-emerald-500'"></span>
+                        <span>Aman</span>
+                        <span 
+                            class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="activeFilterTab === 'safe' ? 'bg-white/20 text-white' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'"
+                        >{{ stats.safeBud }}</span>
+                    </button>
                 </div>
-                <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Katalog Formula & Obat Racikan
-                </h1>
-                <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                    Manajemen master formula peracikan, takaran bahan baku aktif, dan standarisasi sediaan racikan apotek.
-                </p>
+
+                <div class="hidden sm:inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium text-slate-500 dark:text-muted-foreground bg-slate-100/80 dark:bg-muted/60">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Formula Resmi Apotek</span>
+                </div>
             </div>
 
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                <div class="relative w-full sm:w-64">
-                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input 
-                        v-model="search" 
-                        type="text" 
-                        placeholder="Cari nama produk, batch, formula..." 
-                        class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
-                    />
-                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                        <svg v-if="isSearching" class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <!-- Baris 2: Search Input -->
+            <div class="relative w-full">
+                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input 
+                    v-model="search" 
+                    type="text" 
+                    placeholder="Cari nama produk, batch, formula..." 
+                    class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                />
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                    <button 
+                        v-if="search" 
+                        type="button" 
+                        @click="clearSearch" 
+                        class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        <button 
-                            v-else-if="search" 
-                            type="button" 
-                            @click="clearSearch" 
-                            class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
-                            title="Hapus pencarian"
-                        >
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- 2 STAT CARDS (lg:col-span-4: diperkecil lebarnya, tinggi mengikuti hero banner) -->
-        <div class="lg:col-span-4 grid grid-cols-2 gap-3">
+        <!-- SISI KANAN: 2 METRIK KARTU BERDAMPINGAN (lg:col-span-4) -->
+        <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
             <!-- Card 1: Link ke Katalog Faktur -->
             <Link 
                 :href="route('control.admin.medicines.faktur')" 
                 class="bg-white dark:bg-card border border-slate-200/80 dark:border-border hover:border-slate-300 dark:hover:border-slate-700 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all group cursor-pointer h-full"
             >
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-blue-600 transition-colors truncate">
-                        TOTAL DATA FAKTUR
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground group-hover:text-blue-600 transition-colors truncate">
+                        KATALOG FAKTUR
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                             <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                             <line x1="12" y1="22.08" x2="12" y2="12"></line>
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
-                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                        &rarr;
-                    </span>
+                <div class="my-1 flex items-center gap-1.5">
+                    <span class="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 group-hover:underline">Buka Faktur</span>
+                    <span class="text-lg font-bold text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
                 </div>
-                <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
-                    Item sediaan faktur masuk
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                    Item obat pabrikan
                 </p>
             </Link>
 
             <!-- Card 2: Total Data Racikan (Active) -->
-            <div 
-                class="bg-white dark:bg-card border border-emerald-400/90 ring-2 ring-emerald-500/10 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between transition-all h-full"
-            >
+            <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
                 <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
-                        TOTAL DATA RACIKAN
+                    <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                        DATA RACIKAN
                     </span>
-                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10 2v7.31L4.41 19.59A2 2 0 0 0 6 22h12a2 2 0 0 0 1.59-2.41L14 9.31V2"></path>
                             <line x1="8.5" y1="2" x2="15.5" y2="2"></line>
                             <path d="M7 16h10"></path>
                         </svg>
                     </div>
                 </div>
-                <div class="my-0.5">
-                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
-                        {{ products.total || 0 }}
+                <div class="my-1 truncate">
+                    <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                        {{ stats.total }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Formula</span>
                     </span>
                 </div>
-                <p class="text-[10px] font-normal text-slate-400 dark:text-muted-foreground leading-tight truncate">
-                    Item racikan aktif apoteker
+                <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                    Item racikan apoteker
                 </p>
             </div>
         </div>
@@ -175,18 +217,21 @@ const budLabel = (bud) => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                <TableRow v-if="!products.data || products.data.length === 0">
+                <TableRow v-if="!filteredProducts || filteredProducts.length === 0">
                     <TableCell colspan="8" class="px-6 py-12 text-center">
                         <div class="flex flex-col items-center justify-center space-y-3">
                             <div class="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-lg border border-border text-muted-foreground">🧪</div>
                             <div class="space-y-1">
-                                <h4 class="text-sm font-semibold text-foreground">Belum Ada Produk Racikan</h4>
+                                <h4 class="text-sm font-semibold text-foreground">
+                                    <span v-if="activeFilterTab !== 'all'">Tidak ada racikan yang sesuai filter</span>
+                                    <span v-else>Belum Ada Produk Racikan</span>
+                                </h4>
                                 <p class="text-xs text-muted-foreground max-w-sm mx-auto">Produk racikan akan muncul di sini setelah proses peracikan diselesaikan oleh Apoteker dan dikonfirmasi oleh sistem.</p>
                             </div>
                         </div>
                     </TableCell>
                 </TableRow>
-                <template v-for="(p, index) in products.data" :key="p.id">
+                <template v-for="(p, index) in filteredProducts" :key="p.id">
                     <TableRow class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors group cursor-pointer" @click="toggle(p.id)">
                         <!-- NO -->
                         <TableCell class="py-2.5 px-3 text-center align-middle text-xs font-medium text-muted-foreground tabular-nums">

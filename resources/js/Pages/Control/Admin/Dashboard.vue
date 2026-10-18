@@ -128,102 +128,128 @@ const getThresholdUnits = (item) => getFormattedUnits(item, item?.batas_aman);
             <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ringkasan Hari Ini</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Penjualan Kasir (Blue) -->
-                <Card class="bg-card border-border shadow-sm">
-                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transaksi Kasir</CardTitle>
-                        <div class="w-8 h-8 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.today_sales_count || 0 }}</span>
-                            <span class="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase">Trx</span>
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-1">Transaksi penjualan kasir hari ini</p>
-                    </CardContent>
-                </Card>
+                <Link :href="route('control.admin.reports.cashier-monitoring')" prefetch cache-for="1m" class="block focus:outline-none select-none">
+                    <Card class="bg-card border-border shadow-sm transition-all duration-150 hover:border-blue-400/60 dark:hover:border-blue-500/50 active:scale-[0.985] active:brightness-95 cursor-pointer h-full">
+                        <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                            <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transaksi Kasir</CardTitle>
+                            <div class="w-8 h-8 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.today_sales_count || 0 }}</span>
+                                <span class="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase">Trx</span>
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Hari ini <span class="text-slate-300 dark:text-slate-700">·</span> Bulan ini: <span class="font-medium text-foreground">{{ stats?.month_sales_count || 0 }}</span> trx
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
 
                 <!-- Total Omset (Green) -->
-                <Card class="bg-card border-border shadow-sm">
-                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendapatan</CardTitle>
-                        <div class="w-8 h-8 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">
-                            Rp {{ new Intl.NumberFormat('id-ID').format(stats?.today_sales_total || 0) }}
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-1">Total omset kasir terbukukan</p>
-                    </CardContent>
-                </Card>
+                <Link :href="route('control.admin.reports.sales')" prefetch cache-for="1m" class="block focus:outline-none select-none">
+                    <Card class="bg-card border-border shadow-sm transition-all duration-150 hover:border-emerald-400/60 dark:hover:border-emerald-500/50 active:scale-[0.985] active:brightness-95 cursor-pointer h-full">
+                        <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                            <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendapatan</CardTitle>
+                            <div class="w-8 h-8 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">
+                                Rp {{ new Intl.NumberFormat('id-ID').format(stats?.today_sales_total || 0) }}
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Hari ini <span class="text-slate-300 dark:text-slate-700">·</span> Bulan ini: <span class="font-medium text-foreground">Rp {{ new Intl.NumberFormat('id-ID').format(stats?.month_sales_total || 0) }}</span>
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
 
-                <!-- Resep Aktif (Blue) -->
-                <Card class="bg-card border-border shadow-sm">
-                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resep Aktif</CardTitle>
-                        <div class="w-8 h-8 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.active_prescriptions_count || 0 }}</span>
-                            <span class="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase">Resep</span>
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-1">Status diproses / siap diserahkan</p>
-                    </CardContent>
-                </Card>
+                <!-- Menunggu Harga Obat (Amber) -->
+                <Link :href="route('control.admin.pricing.index')" prefetch cache-for="1m" class="block focus:outline-none select-none">
+                    <Card class="bg-card shadow-sm transition-all duration-150 hover:border-amber-400/60 dark:hover:border-amber-500/50 active:scale-[0.985] active:brightness-95 cursor-pointer h-full" :class="stats?.pending_pricing_count > 0 ? 'border-amber-200 dark:border-amber-900/50' : 'border-border'">
+                        <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                            <CardTitle class="text-xs font-semibold uppercase tracking-wider" :class="stats?.pending_pricing_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Menunggu Harga</CardTitle>
+                            <div class="w-8 h-8 rounded-md flex items-center justify-center shrink-0" :class="stats?.pending_pricing_count > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' : 'bg-slate-100 text-slate-500'">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl lg:text-3xl font-semibold tracking-tight" :class="stats?.pending_pricing_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'">{{ stats?.pending_pricing_count || 0 }}</span>
+                                <span class="text-xs font-semibold uppercase" :class="stats?.pending_pricing_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Item</span>
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-1">
+                                <span v-if="stats?.pending_pricing_count > 0">
+                                    {{ stats?.unpriced_medicines_count || 0 }} obat katalog, {{ stats?.unpriced_racikan_count || 0 }} racikan
+                                </span>
+                                <span v-else>Semua obat katalog & racikan telah diberi harga</span>
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
 
-                <!-- Menunggu Harga (Amber) -->
-                <Card class="bg-card border-border shadow-sm">
-                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Menunggu Harga</CardTitle>
-                        <div class="w-8 h-8 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.pending_pricing_count || 0 }}</span>
-                            <span class="text-xs text-amber-600 dark:text-amber-400 font-semibold uppercase">Racikan</span>
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-1">Antrean penetapan tarif racikan</p>
-                    </CardContent>
-                </Card>
+                <!-- Faktur Masuk PBF (Indigo) -->
+                <Link :href="route('control.admin.incoming-stocks')" prefetch cache-for="1m" class="block focus:outline-none select-none">
+                    <Card class="bg-card shadow-sm transition-all duration-150 hover:border-indigo-400/60 dark:hover:border-indigo-500/50 active:scale-[0.985] active:brightness-95 cursor-pointer h-full" :class="stats?.pending_verify_invoices_count > 0 ? 'border-amber-200 dark:border-amber-900/50' : 'border-border'">
+                        <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                            <CardTitle class="text-xs font-semibold uppercase tracking-wider" :class="stats?.pending_verify_invoices_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Faktur Masuk PBF</CardTitle>
+                            <div class="w-8 h-8 rounded-md flex items-center justify-center shrink-0" :class="stats?.pending_verify_invoices_count > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.total_invoices_count || 0 }}</span>
+                                <span class="text-xs font-semibold uppercase text-muted-foreground">Faktur</span>
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-1">
+                                <span v-if="stats?.pending_verify_invoices_count > 0" class="text-amber-600 dark:text-amber-400 font-medium">
+                                    {{ stats?.pending_verify_invoices_count }} faktur butuh verifikasi fisik
+                                </span>
+                                <span v-else>
+                                    Faktur pengadaan PBF terverifikasi aktif
+                                </span>
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
         </div>
 
         <!-- 4 KPI Metrics Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Metric 1: Total SKU (Slate/Blue) -->
-            <Card class="bg-card border-border shadow-sm">
-                <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                    <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Katalog Inventaris</CardTitle>
-                    <div class="w-8 h-8 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.total_obat ?? 0 }}</span>
-                        <span class="text-xs text-slate-600 dark:text-slate-400 font-semibold uppercase">SKU</span>
-                    </div>
-                    <p class="text-xs text-muted-foreground mt-1">Master data obat terdaftar</p>
-                </CardContent>
-            </Card>
+            <Link :href="route('control.admin.medicines.faktur')" prefetch cache-for="1m" class="block focus:outline-none select-none">
+                <Card class="bg-card border-border shadow-sm transition-all duration-150 hover:border-slate-400/60 dark:hover:border-slate-600/60 active:scale-[0.985] active:brightness-95 cursor-pointer h-full">
+                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                        <CardTitle class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Katalog Inventaris</CardTitle>
+                        <div class="w-8 h-8 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.total_obat ?? 0 }}</span>
+                            <span class="text-xs text-slate-600 dark:text-slate-400 font-semibold uppercase">SKU</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-1">Master data obat terdaftar aktif</p>
+                    </CardContent>
+                </Card>
+            </Link>
 
             <!-- Metric 2: Low Stock Alert (Red) -->
             <Card class="bg-card shadow-sm" :class="stats?.low_stock_count > 0 ? 'border-red-200 dark:border-red-900/50' : 'border-border'">
@@ -280,24 +306,33 @@ const getThresholdUnits = (item) => getFormattedUnits(item, item?.batas_aman);
                 </CardContent>
             </Card>
 
-            <!-- Metric 4: Lab Queue (Blue / Amber sesuai status) -->
-            <Card class="bg-card shadow-sm" :class="stats?.pending_compounding > 0 ? 'border-amber-200 dark:border-amber-900/50' : 'border-border'">
-                <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
-                    <CardTitle class="text-xs font-semibold uppercase tracking-wider" :class="stats?.pending_compounding > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Antrean Racikan Lab</CardTitle>
-                    <div class="w-8 h-8 rounded-md flex items-center justify-center shrink-0" :class="stats?.pending_compounding > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400'">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                        </svg>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-2xl lg:text-3xl font-semibold tracking-tight text-foreground">{{ stats?.pending_compounding ?? 0 }}</span>
-                        <span class="text-xs font-semibold uppercase" :class="stats?.pending_compounding > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Batch</span>
-                    </div>
-                    <p class="text-xs text-muted-foreground mt-1">Racikan menunggu / dalam proses lab</p>
-                </CardContent>
-            </Card>
+            <!-- Metric 4: Audit Stock Opname (Violet / Amber jika ada draft) -->
+            <Link :href="route('control.admin.stock-opname.index')" prefetch cache-for="1m" class="block focus:outline-none select-none">
+                <Card class="bg-card shadow-sm transition-all duration-150 hover:border-violet-400/60 dark:hover:border-violet-500/50 active:scale-[0.985] active:brightness-95 cursor-pointer h-full" :class="stats?.draft_opname_count > 0 ? 'border-amber-200 dark:border-amber-900/50' : 'border-border'">
+                    <CardHeader class="flex flex-row items-center justify-between pb-2 space-y-0">
+                        <CardTitle class="text-xs font-semibold uppercase tracking-wider" :class="stats?.draft_opname_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Audit Stock Opname</CardTitle>
+                        <div class="w-8 h-8 rounded-md flex items-center justify-center shrink-0" :class="stats?.draft_opname_count > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' : 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400'">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-2xl lg:text-3xl font-semibold tracking-tight" :class="stats?.draft_opname_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'">{{ stats?.draft_opname_count || 0 }}</span>
+                            <span class="text-xs font-semibold uppercase" :class="stats?.draft_opname_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'">Sesi</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-1">
+                            <span v-if="stats?.draft_opname_count > 0" class="text-amber-600 dark:text-amber-400 font-medium">
+                                Sesi audit fisik belum difinalisasi
+                            </span>
+                            <span v-else>
+                                Seluruh sesi audit fisik telah disesuaikan
+                            </span>
+                        </p>
+                    </CardContent>
+                </Card>
+            </Link>
         </div>
 
         <!-- Dashboard Charts: Decomposed Sub-Components -->
