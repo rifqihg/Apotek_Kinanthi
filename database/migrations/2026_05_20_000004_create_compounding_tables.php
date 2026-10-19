@@ -44,7 +44,6 @@ return new class extends Migration
         Schema::create('compounding_submissions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('pharmacist_id')->nullable()->constrained('users');
             $table->foreignId('formula_id')->nullable()->constrained('compounding_formulas')->nullOnDelete();
             $table->string('nama_racikan');
             $table->decimal('target_quantity', 15, 2)->nullable();
@@ -69,7 +68,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('user_id');
-            $table->index('pharmacist_id');
             $table->index('formula_id');
             $table->index('status');
             $table->index('approved_by');
@@ -87,7 +85,6 @@ return new class extends Migration
             $table->decimal('volume_to_mass_factor', 8, 2)->default(1.0000);
             $table->decimal('qty_needed', 12, 2);
             $table->decimal('net_quantity', 15, 2)->nullable();
-            $table->decimal('wastage_percentage', 5, 2)->default(0);
             $table->decimal('qty_total_deducted', 15, 2)->default(0);
             $table->string('suggested_batch_no')->nullable();
             $table->date('suggested_expired_date')->nullable();
@@ -107,7 +104,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('compounding_id')->constrained('compounding_submissions')->cascadeOnDelete();
             $table->date('tanggal_racik')->nullable();
-            $table->date('beyond_use_date')->nullable();
             $table->integer('bud_hari')->default(30);
             $table->date('tanggal_kadaluarsa_bud')->nullable();
             $table->string('aturan_pakai');
@@ -127,8 +123,6 @@ return new class extends Migration
             $table->date('tanggal_racik');
             $table->date('bud_date');
             $table->decimal('qty_hasil', 12, 2);
-            $table->decimal('actual_yield', 15, 2)->nullable();
-            $table->decimal('production_loss', 15, 2)->default(0);
             $table->string('satuan')->default('Gram');
             $table->decimal('base_cost', 15, 2)->default(0);
             $table->decimal('hpp_per_unit', 12, 2)->default(0);

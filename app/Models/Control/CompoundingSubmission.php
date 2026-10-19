@@ -31,7 +31,6 @@ class CompoundingSubmission extends Model
         'total_net_mass',
         'unit_weight_target',
         'filler_qty',
-        'pharmacist_id',
         'approved_at',
         'approved_by',
         'prescription_id',

@@ -23,7 +23,7 @@ class ApotekerInventoryController extends Controller
         $search = $request->query('search');
 
         $rawMaterials = RawMaterial::select(['id', 'kode_bahan', 'nama_bahan', 'bentuk_sediaan', 'satuan_dasar_penggunaan', 'stok_total', 'threshold_min'])
-            ->with(['stocks' => fn($q) => $q->select(['id', 'raw_material_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'shelf_location', 'rack_location'])
+            ->with(['stocks' => fn($q) => $q->select(['id', 'raw_material_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status'])
                 ->where('stock_on_hand', '>', 0)
                 ->orderBy('expired_date')
             ])
@@ -36,7 +36,7 @@ class ApotekerInventoryController extends Controller
             ->get();
 
         $medicines = Medicine::select(['id', 'kode_obat', 'nama_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total', 'category_id'])
-            ->with(['warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'location_type', 'shelf_location', 'rack_location'])
+            ->with(['warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand', 'status', 'location_type'])
                 ->active()
                 ->where('stock_on_hand', '>', 0)
                 ->orderBy('expired_date')

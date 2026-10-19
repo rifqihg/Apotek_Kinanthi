@@ -31,19 +31,12 @@ class IncomingStock extends Model
         'jumlah_harga',
         'ppn_persen',
         'margin_persen',
-        'harga_jual_saat_ini',
         'harga_jual_akhir',
-        'status_price_alert',
         'status_approval',
         'status_gate',
-        'status', // in_transit, received
         'admin_note',
         'qty_fisik_verify',
         'verify_note',
-        'revised_by',
-        'revised_at',
-        'is_retur',
-        'alasan_retur',
         'tanggal_faktur',
         'foto_faktur_path',
     ];
@@ -64,10 +57,7 @@ class IncomingStock extends Model
             'jumlah_harga' => 'decimal:2',
             'ppn_persen' => 'decimal:2',
             'margin_persen' => 'decimal:2',
-            'harga_jual_saat_ini' => 'decimal:2',
             'harga_jual_akhir' => 'decimal:2',
-            'is_retur' => 'boolean',
-            'revised_at' => 'datetime',
         ];
     }
 
@@ -79,11 +69,6 @@ class IncomingStock extends Model
     public function medicine(): BelongsTo
     {
         return $this->belongsTo(Medicine::class);
-    }
-
-    public function revisor(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'revised_by');
     }
 
     public function returnForm(): HasOne
@@ -172,7 +157,6 @@ class IncomingStock extends Model
 
             if ($stock->isDirty(['harga_beli_satuan', 'diskon_persen', 'ppn_persen', 'margin_persen']) || is_null($stock->harga_jual_akhir)) {
                 $stock->harga_jual_akhir = (string) $stock->calculateSellingPrice();
-                $stock->status_price_alert = $stock->determinePriceAlert();
             }
         });
     }
@@ -190,24 +174,5 @@ class IncomingStock extends Model
     public function scopeActive($query)
     {
         return $query->where('status_gate', 'active');
-    }
-
-    public function determinePriceAlert(): string
-    {
-        $lastStock = static::where('medicine_id', $this->medicine_id)
-            ->where('status_gate', 'active')
-            ->where('id', '!=', $this->id)
-            ->latest()
-            ->first();
-
-        if (!$lastStock) {
-            return 'normal';
-        }
-
-        return match ((float) $this->harga_beli_satuan <=> (float) $lastStock->harga_beli_satuan) {
-            1 => 'naik',
-            -1 => 'turun',
-            default => 'normal',
-        };
     }
 }

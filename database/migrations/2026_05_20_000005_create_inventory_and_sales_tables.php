@@ -33,19 +33,12 @@ return new class extends Migration
             $table->decimal('jumlah_harga', 15, 2)->default(0);
             $table->decimal('ppn_persen', 5, 2)->default(11.00);
             $table->decimal('margin_persen', 5, 2)->default(25.00);
-            $table->decimal('harga_jual_saat_ini', 15, 2)->default(0);
             $table->decimal('harga_jual_akhir', 15, 2)->default(0);
-            $table->string('status_price_alert')->default('normal');
             $table->string('status_approval')->default('pending');
-            $table->enum('status', ['in_transit', 'received', 'returned'])->default('in_transit');
             $table->enum('status_gate', ['pending_admin_verify', 'pending_admin_final', 'active'])->default('pending_admin_verify');
             $table->text('admin_note')->nullable();
             $table->integer('qty_fisik_verify')->nullable();
             $table->text('verify_note')->nullable();
-            $table->foreignId('revised_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('revised_at')->nullable();
-            $table->boolean('is_retur')->default(false);
-            $table->text('alasan_retur')->nullable();
             $table->date('tanggal_faktur')->nullable();
             $table->string('foto_faktur_path')->nullable();
             $table->timestamps();
@@ -54,12 +47,13 @@ return new class extends Migration
             $table->index('supplier_id');
             $table->index('medicine_id');
             $table->index('status_approval');
-            $table->index('status');
             $table->index('status_gate');
             $table->index('expired_date');
             $table->index('faktur_no');
             $table->index(['medicine_id', 'expired_date'], 'incoming_stocks_med_expired_idx');
             $table->index(['medicine_id', 'status_gate'], 'incoming_stocks_med_status_gate_idx');
+            $table->index(['status_gate', 'qty_converted'], 'incoming_stocks_gate_qty_idx');
+            $table->index('tanggal_faktur', 'incoming_stocks_tanggal_faktur_idx');
         });
 
         // 2. Warehouse Inventories (Stok Gudang per Batch)
@@ -74,8 +68,6 @@ return new class extends Migration
             $table->enum('location_type', ['gudang', 'kasir'])->default('gudang');
             $table->foreignId('location_id')->nullable()->constrained('users')->nullOnDelete();
             $table->boolean('is_frozen')->default(false);
-            $table->string('shelf_location')->nullable();
-            $table->string('rack_location')->nullable();
             $table->date('transferred_at')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
@@ -87,29 +79,7 @@ return new class extends Migration
             $table->index(['location_type', 'location_id', 'status'], 'wi_location_status_idx');
         });
 
-        // 3. Stock Confirmations (Konfirmasi Penerimaan Stok)
-        Schema::create('stock_confirmations', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('reference_id');
-            $table->string('reference_type');
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->enum('item_type', ['obat', 'bahan_baku'])->default('obat');
-            $table->string('unit_type')->nullable();
-            $table->integer('conversion_rate')->default(1);
-            $table->string('evidence_image')->nullable();
-            $table->decimal('qty_expected', 12, 2);
-            $table->decimal('qty_received', 12, 2)->nullable();
-            $table->text('condition_note')->nullable();
-            $table->boolean('is_confirmed')->default(false);
-            $table->timestamp('confirmed_at')->nullable();
-            $table->timestamps();
-
-            $table->index(['reference_id', 'reference_type']);
-            $table->index('user_id');
-            $table->index('is_confirmed');
-        });
-
-        // 4. Stock Opnames & Items
+        // 3. Stock Opnames & Items
         Schema::create('stock_opnames', function (Blueprint $table) {
             $table->id();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
@@ -136,7 +106,6 @@ return new class extends Migration
             $table->foreignId('raw_material_stock_id')->nullable()->constrained('raw_material_stocks')->nullOnDelete();
             $table->foreignId('compounded_product_id')->nullable()->constrained('compounded_products')->nullOnDelete();
             $table->string('batch_no');
-            $table->integer('batch_id')->nullable();
             $table->decimal('system_stock', 12, 4);
             $table->decimal('physical_stock', 12, 4)->nullable();
             $table->decimal('difference', 12, 4)->default(0);
@@ -149,7 +118,7 @@ return new class extends Migration
             $table->index('raw_material_id');
         });
 
-        // 5. Return Forms (Retur Obat ke Supplier)
+        // 4. Return Forms (Retur Obat ke Supplier)
         Schema::create('return_forms', function (Blueprint $table) {
             $table->id();
             $table->foreignId('incoming_stock_id')->constrained('incoming_stocks')->cascadeOnDelete();
@@ -157,8 +126,6 @@ return new class extends Migration
             $table->integer('qty_retur');
             $table->text('alasan_retur');
             $table->enum('status', ['draft', 'sent', 'acknowledged'])->default('draft');
-            $table->timestamp('printed_at')->nullable();
-            $table->timestamp('acknowledged_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
@@ -167,7 +134,7 @@ return new class extends Migration
             $table->index('status');
         });
 
-        // 6. Stock Operations: Mutations, Adjustments & Logs
+        // 5. Stock Operations: Mutations & Logs
         Schema::create('stock_mutations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('warehouse_inventory_id')->nullable()->constrained('warehouse_inventories')->onDelete('cascade');
@@ -186,20 +153,7 @@ return new class extends Migration
             $table->index('raw_material_stock_id');
             $table->index('type');
             $table->index(['reference_type', 'reference_id']);
-        });
-
-        Schema::create('stock_adjustments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('medicine_id')->constrained()->onDelete('cascade');
-            $table->foreignId('warehouse_inventory_id')->nullable()->constrained()->onDelete('set null');
-            $table->enum('type', ['in', 'out']);
-            $table->integer('qty');
-            $table->text('alasan');
-            $table->foreignId('adjusted_by')->constrained('users')->onDelete('cascade');
-            $table->timestamps();
-
-            $table->index('medicine_id');
-            $table->index('adjusted_by');
+            $table->index('created_at', 'stock_mutations_created_at_idx');
         });
 
         Schema::create('stock_logs', function (Blueprint $table) {
@@ -220,7 +174,7 @@ return new class extends Migration
             $table->index('action');
         });
 
-        // 7. Inventory Losses (Kerusakan / Kehilangan Stok)
+        // 6. Inventory Losses (Kerusakan / Kehilangan Stok)
         Schema::create('inventory_losses', function (Blueprint $table) {
             $table->id();
             $table->string('tipe_loss')->default('manual_disposal');
@@ -231,11 +185,8 @@ return new class extends Migration
             $table->foreignId('raw_material_stock_id')->nullable()->constrained('raw_material_stocks')->onDelete('cascade');
             $table->decimal('qty_lost', 15, 2);
             $table->string('reason');
-            $table->string('evidence_path')->nullable();
             $table->foreignId('user_id')->constrained('users');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('approved_at')->nullable();
             $table->timestamps();
 
             $table->index('tipe_loss');
@@ -246,7 +197,7 @@ return new class extends Migration
             $table->index('user_id');
         });
 
-        // 8. Sales (Transaksi Penjualan Kasir)
+        // 7. Sales (Transaksi Penjualan Kasir)
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->string('sale_number')->unique();
@@ -267,7 +218,7 @@ return new class extends Migration
             $table->index(['kasir_id', 'created_at'], 'sales_kasir_created_idx');
         });
 
-        // 9. Sale Items (Rincian Item Transaksi Penjualan)
+        // 8. Sale Items (Rincian Item Transaksi Penjualan)
         Schema::create('sale_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('sale_id')->constrained('sales')->cascadeOnDelete();
@@ -294,12 +245,10 @@ return new class extends Migration
         Schema::dropIfExists('sales');
         Schema::dropIfExists('inventory_losses');
         Schema::dropIfExists('stock_logs');
-        Schema::dropIfExists('stock_adjustments');
         Schema::dropIfExists('stock_mutations');
         Schema::dropIfExists('return_forms');
         Schema::dropIfExists('stock_opname_items');
         Schema::dropIfExists('stock_opnames');
-        Schema::dropIfExists('stock_confirmations');
         Schema::dropIfExists('warehouse_inventories');
         Schema::dropIfExists('incoming_stocks');
     }

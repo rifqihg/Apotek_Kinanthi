@@ -18,15 +18,11 @@ class InventoryLoss extends Model
         'tipe_loss',
         'status',
         'reason',
-        'evidence_path',
         'user_id',
-        'approved_by',
-        'approved_at',
     ];
 
     protected $casts = [
         'qty_lost' => 'decimal:2',
-        'approved_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

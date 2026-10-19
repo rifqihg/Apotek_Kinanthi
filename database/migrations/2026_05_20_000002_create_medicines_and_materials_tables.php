@@ -32,8 +32,6 @@ return new class extends Migration
             $table->string('satuan_menengah')->nullable();
             $table->integer('rasio_konversi')->default(1);
             $table->string('base_unit')->nullable();
-            $table->string('large_unit')->nullable();
-            $table->decimal('conversion_factor', 12, 4)->default(1);
             $table->decimal('stok_total', 12, 2)->default(0);
             $table->string('status')->default('active');
             $table->integer('threshold_min')->default(10);
@@ -74,17 +72,11 @@ return new class extends Migration
             $table->text('deskripsi')->nullable();
             $table->string('status')->default('pending_registration');
             $table->foreignId('creator_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('verified_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('verified_at')->nullable();
-            $table->timestamp('admin_gate_1_at')->nullable();
-            $table->timestamp('admin_gate_2_at')->nullable();
-            $table->text('admin_note')->nullable();
             $table->timestamps();
 
             $table->index('category_id');
             $table->index('status');
             $table->index('creator_id');
-            $table->index('verified_by');
         });
 
         // 3. Raw Material Stocks (Batch Fisik Bahan Baku)
@@ -98,8 +90,6 @@ return new class extends Migration
             $table->decimal('stock_on_hand', 12, 4)->default(0);
             $table->string('status')->default('pending_physical_check');
             $table->boolean('is_frozen')->default(false);
-            $table->string('shelf_location')->nullable();
-            $table->string('rack_location')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
 

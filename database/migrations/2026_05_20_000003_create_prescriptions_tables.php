@@ -47,7 +47,6 @@ return new class extends Migration
             $table->foreignId('medicine_id')->nullable()->constrained('medicines')->nullOnDelete();
             $table->string('custom_formula_name')->nullable();
             $table->text('custom_formula_notes')->nullable();
-            $table->string('item_name')->nullable();
             $table->decimal('quantity', 10, 2);
             $table->string('unit');
             $table->string('dosage_instruction')->nullable();

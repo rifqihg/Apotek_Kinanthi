@@ -17,7 +17,6 @@ class CompoundedProduct extends Model
         'tanggal_racik',
         'bud_date',
         'qty_hasil',
-        'actual_yield',
         'satuan',
         'base_cost',
         'hpp_per_unit',

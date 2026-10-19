@@ -14,7 +14,7 @@ class CompoundingDetail extends Model
 {
     protected $fillable = [
         'compounding_id', 'medicine_id', 'raw_material_id', 'source_type',
-        'qty_needed', 'wastage_percentage', 'net_quantity', 'qty_total_deducted',
+        'qty_needed', 'net_quantity', 'qty_total_deducted',
         'stock_batch_id', 'volume_to_mass_factor',
         'suggested_batch_no', 'suggested_expired_date',
         'harga_satuan_saat_pakai', 'subtotal_hpp',
@@ -24,7 +24,6 @@ class CompoundingDetail extends Model
     {
         return [
             'qty_needed' => 'decimal:2',
-            'wastage_percentage' => 'decimal:2',
             'net_quantity' => 'decimal:2',
             'qty_total_deducted' => 'decimal:2',
             'volume_to_mass_factor' => 'decimal:2',

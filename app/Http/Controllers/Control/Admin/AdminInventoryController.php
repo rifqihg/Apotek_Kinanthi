@@ -227,9 +227,7 @@ class AdminInventoryController extends Controller
                     $q->where('nama_obat', 'like', "%{$search}%")
                       ->orWhere('kode_obat', 'like', "%{$search}%")
                       ->orWhereHas('warehouseInventories', function($sq) use ($search) {
-                          $sq->where('batch_no', 'like', "%{$search}%")
-                             ->orWhere('shelf_location', 'like', "%{$search}%")
-                             ->orWhere('rack_location', 'like', "%{$search}%");
+                          $sq->where('batch_no', 'like', "%{$search}%");
                       });
                 });
             }

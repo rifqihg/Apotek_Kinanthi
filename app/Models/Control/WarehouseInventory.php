@@ -17,8 +17,6 @@ class WarehouseInventory extends Model
         'stock_on_hand',
         'status',
         'is_frozen',
-        'shelf_location',
-        'rack_location',
         'transferred_at',
         'notes',
         'location_type',

@@ -31,16 +31,7 @@ return new class extends Migration
             $table->index('type');
         });
 
-        // 3. Units
-        Schema::create('units', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->unique();
-            $table->decimal('conversion_factor', 15, 4)->default(1);
-            $table->string('base_unit')->nullable();
-            $table->timestamps();
-        });
-
-        // 4. Suppliers (PBF)
+        // 3. Suppliers (PBF)
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id();
             $table->string('nama_pbf');
@@ -53,7 +44,7 @@ return new class extends Migration
             $table->index('is_active');
         });
 
-        // 5. Patients
+        // 4. Patients
         Schema::create('patients', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -63,6 +54,8 @@ return new class extends Migration
             $table->enum('gender', ['L', 'P'])->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
+
+            $table->index('name', 'patients_name_idx');
         });
     }
 
@@ -70,7 +63,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('patients');
         Schema::dropIfExists('suppliers');
-        Schema::dropIfExists('units');
         Schema::dropIfExists('categories');
         Schema::dropIfExists('settings');
     }

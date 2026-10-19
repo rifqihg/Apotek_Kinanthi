@@ -59,8 +59,14 @@ class AdminUserController extends Controller
         }
 
         if ($request->boolean('is_controlled')) {
-            $mutationQuery->whereHas('inventory.medicine', function($q) {
-                $q->whereIn('classification', ['narkotika', 'psikotropika']);
+            $mutationQuery->whereIn('warehouse_inventory_id', function ($sub) {
+                $sub->select('id')
+                    ->from('warehouse_inventories')
+                    ->whereIn('medicine_id', function ($sub2) {
+                        $sub2->select('id')
+                             ->from('medicines')
+                             ->whereIn('classification', ['narkotika', 'psikotropika']);
+                    });
             });
         }
 
@@ -81,6 +87,7 @@ class AdminUserController extends Controller
         $kpiClosure = function () use ($mutationQuery) {
             $kpiCounts = (clone $mutationQuery)
                 ->selectRaw("
+                    COUNT(*) as total_count,
                     SUM(CASE WHEN type IN ('Masuk', 'Penyesuaian Masuk', 'Retur') THEN 1 ELSE 0 END) as count_in,
                     SUM(CASE WHEN type IN ('Keluar', 'Pemusnahan', 'Penjualan', 'Penyesuaian Keluar') THEN 1 ELSE 0 END) as count_out
                 ")
@@ -89,7 +96,7 @@ class AdminUserController extends Controller
             return [
                 'in' => (int) ($kpiCounts->count_in ?? 0),
                 'out' => (int) ($kpiCounts->count_out ?? 0),
-                'total' => (clone $mutationQuery)->count()
+                'total' => (int) ($kpiCounts->total_count ?? 0)
             ];
         };
 

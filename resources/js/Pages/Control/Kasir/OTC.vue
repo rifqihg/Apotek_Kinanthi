@@ -27,9 +27,47 @@ const activeTab = ref('obat_jadi'); // 'obat_jadi' atau 'racikan'
 const searchQuery = ref(props.filters?.search || '');
 const selectedCategory = ref(props.filters?.category || 'all');
 
-// Silent server sync via Inertia Partial Reload
+// In-memory cache for instant 0ms switching between categories/search
+const dataCache = new Map();
+const localMedicines = ref(props.medicines || []);
+const localCompounded = ref(props.compoundedProducts || []);
+
+const getCacheKey = (cat, search) => `${cat || 'all'}___${(search || '').trim().toLowerCase()}`;
+
+// Seed initial cache
+if (props.medicines) {
+    dataCache.set(getCacheKey(props.filters?.category, props.filters?.search), {
+        medicines: props.medicines,
+        compounded: props.compoundedProducts || []
+    });
+}
+
+watch(() => props.medicines, (newMeds) => {
+    if (newMeds) {
+        localMedicines.value = newMeds;
+        dataCache.set(getCacheKey(selectedCategory.value, searchQuery.value), {
+            medicines: newMeds,
+            compounded: props.compoundedProducts || []
+        });
+    }
+});
+
+watch(() => props.compoundedProducts, (newComp) => {
+    if (newComp) {
+        localCompounded.value = newComp;
+    }
+});
+
 let searchTimer = null;
 const performServerSearch = () => {
+    const key = getCacheKey(selectedCategory.value, searchQuery.value);
+    if (dataCache.has(key)) {
+        const cached = dataCache.get(key);
+        localMedicines.value = cached.medicines;
+        localCompounded.value = cached.compounded;
+        return;
+    }
+
     router.reload({
         data: {
             search: searchQuery.value || undefined,
@@ -37,6 +75,7 @@ const performServerSearch = () => {
         },
         preserveState: true,
         preserveScroll: true,
+        showProgress: false,
         only: ['medicines', 'compoundedProducts', 'filters'],
     });
 };
@@ -45,11 +84,18 @@ watch(searchQuery, () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
         performServerSearch();
-    }, 300);
+    }, 250);
 });
 
-watch(selectedCategory, () => {
-    performServerSearch();
+watch(selectedCategory, (newCat) => {
+    const key = getCacheKey(newCat, searchQuery.value);
+    if (dataCache.has(key)) {
+        const cached = dataCache.get(key);
+        localMedicines.value = cached.medicines;
+        localCompounded.value = cached.compounded;
+    } else {
+        performServerSearch();
+    }
 });
 
 const cart = ref([]);
@@ -81,17 +127,17 @@ const categoryList = computed(() => {
     if (props.categories && props.categories.length > 0) {
         const list = props.categories.map(c => ({
             name: c.nama_kategori,
-            count: props.medicines ? props.medicines.filter(m => (m.category?.nama_kategori || m.kategori) === c.nama_kategori).length : 0
+            count: localMedicines.value ? localMedicines.value.filter(m => (m.category?.nama_kategori || m.kategori) === c.nama_kategori).length : 0
         }));
-        const lainnyaCount = props.medicines ? props.medicines.filter(m => !(m.category?.nama_kategori || m.kategori)).length : 0;
+        const lainnyaCount = localMedicines.value ? localMedicines.value.filter(m => !(m.category?.nama_kategori || m.kategori)).length : 0;
         if (lainnyaCount > 0 && !list.some(c => c.name.toLowerCase() === 'lainnya')) {
             list.push({ name: 'Lainnya', count: lainnyaCount });
         }
         return list;
     }
-    if (!props.medicines) return [];
+    if (!localMedicines.value) return [];
     const map = {};
-    props.medicines.forEach(m => {
+    localMedicines.value.forEach(m => {
         const cat = m.category?.nama_kategori || m.kategori || 'Lainnya';
         map[cat] = (map[cat] || 0) + 1;
     });
@@ -100,8 +146,8 @@ const categoryList = computed(() => {
 
 // Filtered medicines (Instant local filter + Server-side debounce sync)
 const filteredMedicines = computed(() => {
-    if (!props.medicines) return [];
-    return props.medicines.filter(m => {
+    const list = localMedicines.value || [];
+    return list.filter(m => {
         const query = searchQuery.value.toLowerCase().trim();
         const matchesSearch = !query || 
             (m.nama_obat && m.nama_obat.toLowerCase().includes(query)) ||
@@ -117,8 +163,8 @@ const filteredMedicines = computed(() => {
 
 // Filtered compounded products
 const filteredCompounded = computed(() => {
-    if (!props.compoundedProducts) return [];
-    return props.compoundedProducts.filter(p => {
+    const list = localCompounded.value || [];
+    return list.filter(p => {
         const query = searchQuery.value.toLowerCase().trim();
         return !query || 
             (p.nama_produk && p.nama_produk.toLowerCase().includes(query)) ||
@@ -318,29 +364,46 @@ onUnmounted(() => {
     <Head title="Kasir POS - Penjualan OTC" />
 
     <div class="space-y-4 -mt-1">
-        <!-- HEADER SECTION: HERO BANNER -->
-        <div class="p-3 sm:py-4 sm:px-5 rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-            <!-- Left Text Column -->
-            <div class="relative z-10 max-w-sm sm:max-w-md">
-                <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1">
-                    POINT OF SALE · KASIR BEBAS (OTC)
-                </div>
-                <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                    Kasir Penjualan Bebas (OTC)
+        <!-- HEADER SECTION: TOP ACTION & GREETING BAR -->
+        <div class="p-3.5 sm:py-4 sm:px-5 rounded-2xl border border-slate-200/80 dark:border-border bg-white dark:bg-card shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+            <!-- Left Greeting -->
+            <div>
+                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground">
+                    Selamat Datang, Kasir
                 </h1>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                    Layanan Penjualan Bebas (OTC) &amp; Peracikan Obat
+                </p>
             </div>
 
-            <!-- Right Integrated Control Panel -->
-            <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-1.5 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto">
-                <div class="relative w-full sm:w-72">
-                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input v-model="searchQuery" type="text" placeholder="Cari obat atau scan barcode..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
-                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+            <!-- Right Search Bar & Quick Filter -->
+            <div class="flex items-center gap-2.5 w-full sm:w-auto">
+                <div class="relative w-full sm:w-80">
+                    <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input 
+                        v-model="searchQuery" 
+                        type="text" 
+                        placeholder="Cari obat atau scan barcode..." 
+                        class="w-full h-10 pl-10 pr-9 bg-slate-50 dark:bg-muted/50 border border-slate-200 dark:border-border rounded-xl text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F97316] transition-all" 
+                    />
+                    <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
                         <button v-if="searchQuery" type="button" @click="searchQuery = ''" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
                 </div>
+
+                <button 
+                    type="button" 
+                    class="h-10 w-10 shrink-0 rounded-xl border border-slate-200 dark:border-border bg-slate-50 dark:bg-muted/50 flex items-center justify-center text-slate-600 dark:text-muted-foreground hover:bg-slate-100 dark:hover:bg-muted transition-colors cursor-pointer"
+                    title="Filter Katalog"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                </button>
             </div>
         </div>
 
@@ -349,137 +412,181 @@ onUnmounted(() => {
             <!-- ========================================================= -->
             <!-- KOLOM KIRI: KATALOG PRODUK (CARD GRID MODERN POS)       -->
             <!-- ========================================================= -->
-            <div class="flex-1 flex flex-col bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+            <div class="flex-1 flex flex-col bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border shadow-2xs overflow-hidden">
                 
-                <!-- TOP BAR: TABS & CATEGORIES (SEARCH MOVED TO HERO) -->
-                <div class="p-4 border-b border-border bg-card space-y-3 shrink-0">
-                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-                        
-                        <!-- TAB SWITCHER: OBAT JADI VS RACIKAN -->
-                        <div class="flex p-1 bg-muted rounded-md border border-border w-full">
+                <!-- TOP BAR: TABS & CATEGORIES -->
+                <div class="p-3.5 sm:p-4 border-b border-slate-200/80 dark:border-border bg-white dark:bg-card space-y-3 shrink-0">
+                    <!-- TAB SWITCHER: OBAT JADI VS RACIKAN (Rounded-xl Pill Toggle) -->
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="inline-flex p-1 bg-slate-100 dark:bg-muted rounded-xl border border-slate-200/60 dark:border-border w-full sm:w-auto">
                             <button 
                                 @click="activeTab = 'obat_jadi'"
-                                :class="activeTab === 'obat_jadi' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                                class="px-3 py-1.5 rounded-md text-xs transition-colors uppercase tracking-wider flex items-center justify-center gap-1.5 w-1/2"
+                                :class="activeTab === 'obat_jadi' ? 'bg-white dark:bg-card text-slate-900 dark:text-foreground shadow-xs font-bold' : 'text-muted-foreground hover:text-foreground font-medium'"
+                                class="px-4 py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none cursor-pointer"
                             >
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                                <span>Obat Jadi ({{ filteredMedicines.length }})</span>
+                                <svg class="w-3.5 h-3.5 text-[#F97316]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                </svg>
+                                <span>Obat Jadi</span>
+                                <span class="px-1.5 py-0.2 rounded-md text-[10px] font-bold" :class="activeTab === 'obat_jadi' ? 'bg-orange-100 text-[#F97316]' : 'bg-slate-200 text-slate-600'">
+                                    {{ filteredMedicines.length }}
+                                </span>
                             </button>
                             <button 
                                 @click="activeTab = 'racikan'"
-                                :class="activeTab === 'racikan' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground font-medium'"
-                                class="px-3 py-1.5 rounded-md text-xs transition-colors uppercase tracking-wider flex items-center justify-center gap-1.5 w-1/2"
+                                :class="activeTab === 'racikan' ? 'bg-white dark:bg-card text-slate-900 dark:text-foreground shadow-xs font-bold' : 'text-muted-foreground hover:text-foreground font-medium'"
+                                class="px-4 py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none cursor-pointer"
                             >
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                                <span>Racikan ({{ filteredCompounded.length }})</span>
+                                <svg class="w-3.5 h-3.5 text-fuchsia-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                </svg>
+                                <span>Produk Racikan</span>
+                                <span class="px-1.5 py-0.2 rounded-md text-[10px] font-bold" :class="activeTab === 'racikan' ? 'bg-fuchsia-100 text-fuchsia-700' : 'bg-slate-200 text-slate-600'">
+                                    {{ filteredCompounded.length }}
+                                </span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- KATEGORI PILLS -->
-                    <div v-if="activeTab === 'obat_jadi' && categoryList.length > 0" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+                    <!-- KATEGORI PILLS (GAYA MODERN POS SESUAI GAMBAR REFERENSI) -->
+                    <div v-if="activeTab === 'obat_jadi'" class="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
                         <button 
                             @click="selectedCategory = 'all'"
-                            :class="selectedCategory === 'all' ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium shadow-xs' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground border border-border'"
-                            class="px-2.5 py-1 rounded-md whitespace-nowrap transition-colors text-xs flex items-center gap-1"
+                            :class="selectedCategory === 'all' 
+                                ? 'bg-[#F97316] text-white shadow-xs font-semibold' 
+                                : 'bg-white dark:bg-card text-slate-700 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted border border-slate-200/80 dark:border-border font-medium'"
+                            class="px-4 py-2 rounded-xl whitespace-nowrap transition-all text-xs flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                         >
-                            <svg v-if="selectedCategory === 'all'" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
-                            <span>Semua ({{ props.medicines?.length || 0 }})</span>
+                            <span>Semua</span>
+                            <span class="text-[10px] opacity-80">({{ localMedicines?.length || 0 }})</span>
                         </button>
                         <button 
                             v-for="cat in categoryList" 
                             :key="cat.name"
                             @click="selectedCategory = cat.name"
-                            :class="selectedCategory === cat.name ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium shadow-xs' : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground border border-border'"
-                            class="px-2.5 py-1 rounded-md whitespace-nowrap transition-colors text-xs flex items-center gap-1"
+                            :class="selectedCategory === cat.name 
+                                ? 'bg-[#F97316] text-white shadow-xs font-semibold' 
+                                : 'bg-white dark:bg-card text-slate-700 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted border border-slate-200/80 dark:border-border font-medium'"
+                            class="px-4 py-2 rounded-xl whitespace-nowrap transition-all text-xs flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                         >
-                            <svg v-if="selectedCategory === cat.name" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
-                            <span>{{ cat.name }} ({{ cat.count }})</span>
+                            <span>{{ cat.name }}</span>
+                            <span class="text-[10px] opacity-80">({{ cat.count }})</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- GRID CONTENT (SCROLLABLE CATALOG) -->
-                <div class="flex-1 overflow-y-auto p-4 bg-muted/20">
+                <div class="flex-1 overflow-y-auto p-4 bg-slate-50/60 dark:bg-muted/10">
                     
                     <!-- TAB 1: OBAT JADI -->
                     <div v-if="activeTab === 'obat_jadi'">
                         
                         <!-- EMPTY STATE -->
                         <div v-if="filteredMedicines.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
-                            <div class="w-12 h-12 bg-muted text-muted-foreground rounded-lg flex items-center justify-center text-xl mb-3 border border-border">
+                            <div class="w-14 h-14 bg-white dark:bg-card text-muted-foreground rounded-2xl flex items-center justify-center text-2xl mb-3 border border-slate-200 dark:border-border shadow-xs">
                                 💊
                             </div>
-                            <h4 class="font-semibold text-foreground text-sm">Tidak Ada Obat Ditemukan</h4>
+                            <h4 class="font-bold text-foreground text-sm">Tidak Ada Obat Ditemukan</h4>
                             <p class="text-xs text-muted-foreground max-w-sm mt-1">
                                 {{ searchQuery ? 'Tidak ada obat yang sesuai dengan kata kunci pencarian.' : 'Belum ada obat yang didistribusikan ke kasir ini.' }}
                             </p>
                         </div>
 
-                        <!-- PRODUCT CARDS GRID -->
-                        <div v-else class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- PRODUCT CARDS GRID (3 KOLOM MODERN POS) -->
+                        <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             <div 
                                 v-for="obat in filteredMedicines" 
                                 :key="obat.id"
                                 @click="addToCart(obat, 'obat_jadi')"
                                 :class="[
-                                    (obat.stok_kasir || 0) <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-input active:scale-[0.99]',
-                                    getCartItemQty(obat.id, 'obat_jadi') > 0 ? 'border-emerald-600 ring-1 ring-emerald-600 bg-emerald-50/20' : 'border-border bg-card'
+                                    (obat.stok_kasir || 0) <= 0 
+                                        ? 'opacity-55 cursor-not-allowed bg-slate-50 dark:bg-card/50 border-slate-200 dark:border-border' 
+                                        : 'cursor-pointer bg-white dark:bg-card border-slate-200/90 dark:border-border hover:border-orange-300 dark:hover:border-orange-700/60 hover:shadow-md active:scale-[0.99]',
+                                    getCartItemQty(obat.id, 'obat_jadi') > 0 
+                                        ? 'ring-2 ring-[#F97316] border-[#F97316] shadow-xs' 
+                                        : 'shadow-2xs'
                                 ]"
-                                class="rounded-lg border p-3 flex flex-col transition-all duration-150 select-none relative group shadow-xs"
+                                class="rounded-2xl border p-3 flex flex-col justify-between transition-all duration-200 select-none relative group"
                                 title="Klik kartu untuk menambahkan ke keranjang"
                             >
-                                <!-- BADGE STOK & SATUAN DI ATAS GAMBAR -->
-                                <div class="flex items-center justify-between gap-1 mb-2">
-                                    <span 
-                                        class="px-2 py-0.5 rounded-md text-xs font-medium flex items-center gap-1"
-                                        :class="(obat.stok_kasir || 0) > 5 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : (obat.stok_kasir || 0) > 0 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-rose-50 text-rose-700 border border-rose-200'"
-                                    >
-                                        <span class="w-1.5 h-1.5 rounded-full" :class="(obat.stok_kasir || 0) > 5 ? 'bg-emerald-500' : (obat.stok_kasir || 0) > 0 ? 'bg-amber-500' : 'bg-rose-500'"></span>
-                                        Stok: {{ formatNumber(obat.stok_kasir) }}
-                                    </span>
-
-                                    <span class="px-2 py-0.5 bg-muted text-muted-foreground rounded-md text-xs font-medium border border-border">
-                                        {{ obat.satuan || obat.satuan_terkecil || obat.satuan_stok || 'Pcs' }}
-                                    </span>
-                                </div>
-
-                                <!-- PRODUCT IMAGE -->
-                                <div class="h-32 w-full rounded-md bg-muted/40 border border-border flex items-center justify-center mb-2 overflow-hidden group-hover:bg-muted/70 transition-colors relative">
+                                <!-- PRODUCT IMAGE CONTAINER WITH FLOATING BADGES & ACTION -->
+                                <div class="h-36 w-full rounded-xl bg-slate-100/80 dark:bg-muted/40 border border-slate-200/50 dark:border-border flex items-center justify-center mb-3 overflow-hidden relative group-hover:bg-slate-100 transition-colors">
                                     <img 
                                         v-if="obat.foto_obat" 
                                         :src="`/storage/medicines/${obat.foto_obat}`" 
                                         :alt="obat.nama_obat"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
+                                        loading="lazy"
+                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                                     />
-                                    <div v-else class="flex flex-col items-center justify-center text-muted-foreground p-2">
-                                        <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                    <div v-else class="flex flex-col items-center justify-center text-muted-foreground/60 p-2">
+                                        <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                        </svg>
                                     </div>
+
+                                    <!-- FLOATING DOSIS & STOK BADGE (Kiri Bawah Gambar) -->
+                                    <div class="absolute left-2.5 bottom-2.5 flex items-center gap-1.5 z-10">
+                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-white/95 dark:bg-card/95 text-slate-800 dark:text-foreground shadow-xs border border-slate-200/60 dark:border-border backdrop-blur-xs">
+                                            {{ obat.satuan || obat.satuan_terkecil || 'Pcs' }}
+                                        </span>
+                                        <span 
+                                            class="px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-tight shadow-xs backdrop-blur-xs flex items-center gap-1"
+                                            :class="(obat.stok_kasir || 0) > 5 
+                                                ? 'bg-emerald-500/90 text-white' 
+                                                : ((obat.stok_kasir || 0) > 0 ? 'bg-amber-500/90 text-white' : 'bg-rose-500/90 text-white')"
+                                        >
+                                            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                            {{ (obat.stok_kasir || 0) > 0 ? `${formatNumber(obat.stok_kasir)}` : 'Habis' }}
+                                        </span>
+                                    </div>
+
+                                    <!-- FLOATING CART ACTION BUTTON (Kanan Atas Gambar, Sesuai Referensi) -->
+                                    <button 
+                                        type="button"
+                                        class="absolute right-2.5 top-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-xs z-10 cursor-pointer"
+                                        :class="getCartItemQty(obat.id, 'obat_jadi') > 0
+                                            ? 'bg-[#F97316] text-white shadow-orange-500/30 ring-2 ring-white dark:ring-card'
+                                            : 'bg-white/95 dark:bg-card/95 text-[#F97316] hover:bg-[#F97316] hover:text-white border border-orange-200/70 dark:border-border'"
+                                        :title="'Tambah ' + obat.nama_obat"
+                                    >
+                                        <span v-if="getCartItemQty(obat.id, 'obat_jadi') > 0" class="text-xs font-bold leading-none">
+                                            {{ getCartItemQty(obat.id, 'obat_jadi') }}
+                                        </span>
+                                        <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </button>
                                 </div>
 
                                 <!-- PRODUCT INFO & PRICE -->
                                 <div class="flex-1 flex flex-col justify-between">
                                     <div>
-                                        <span class="text-xs text-muted-foreground block mb-0.5">
-                                            {{ obat.category?.nama_kategori || obat.kategori || 'Obat' }}
-                                        </span>
-                                        <h4 class="font-semibold text-foreground text-xs leading-snug line-clamp-2" :title="obat.nama_obat">
+                                        <div class="flex items-center justify-between gap-1 mb-1">
+                                            <span class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                                                {{ obat.category?.nama_kategori || obat.kategori || 'Obat' }}
+                                            </span>
+                                            <span v-if="obat.kode_obat" class="text-[10px] font-mono text-muted-foreground/70 shrink-0">
+                                                {{ obat.kode_obat }}
+                                            </span>
+                                        </div>
+                                        <h4 class="font-bold text-slate-900 dark:text-foreground text-sm leading-snug line-clamp-2 group-hover:text-[#F97316] dark:group-hover:text-orange-400 transition-colors" :title="obat.nama_obat">
                                             {{ obat.nama_obat }}
                                         </h4>
                                     </div>
 
-                                    <div class="mt-2 pt-2 border-t border-border flex items-center justify-between">
-                                        <div>
-                                            <p class="text-xs text-muted-foreground leading-none">Harga</p>
-                                            <p class="text-sm font-bold text-foreground mt-0.5 leading-none">
+                                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-border flex items-baseline justify-between">
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-base font-black text-[#F97316] dark:text-orange-400 tracking-tight">
                                                 {{ formatRupiah(obat.selling_price) }}
-                                            </p>
+                                            </span>
+                                            <span class="text-xs font-medium text-muted-foreground">
+                                                / {{ obat.satuan || 'Pcs' }}
+                                            </span>
                                         </div>
 
-                                        <div v-if="getCartItemQty(obat.id, 'obat_jadi') > 0" class="flex items-center gap-1 bg-emerald-600 text-white px-2 py-0.5 rounded-md text-xs font-semibold">
-                                            <span>✓</span>
-                                            <span>{{ getCartItemQty(obat.id, 'obat_jadi') }}x</span>
-                                        </div>
+                                        <span v-if="getCartItemQty(obat.id, 'obat_jadi') > 0" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                            ✓ Terpilih
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -489,48 +596,84 @@ onUnmounted(() => {
                     <!-- TAB 2: PRODUK RACIKAN -->
                     <div v-if="activeTab === 'racikan'">
                         <div v-if="filteredCompounded.length === 0" class="flex flex-col items-center justify-center py-20 text-center">
-                            <div class="w-12 h-12 bg-muted text-muted-foreground rounded-lg flex items-center justify-center text-xl mb-3 border border-border">
+                            <div class="w-14 h-14 bg-white dark:bg-card text-muted-foreground rounded-2xl flex items-center justify-center text-2xl mb-3 border border-slate-200 dark:border-border shadow-xs">
                                 🧪
                             </div>
-                            <h4 class="font-semibold text-foreground text-sm">Belum Ada Produk Racikan</h4>
+                            <h4 class="font-bold text-foreground text-sm">Belum Ada Produk Racikan</h4>
                             <p class="text-xs text-muted-foreground max-w-sm mt-1">Tidak ada produk racikan apoteker aktif yang siap dijual.</p>
                         </div>
 
-                        <div v-else class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <div v-else class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             <div 
                                 v-for="racikan in filteredCompounded" 
                                 :key="racikan.id"
                                 @click="addToCart(racikan, 'racikan')"
-                                :class="getCartItemQty(racikan.id, 'racikan') > 0 ? 'border-emerald-600 ring-1 ring-emerald-600 bg-emerald-50/20' : 'border-border bg-card'"
-                                class="rounded-lg border p-3 flex flex-col cursor-pointer hover:border-input active:scale-[0.99] transition-all duration-150 select-none group shadow-xs"
+                                :class="[
+                                    'cursor-pointer bg-white dark:bg-card border-slate-200/90 dark:border-border hover:border-orange-300 dark:hover:border-orange-700/60 hover:shadow-md active:scale-[0.99]',
+                                    getCartItemQty(racikan.id, 'racikan') > 0 
+                                        ? 'ring-2 ring-[#F97316] border-[#F97316] shadow-xs' 
+                                        : 'shadow-2xs'
+                                ]"
+                                class="rounded-2xl border p-3 flex flex-col justify-between transition-all duration-200 select-none group relative"
+                                title="Klik kartu untuk menambahkan ke keranjang"
                             >
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="px-2 py-0.5 bg-muted text-muted-foreground border border-border rounded-md text-xs font-medium tracking-wide">
-                                        Batch: {{ racikan.batch_no }}
-                                    </span>
+                                <!-- RACIKAN MEDIA CONTAINER -->
+                                <div class="h-36 w-full rounded-xl bg-slate-100/80 dark:bg-muted/40 border border-slate-200/50 dark:border-border flex items-center justify-center mb-3 relative overflow-hidden group-hover:bg-slate-100 transition-colors">
+                                    <div class="flex flex-col items-center justify-center text-fuchsia-600/70 p-2">
+                                        <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                        </svg>
+                                    </div>
+
+                                    <!-- BATCH BADGE (Kiri Bawah Gambar) -->
+                                    <div class="absolute left-2.5 bottom-2.5 z-10">
+                                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-white/95 dark:bg-card/95 text-slate-800 dark:text-foreground shadow-xs border border-slate-200/60 dark:border-border backdrop-blur-xs">
+                                            Batch: {{ racikan.batch_no }}
+                                        </span>
+                                    </div>
+
+                                    <!-- FLOATING CART ACTION BUTTON -->
+                                    <button 
+                                        type="button"
+                                        class="absolute right-2.5 top-2.5 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-xs z-10 cursor-pointer"
+                                        :class="getCartItemQty(racikan.id, 'racikan') > 0
+                                            ? 'bg-[#F97316] text-white shadow-orange-500/30 ring-2 ring-white dark:ring-card'
+                                            : 'bg-white/95 dark:bg-card/95 text-[#F97316] hover:bg-[#F97316] hover:text-white border border-orange-200/70 dark:border-border'"
+                                        :title="'Tambah ' + racikan.nama_produk"
+                                    >
+                                        <span v-if="getCartItemQty(racikan.id, 'racikan') > 0" class="text-xs font-bold leading-none">
+                                            {{ getCartItemQty(racikan.id, 'racikan') }}
+                                        </span>
+                                        <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </button>
                                 </div>
 
-                                <div class="h-24 w-full rounded-md bg-muted/40 border border-border flex items-center justify-center mb-2 text-muted-foreground">
-                                    <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                                </div>
-
+                                <!-- RACIKAN INFO & PRICE -->
                                 <div class="flex-1 flex flex-col justify-between">
-                                    <h4 class="font-semibold text-foreground text-xs leading-snug line-clamp-2">
-                                        {{ racikan.nama_produk }}
-                                    </h4>
+                                    <div>
+                                        <span class="text-[11px] font-semibold uppercase tracking-wider text-fuchsia-600 dark:text-fuchsia-400 block mb-1">
+                                            Produk Racikan
+                                        </span>
+                                        <h4 class="font-bold text-slate-900 dark:text-foreground text-sm leading-snug line-clamp-2 group-hover:text-[#F97316] transition-colors">
+                                            {{ racikan.nama_produk }}
+                                        </h4>
+                                    </div>
 
-                                    <div class="mt-2 pt-2 border-t border-border flex items-center justify-between">
-                                        <div>
-                                            <p class="text-xs text-muted-foreground leading-none">Harga Jual</p>
-                                            <p class="text-sm font-bold text-foreground mt-0.5 leading-none">
+                                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-border flex items-baseline justify-between">
+                                        <div class="flex items-baseline gap-1">
+                                            <span class="text-base font-black text-[#F97316] dark:text-orange-400 tracking-tight">
                                                 {{ formatRupiah(racikan.harga_jual) }}
-                                            </p>
+                                            </span>
+                                            <span class="text-xs font-medium text-muted-foreground">
+                                                / Paket
+                                            </span>
                                         </div>
 
-                                        <div v-if="getCartItemQty(racikan.id, 'racikan') > 0" class="flex items-center gap-1 bg-emerald-600 text-white px-2 py-0.5 rounded-md text-xs font-semibold">
-                                            <span>✓</span>
-                                            <span>{{ getCartItemQty(racikan.id, 'racikan') }}x</span>
-                                        </div>
+                                        <span v-if="getCartItemQty(racikan.id, 'racikan') > 0" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                            ✓ Terpilih
+                                        </span>
                                     </div>
                                 </div>
                             </div>

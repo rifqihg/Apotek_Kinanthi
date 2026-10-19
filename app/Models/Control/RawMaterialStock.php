@@ -16,8 +16,6 @@ class RawMaterialStock extends Model
         'stock_on_hand',
         'status',
         'is_frozen',
-        'shelf_location',
-        'rack_location',
         'notes',
     ];
 

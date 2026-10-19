@@ -228,7 +228,6 @@ class ApotekerCompoundingController extends Controller
         /** @var CompoundingSubmission $sub */
         $sub = CompoundingSubmission::create([
             'user_id' => $user->id,
-            'pharmacist_id' => $user->id,
             'formula_id' => $v['formula_id'] ?? null,
             'nama_racikan' => $v['nama_racikan'],
             'target_quantity' => $v['jumlah_unit'],

@@ -110,30 +110,10 @@ return new class extends Migration
             $table->index('performed_at');
         });
 
-        // 7. Verification Audit Logs
-        Schema::create('verification_audit_logs', function (Blueprint $table) {
-            $table->id();
-            $table->string('model_type');
-            $table->unsignedBigInteger('model_id');
-            $table->foreignId('user_id')->constrained('users');
-            $table->string('gate'); // gate_1, gate_2
-            $table->string('action'); // approve, reject
-            $table->string('old_status')->nullable();
-            $table->string('new_status');
-            $table->decimal('expected_qty', 15, 2)->nullable();
-            $table->decimal('actual_qty', 15, 2)->nullable();
-            $table->text('note')->nullable();
-            $table->timestamps();
-
-            $table->index(['model_type', 'model_id']);
-            $table->index('user_id');
-            $table->index('gate');
-        });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('verification_audit_logs');
         Schema::dropIfExists('audit_trails');
         Schema::dropIfExists('failed_jobs');
         Schema::dropIfExists('job_batches');

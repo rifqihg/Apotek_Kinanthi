@@ -195,7 +195,16 @@ class KasirSaleController extends Controller
                     ->where('is_frozen', false)
                     ->whereDate('expired_date', '>', now())
             ])
-            ->whereHas('warehouseInventories', fn($q) => $q->where('location_type', 'kasir')->where('location_id', $kasirId)->where('stock_on_hand', '>', 0)->where('status', 'active')->where('is_frozen', false)->whereDate('expired_date', '>', now()))
+            ->whereIn('id', function ($sub) use ($kasirId) {
+                $sub->select('medicine_id')
+                    ->from('warehouse_inventories')
+                    ->where('location_type', 'kasir')
+                    ->where('location_id', $kasirId)
+                    ->where('stock_on_hand', '>', 0)
+                    ->where('status', 'active')
+                    ->where('is_frozen', false)
+                    ->whereDate('expired_date', '>', now());
+            })
             ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('nama_obat', 'like', "%{$search}%")->orWhere('kode_obat', 'like', "%{$search}%")))
             ->when($category && $category !== 'all', function ($q) use ($category) {
                 if (strtolower($category) === 'lainnya') {

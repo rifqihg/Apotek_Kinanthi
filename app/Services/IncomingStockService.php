@@ -75,7 +75,6 @@ class IncomingStockService
                     'jumlah_harga'           => ($harga_beli_satuan * (1 - ($diskon_persen / 100))) * $qty_masuk,
                     'ppn_persen'             => $data['ppn_persen'] ?? 11.00,
                     'margin_persen'          => 0,
-                    'harga_jual_saat_ini'    => 0,
                     'harga_jual_akhir'       => 0,
                     'tanggal_faktur'         => $data['tanggal_faktur'] ?? now(),
                     'foto_faktur_path'       => $fotoPath,
@@ -101,7 +100,7 @@ class IncomingStockService
         });
     }
 
-    private function addToWarehouse(IncomingStock $stock, int $qty, ?string $rackLocation = null): void
+    private function addToWarehouse(IncomingStock $stock, int $qty): void
     {
         $wi = WarehouseInventory::firstOrCreate(
             ['medicine_id' => $stock->medicine_id, 'batch_no' => $stock->batch_no],
@@ -110,7 +109,6 @@ class IncomingStockService
         
         $wi->update([
             'stock_on_hand' => $wi->stock_on_hand + $qty,
-            'rack_location' => $rackLocation ?? $wi->rack_location,
             'incoming_stock_id' => $stock->id,
             'transferred_at' => now(),
             'status' => 'active'

@@ -10,17 +10,8 @@ class ReturnForm extends Model
 {
     protected $fillable = [
         'incoming_stock_id', 'supplier_id', 'qty_retur',
-        'alasan_retur', 'status', 'printed_at',
-        'acknowledged_at', 'created_by',
+        'alasan_retur', 'status', 'created_by',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'printed_at' => 'datetime',
-            'acknowledged_at' => 'datetime',
-        ];
-    }
 
     public function incomingStock(): BelongsTo
     {

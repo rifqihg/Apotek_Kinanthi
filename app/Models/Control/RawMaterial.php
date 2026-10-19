@@ -25,11 +25,6 @@ class RawMaterial extends Model
         'deskripsi',
         'status',
         'creator_id',
-        'verified_by',
-        'verified_at',
-        'admin_gate_1_at',
-        'admin_gate_2_at',
-        'admin_note',
         'density_factor',
     ];
 
@@ -41,9 +36,6 @@ class RawMaterial extends Model
             'threshold_min' => 'decimal:4',
             'rasio_konversi' => 'decimal:4',
             'density_factor' => 'decimal:4',
-            'verified_at' => 'datetime',
-            'admin_gate_1_at' => 'datetime',
-            'admin_gate_2_at' => 'datetime',
         ];
     }
 
@@ -55,11 +47,6 @@ class RawMaterial extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id');
-    }
-
-    public function verifier(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'verified_by');
     }
 
     public function stocks(): HasMany
