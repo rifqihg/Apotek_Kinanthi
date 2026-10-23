@@ -60,7 +60,7 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
 <template>
 <Head title="Manajemen User" />
 
-<div class="space-y-6">
+<div class="space-y-8">
     <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
         <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
@@ -288,7 +288,7 @@ function destroy(u) { if (confirm(`Hapus user "${u.name}"?`)) router.delete(rout
                     </div>
                     
                     <form @submit.prevent="submit" class="flex flex-col">
-                        <div class="p-6 space-y-4">
+                        <div class="p-6 space-y-5">
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-semibold text-foreground uppercase tracking-wider">Nama Lengkap <span class="text-destructive">*</span></label>
                                 <input v-model="form.name" type="text" class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors" required />

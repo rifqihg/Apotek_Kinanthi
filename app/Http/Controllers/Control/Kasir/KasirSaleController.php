@@ -29,32 +29,40 @@ class KasirSaleController extends Controller
         $endDate = $request->query('end_date', today()->format('Y-m-d'));
         $search = $request->query('search');
 
-        $prescriptionsQuery = Prescription::with(['patient', 'prescriptionItems'])
-            ->where('status', 'siap_ambil');
-
-        if ($search) {
-            $prescriptionsQuery->where(function ($q) use ($search) {
-                $q->where('prescription_number', 'like', "%{$search}%")
-                  ->orWhereHas('patient', function ($qp) use ($search) {
-                      $qp->where('name', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $prescriptions = $prescriptionsQuery->orderBy('updated_at', 'asc')
-            ->paginate(15)
-            ->withQueryString();
-
-        $sales = Sale::with(['prescription:id,patient_id', 'prescription.patient:id,name'])
-            ->where('kasir_id', auth()->id())
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->latest()
-            ->limit(100)
-            ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']);
-
         return Inertia::render('Control/Kasir/Queue', [
-            'prescriptions' => $prescriptions,
-            'sales' => $sales,
+            'prescriptions' => fn () => Prescription::select([
+                    'id',
+                    'patient_id',
+                    'prescription_number',
+                    'doctor_name',
+                    'prescription_date',
+                    'status',
+                    'updated_at'
+                ])
+                ->with([
+                    'patient:id,name',
+                    'prescriptionItems:id,prescription_id'
+                ])
+                ->where('status', 'siap_ambil')
+                ->when($search, function ($query, $search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('prescription_number', 'like', "%{$search}%")
+                          ->orWhereHas('patient', function ($qp) use ($search) {
+                              $qp->where('name', 'like', "%{$search}%");
+                          });
+                    });
+                })
+                ->orderBy('updated_at', 'asc')
+                ->paginate(15)
+                ->withQueryString(),
+
+            'sales' => fn () => Sale::with(['prescription:id,patient_id', 'prescription.patient:id,name'])
+                ->where('kasir_id', auth()->id())
+                ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+                ->latest()
+                ->limit(100)
+                ->get(['id', 'kasir_id', 'prescription_id', 'sale_number', 'total_amount', 'discount_amount', 'paid_amount', 'change_amount', 'payment_method', 'status', 'created_at']),
+
             'filters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
@@ -181,53 +189,49 @@ class KasirSaleController extends Controller
     {
         $kasirId = auth()->id();
         $search = $request->query('search');
-        $category = $request->query('category');
 
-        $medicines = Medicine::select(['id', 'category_id', 'nama_obat', 'kode_obat', 'satuan_stok', 'base_unit', 'selling_price', 'stok_total', 'foto_obat'])
-            ->with([
-                'category:id,name',
-                'latestIncomingStock:incoming_stocks.id,incoming_stocks.medicine_id,incoming_stocks.harga_jual_akhir',
-                'warehouseInventories' => fn($q) => $q->select(['id', 'medicine_id', 'stock_on_hand'])
-                    ->where('location_type', 'kasir')
-                    ->where('location_id', $kasirId)
-                    ->where('stock_on_hand', '>', 0)
-                    ->where('status', 'active')
-                    ->where('is_frozen', false)
-                    ->whereDate('expired_date', '>', now())
+        $medicines = Medicine::select([
+                'medicines.id',
+                'medicines.classification',
+                'medicines.nama_obat',
+                'medicines.kode_obat',
+                'medicines.satuan_stok',
+                'medicines.base_unit',
+                'medicines.selling_price',
+                'medicines.foto_obat',
             ])
-            ->whereIn('id', function ($sub) use ($kasirId) {
-                $sub->select('medicine_id')
-                    ->from('warehouse_inventories')
-                    ->where('location_type', 'kasir')
-                    ->where('location_id', $kasirId)
-                    ->where('stock_on_hand', '>', 0)
-                    ->where('status', 'active')
-                    ->where('is_frozen', false)
-                    ->whereDate('expired_date', '>', now());
+            ->join('warehouse_inventories', function ($join) use ($kasirId) {
+                $join->on('medicines.id', '=', 'warehouse_inventories.medicine_id')
+                    ->where('warehouse_inventories.location_type', '=', 'kasir')
+                    ->where('warehouse_inventories.location_id', '=', $kasirId)
+                    ->where('warehouse_inventories.stock_on_hand', '>', 0)
+                    ->where('warehouse_inventories.status', '=', 'active')
+                    ->where('warehouse_inventories.is_frozen', '=', false)
+                    ->whereDate('warehouse_inventories.expired_date', '>', now());
             })
-            ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('nama_obat', 'like', "%{$search}%")->orWhere('kode_obat', 'like', "%{$search}%")))
-            ->when($category && $category !== 'all', function ($q) use ($category) {
-                if (strtolower($category) === 'lainnya') {
-                    $q->where(function ($sub) {
-                        $sub->whereHas('category', fn($cq) => $cq->where('name', 'Lainnya'))
-                            ->orWhereNull('category_id');
-                    });
-                } else {
-                    $q->whereHas('category', fn($cq) => $cq->where('name', $category));
-                }
-            })
-            ->orderBy('nama_obat')
-            ->limit(40)
+            ->selectRaw('SUM(warehouse_inventories.stock_on_hand) as stok_kasir')
+            ->selectRaw('COALESCE(NULLIF(medicines.selling_price, 0), (SELECT incoming_stocks.harga_jual_akhir FROM incoming_stocks WHERE incoming_stocks.medicine_id = medicines.id ORDER BY incoming_stocks.id DESC LIMIT 1), 0) as calculated_price')
+            ->when($search, fn($q) => $q->where(fn($sub) => $sub->where('medicines.nama_obat', 'like', "%{$search}%")->orWhere('medicines.kode_obat', 'like', "%{$search}%")))
+            ->groupBy([
+                'medicines.id',
+                'medicines.classification',
+                'medicines.nama_obat',
+                'medicines.kode_obat',
+                'medicines.satuan_stok',
+                'medicines.base_unit',
+                'medicines.selling_price',
+                'medicines.foto_obat',
+            ])
+            ->orderBy('medicines.nama_obat')
             ->get()
             ->map(fn($med) => [
                 'id' => $med->id,
-                'category_id' => $med->category_id,
-                'category' => $med->category ? ['id' => $med->category->id, 'nama_kategori' => $med->category->name] : null,
+                'classification' => $med->classification ?? 'bebas',
                 'nama_obat' => $med->nama_obat,
                 'kode_obat' => $med->kode_obat,
                 'satuan' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
-                'selling_price' => (float) ($med->selling_price > 0 ? $med->selling_price : ($med->latestIncomingStock?->harga_jual_akhir ?? 0)),
-                'stok_kasir' => (float) $med->warehouseInventories->sum('stock_on_hand'),
+                'selling_price' => (float) ($med->calculated_price > 0 ? $med->calculated_price : $med->selling_price),
+                'stok_kasir' => (float) $med->stok_kasir,
                 'foto_obat' => $med->foto_obat,
             ]);
 
@@ -243,8 +247,7 @@ class KasirSaleController extends Controller
         return inertia('Control/Kasir/OTC', [
             'medicines' => $medicines,
             'compoundedProducts' => $compoundedProducts,
-            'categories' => Category::select(['id', 'name as nama_kategori', 'name'])->orderBy('name')->get(),
-            'filters' => ['search' => $search ?? '', 'category' => $category ?? 'all'],
+            'filters' => ['search' => $search ?? ''],
         ]);
     }
 

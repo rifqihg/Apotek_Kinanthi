@@ -426,7 +426,7 @@ if (prefillItemId) {
 
 <template>
     <Head title="Log Racikan" />
-    <div class="space-y-6">
+    <div class="space-y-8">
         <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
@@ -735,7 +735,7 @@ if (prefillItemId) {
                     </div>
                     
                     <!-- Target Output Section -->
-                    <div class="bg-muted/30 border border-border rounded-md p-4 space-y-4">
+                    <div class="bg-muted/30 border border-border rounded-md p-3.5 space-y-3.5">
                         <div class="flex items-center justify-between">
                             <h4 class="text-foreground font-semibold text-sm flex items-center gap-2">
                                 <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 11v10"></path></svg>
@@ -795,7 +795,7 @@ if (prefillItemId) {
                     </div>
 
                     <!-- Details -->
-                    <div class="bg-muted/30 border border-border rounded-md p-4 space-y-4">
+                    <div class="bg-muted/30 border border-border rounded-md p-3.5 space-y-3.5">
                         <div class="flex items-center justify-between">
                             <p class="text-foreground font-semibold text-sm">Daftar Bahan Racikan <span class="text-red-500">*</span></p>
                             <button type="button" @click="addDetail" class="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-xs font-medium bg-background border border-border hover:bg-muted px-3 h-8 rounded-md transition-colors">
@@ -804,7 +804,7 @@ if (prefillItemId) {
                         </div>
                         
                         <div class="space-y-3">
-                            <div v-for="(d,i) in form.bahan_baku" :key="'detail-'+i" class="bg-card border border-border rounded-md p-4 shadow-sm relative overflow-hidden group">
+                            <div v-for="(d,i) in form.bahan_baku" :key="'detail-'+i" class="bg-card border border-border rounded-md p-3 sm:p-3.5 shadow-sm relative overflow-hidden group">
                                 <!-- Overstock Alert Overlay -->
                                 <div v-if="isOverstock(d)" class="absolute inset-0 bg-red-500/10 pointer-events-none border border-red-500 rounded-md z-20"></div>
 
@@ -897,7 +897,7 @@ if (prefillItemId) {
                         </div>
                     </div>
                     <!-- Label / Etiket -->
-                    <div class="border-t border-border pt-4 space-y-4">
+                    <div class="border-t border-border pt-4 space-y-3.5">
                         <h4 class="text-foreground font-semibold text-sm flex items-center gap-2">
                             <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 11h.01M7 15h.01M13 7h.01M13 11h.01M13 15h.01M17 7h.01M17 11h.01M17 15h.01"></path></svg>
                             Informasi Etiket / Label Obat

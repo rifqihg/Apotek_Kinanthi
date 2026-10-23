@@ -134,7 +134,7 @@ const kasirNav = [
     {
         group: 'TRANSAKSI',
         items: [
-            { name: 'Dashboard / Antrian', href: 'control.kasir.queue', component: 'Control/Kasir/Queue', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
+            { name: 'Dashboard / Antrean', href: 'control.kasir.queue', component: 'Control/Kasir/Queue', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
             { name: 'Penjualan OTC', href: 'control.kasir.otc.index', component: 'Control/Kasir/OTC', icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' }
         ]
     }
@@ -567,7 +567,7 @@ watch(() => page.props.flash?.info, (newVal) => {
             </header>
 
             <!-- Page Content -->
-            <main id="main-content-scroll" class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-background">
+            <main id="main-content-scroll" class="flex-1 overflow-y-auto p-4 md:p-6 lg:px-8 lg:pt-8 lg:pb-16 bg-background custom-scrollbar">
                 <div class="max-w-[1600px] mx-auto">
                     <slot></slot>
                 </div>

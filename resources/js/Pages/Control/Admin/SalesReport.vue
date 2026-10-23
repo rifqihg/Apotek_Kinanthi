@@ -80,7 +80,7 @@ const formatCurrency = (amount) => {
 <template>
 <Head title="Laporan Penjualan (Rekap Produk)" />
 
-<div class="space-y-6">
+<div class="space-y-8">
     <!-- UNIFIED FILTER & EXPORT ACTION BAR -->
     <div class="bg-card rounded-lg border border-border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <!-- Sisi Kiri: Filter Rentang Waktu Kompak -->

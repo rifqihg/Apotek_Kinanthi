@@ -1,17 +1,17 @@
 <template>
-  <Card class="shadow-sm border-border bg-card overflow-hidden">
+  <Card class="shadow-sm border-border bg-card overflow-hidden font-sans">
     <CardHeader class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
       <div>
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
-          <CardTitle class="text-base font-semibold tracking-tight text-foreground flex items-center gap-2">
+          <CardTitle class="text-base font-semibold tracking-tight text-foreground flex items-center gap-2 font-sans">
             <span>Tren Penjualan & Transaksi</span>
-            <span class="text-[11px] font-normal px-2 py-0.5 rounded-full bg-blue-500/10 text-primary border border-blue-500/20">
+            <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-primary border border-blue-500/20 font-sans tracking-wide">
               Live Data
             </span>
           </CardTitle>
         </div>
-        <CardDescription class="text-xs text-muted-foreground mt-1">
+        <CardDescription class="text-xs text-muted-foreground mt-1 font-sans">
           {{ isHourly ? 'Dinamika omset per menit jam operasional 08:00 - 22:00 (Sumbu Kiri) dan frekuensi transaksi (Sumbu Kanan)' : 'Dinamika omset harian (Sumbu Kiri) dan frekuensi transaksi (Sumbu Kanan)' }}
         </CardDescription>
       </div>
@@ -19,11 +19,11 @@
       <!-- Filter Dropdown Shadcn Select -->
       <div class="flex items-center gap-2 shrink-0">
         <Select :model-value="String(selectedDays)" @update:model-value="handlePeriodChange">
-          <SelectTrigger class="w-[190px] h-8 text-xs font-medium border-border bg-background transition-colors hover:bg-muted/50">
+          <SelectTrigger class="w-[190px] h-8 text-xs font-medium border-border bg-background transition-colors hover:bg-muted/50 font-sans">
             <SelectValue placeholder="Pilih Periode" />
           </SelectTrigger>
-          <SelectContent class="border-border bg-popover text-popover-foreground shadow-md">
-            <SelectItem v-for="opt in periodOptions" :key="opt.value" :value="opt.value" class="text-xs cursor-pointer">
+          <SelectContent class="border-border bg-popover text-popover-foreground shadow-md font-sans">
+            <SelectItem v-for="opt in periodOptions" :key="opt.value" :value="opt.value" class="text-xs cursor-pointer font-sans">
               {{ opt.label }}
             </SelectItem>
           </SelectContent>
@@ -40,7 +40,7 @@
         @mousemove="onMouseMove"
         @mouseleave="hoveredPoint = null"
       >
-        <svg viewBox="0 0 800 220" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+        <svg viewBox="0 0 800 220" class="w-full h-full overflow-visible font-sans" style="font-family: 'Inter', -apple-system, sans-serif;" preserveAspectRatio="none">
           <defs>
             <linearGradient id="salesTrendGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#2563EB" stop-opacity="0.22" />
@@ -74,7 +74,8 @@
               :x="margin.left - 10"
               :y="tick.y + 4"
               text-anchor="end"
-              class="text-[10px] font-medium fill-muted-foreground"
+              class="text-[10px] font-medium fill-muted-foreground font-sans"
+              style="font-family: 'Inter', sans-serif;"
             >
               {{ tick.salesLabel }}
             </text>
@@ -82,7 +83,8 @@
               :x="margin.left + innerWidth + 10"
               :y="tick.y + 4"
               text-anchor="start"
-              class="text-[10px] font-medium fill-muted-foreground"
+              class="text-[10px] font-medium fill-muted-foreground font-sans"
+              style="font-family: 'Inter', sans-serif;"
             >
               {{ tick.txLabel }}
             </text>
@@ -149,7 +151,8 @@
               :x="item.x"
               :y="margin.top + innerHeight + 20"
               text-anchor="middle"
-              class="text-[10px] font-medium fill-muted-foreground"
+              class="text-[10px] font-medium fill-muted-foreground font-sans"
+              style="font-family: 'Inter', sans-serif;"
             >
               {{ item.label }}
             </text>
@@ -158,10 +161,10 @@
 
         <!-- Floating Tooltip -->
         <div v-if="hoveredPoint" class="absolute pointer-events-none z-30 transition-all duration-75" :style="tooltipStyle">
-          <div class="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 min-w-[185px] backdrop-blur-sm">
-            <p class="text-[11px] font-semibold text-foreground border-b border-border pb-1.5 mb-2 flex items-center justify-between">
+          <div class="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 min-w-[185px] backdrop-blur-sm font-sans">
+            <p class="text-[11px] font-semibold text-foreground border-b border-border pb-1.5 mb-2 flex items-center justify-between font-sans">
               <span>{{ isHourly ? 'Pukul ' + hoveredPoint.data.label : hoveredPoint.data.label }}</span>
-              <span class="text-[10px] font-normal text-muted-foreground">{{ isHourly ? 'Hari Ini' : hoveredPoint.data.date }}</span>
+              <span class="text-[10px] font-normal text-muted-foreground font-sans">{{ isHourly ? 'Hari Ini' : hoveredPoint.data.date }}</span>
             </p>
             <div class="space-y-2 text-xs">
               <div class="flex items-center justify-between gap-3">
@@ -184,7 +187,7 @@
       </div>
 
       <!-- Footer Legends & Summary -->
-      <div class="flex flex-wrap items-center justify-between gap-4 mt-6 pt-4 border-t border-border">
+      <div class="flex flex-wrap items-center justify-between gap-4 mt-6 pt-4 border-t border-border font-sans">
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded bg-[#2563EB] shadow-xs"></span>
@@ -196,15 +199,15 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+        <div class="flex items-center gap-4 text-xs font-medium text-muted-foreground font-sans">
           <div>
             Total Omset:
-            <strong class="text-foreground ml-1 font-semibold">{{ formatRupiah(totalSales) }}</strong>
+            <strong class="text-foreground ml-1 font-semibold font-sans">{{ formatRupiah(totalSales) }}</strong>
           </div>
           <div class="w-px h-3 bg-border"></div>
           <div>
             Total Volume:
-            <strong class="text-foreground ml-1 font-semibold">{{ totalTransactions }} Trx</strong>
+            <strong class="text-foreground ml-1 font-semibold font-sans">{{ totalTransactions }} Trx</strong>
           </div>
         </div>
       </div>
@@ -471,3 +474,10 @@ function formatShortCurrency(num) {
   return String(num || 0);
 }
 </script>
+
+<style scoped>
+svg text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+</style>
+

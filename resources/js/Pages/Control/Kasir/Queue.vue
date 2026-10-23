@@ -19,7 +19,7 @@ const search = ref(props.filters?.search || '');
 const startDate = ref(props.filters?.start_date || new Date().toISOString().split('T')[0]);
 const endDate = ref(props.filters?.end_date || new Date().toISOString().split('T')[0]);
 
-const applyFilters = () => {
+const applySearch = () => {
     router.get(route(route().current()), {
         start_date: startDate.value || undefined,
         end_date: endDate.value || undefined,
@@ -34,21 +34,35 @@ const applyFilters = () => {
     });
 };
 
+const applyDateFilter = () => {
+    router.get(route(route().current()), {
+        start_date: startDate.value || undefined,
+        end_date: endDate.value || undefined,
+        search: search.value || undefined,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        showProgress: false,
+        only: ['sales', 'filters'],
+    });
+};
+
 const debouncedSearch = useDebounceFn(() => {
-    applyFilters();
-}, 400);
+    applySearch();
+}, 300);
 
 watch(search, (newVal, oldVal) => {
     if (newVal !== oldVal) debouncedSearch();
 });
 
 watch([startDate, endDate], () => {
-    applyFilters();
+    applyDateFilter();
 });
 
 const clearSearch = () => {
     search.value = '';
-    applyFilters();
+    applySearch();
 };
 
 const activePrescriptions = computed(() => {
@@ -158,61 +172,148 @@ const submitVoid = () => {
 </script>
 
 <template>
-    <Head title="Antrian Kasir" />
+    <Head title="Antrean Kasir" />
 
-    <div class="space-y-6">
-        <!-- HEADER SECTION: HERO BANNER -->
+    <div class="space-y-8">
+        <!-- BENTO COCKPIT HEADER (OPSI A) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-            <div class="lg:col-span-12 p-4 sm:py-5 sm:px-6 min-h-[108px] rounded-xl border border-slate-200/80 dark:border-border shadow-2xs relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#ebf3fa] via-white to-[#eaf7f4] dark:from-card dark:via-card dark:to-emerald-950/20 transition-all duration-300">
-                <!-- Left Text Column -->
-                <div class="relative z-10 max-w-sm sm:max-w-md">
-                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 mb-1.5">
-                        POINT OF SALE · KASIR UTAMA
+            <!-- SISI KIRI: KONSOL OPERASIONAL KASIR & ACTION BAR (lg:col-span-8) -->
+            <div class="lg:col-span-8 bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between gap-3">
+                <!-- Baris 1: Status Badge & Judul Layar Kasir -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 mb-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            POINT OF SALE · KASIR APOTEK
+                        </div>
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
+                            Antrean Pembayaran & Kasir
+                        </h1>
+                        <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-0.5 leading-relaxed">
+                            Pusat validasi dan penuntasan transaksi resep dokter serta kasir mandiri apotek.
+                        </p>
                     </div>
-                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-snug">
-                        Antrian Pembayaran & Kasir
-                    </h1>
-                    <p class="text-xs text-slate-500 dark:text-muted-foreground font-normal mt-1 leading-relaxed">
-                        Proses transaksi pembayaran resep siap bayar dan manajemen antrian pasien.
-                    </p>
+                    
+                    <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-500 dark:text-muted-foreground bg-slate-100/80 dark:bg-muted/60 shrink-0 self-start sm:self-center">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>Kasir Aktif</span>
+                    </div>
                 </div>
 
-                <!-- Right Integrated Control Panel -->
-                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-2.5 shrink-0 bg-white/80 dark:bg-card/80 p-2 rounded-xl border border-border shadow-2xs backdrop-blur-xs w-full sm:w-auto mt-4 sm:mt-0">
-                    <div class="relative w-full sm:w-56">
-                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input v-model="search" type="text" placeholder="Cari no. resep / pasien..." class="w-full h-9 pl-9 pr-9 bg-background border border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" />
+                <!-- Baris 2: Search Input & Tombol Pintas Penjualan Bebas (OTC) -->
+                <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full pt-1">
+                    <div class="relative flex-1 w-full">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input 
+                            v-model="search" 
+                            type="text" 
+                            placeholder="Cari no. resep, nama pasien, atau dokter..." 
+                            class="w-full h-9 pl-9 pr-9 bg-slate-50 dark:bg-background border border-slate-200 dark:border-input rounded-lg text-xs font-medium text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 transition-all" 
+                        />
                         <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                            <button v-if="search" type="button" @click="clearSearch" class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer" title="Hapus pencarian">
-                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            <button 
+                                v-if="search" 
+                                type="button" 
+                                @click="clearSearch" 
+                                class="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                                title="Hapus pencarian"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
                         </div>
                     </div>
-                    
-                    <button class="h-9 px-3.5 inline-flex items-center gap-2 border border-input bg-background hover:bg-muted text-muted-foreground rounded-lg text-xs font-medium transition-colors shadow-2xs w-full sm:w-auto justify-center cursor-not-allowed opacity-80" title="Fitur scanner sedang dalam pengembangan">
-                        <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                        Scan Barcode
-                    </button>
+
+                    <Link 
+                        :href="route('control.kasir.otc.index')"
+                        class="h-9 px-3.5 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors shrink-0 w-full sm:w-auto cursor-pointer"
+                        title="Buka Kasir Penjualan Langsung OTC"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>Kasir Obat Bebas (OTC)</span>
+                    </Link>
+                </div>
+            </div>
+
+            <!-- SISI KANAN: 2 LIVE METRIK KARTU BERDAMPINGAN (lg:col-span-4) -->
+            <div class="lg:col-span-4 grid grid-cols-2 gap-2.5">
+                <!-- Card 1: Antrean Resep Menunggu Bayar -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            ANTREAN RESEP
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-1 truncate">
+                        <span class="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+                            {{ totalPrescriptions }}<span class="text-xs sm:text-sm font-normal text-muted-foreground ml-1">Resep</span>
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                        Siap diproses bayar
+                    </p>
+                </div>
+
+                <!-- Card 2: Kas Laci Fisik (Tunai) -->
+                <div class="bg-white dark:bg-card border border-slate-200/80 dark:border-border rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between h-full">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
+                            KAS LACI FISIK
+                        </span>
+                        <div class="w-6 h-6 rounded-full bg-slate-50 dark:bg-muted flex items-center justify-center text-slate-600 dark:text-muted-foreground shrink-0">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="5" width="20" height="14" rx="2" />
+                                <line x1="2" y1="10" x2="22" y2="10" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="my-1 truncate">
+                        <span class="text-base sm:text-lg lg:text-xl font-bold tracking-tight text-slate-900 dark:text-foreground leading-none">
+                            {{ formatRupiah(shiftSummary.totalTunai) }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-400 dark:text-muted-foreground truncate">
+                        Uang fisik shift ini
+                    </p>
                 </div>
             </div>
         </div>
 
-        <!-- Antrian Pembayaran -->
-        <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden no-print">
-            <div class="p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <!-- Antrean Resep Siap Bayar -->
+        <section class="bg-card rounded-xl border border-border shadow-2xs overflow-hidden no-print">
+            <div class="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-bold tracking-tight text-foreground">Antrian Resep Siap Bayar</h2>
-                    <p class="text-xs text-muted-foreground mt-0.5">Daftar resep yang sudah selesai diracik dan menunggu pembayaran.</p>
+                    <h2 class="text-base font-bold tracking-tight text-foreground">Antrean Resep Siap Bayar</h2>
+                    <p class="text-xs text-muted-foreground mt-0.5">Daftar resep yang sudah selesai diracik dan menunggu penyelesaian pembayaran pasien.</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div class="bg-primary/10 border border-primary/20 text-primary font-medium h-9 px-3.5 rounded-md text-xs flex items-center justify-center shrink-0">
-                        {{ totalPrescriptions }} Menunggu
+                    <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-semibold h-8 px-3 rounded-md text-xs flex items-center justify-center shrink-0">
+                        {{ totalPrescriptions }} Antrean Aktif
                     </div>
                 </div>
             </div>
 
-            <div v-if="activePrescriptions.length === 0" class="p-12 text-center text-muted-foreground text-xs font-medium">
-                Belum ada resep yang berstatus Siap Diambil saat ini.
+            <!-- Zen Empty State -->
+            <div v-if="activePrescriptions.length === 0" class="py-12 px-6 flex flex-col items-center justify-center text-center">
+                <div class="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3 shadow-2xs">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-sm font-semibold text-foreground">Semua Antrean Resep Selesai</h3>
+                <p class="text-xs text-muted-foreground mt-1 max-w-sm">
+                    Tidak ada resep dokter yang menunggu pembayaran saat ini. Kasir siap melayani antrean resep baru atau penjualan obat bebas (OTC).
+                </p>
             </div>
 
             <div v-else class="overflow-x-auto">
@@ -282,71 +383,93 @@ const submitVoid = () => {
             </div>
         </section>
 
-        <!-- Ringkasan Shift Kasir (X-Report) -->
-        <section id="shift-report-print" class="bg-card rounded-lg border border-border shadow-sm p-5">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+        <!-- BUKU KAS & RIWAYAT TRANSAKSI SHIFT (INTEGRATED & BEBAS DUPLIKASI) -->
+        <section id="shift-report-print" class="bg-card rounded-xl border border-border shadow-2xs overflow-hidden">
+            <!-- Header Bar: Judul, Date Range Picker, & Tombol Cetak Slip -->
+            <div class="p-4 sm:p-5 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-muted/20">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                        Rp
+                    <div class="w-9 h-9 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-foreground">Ringkasan Kas Shift Berjalan</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi transaksi kasir aktif pada periode {{ startDate === endDate ? formatDate(startDate) : formatDate(startDate) + ' s/d ' + formatDate(endDate) }}.</p>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-bold tracking-tight text-foreground">Buku Kas & Riwayat Transaksi</h2>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground border border-slate-200/60 dark:border-border">Shift Berjalan</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-0.5">Rekapitulasi omzet penjualan dan riwayat nota kasir periode {{ startDate === endDate ? formatDate(startDate) : formatDate(startDate) + ' s/d ' + formatDate(endDate) }}.</p>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    @click="printShiftReport"
-                    class="no-print inline-flex items-center gap-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold h-9 px-3.5 rounded-md border border-border transition-colors shadow-sm self-start sm:self-auto"
-                >
-                    <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                    </svg>
-                    Cetak Slip Shift
-                </button>
-            </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-                <div class="p-3.5 rounded-md bg-muted/40 border border-border/60">
-                    <span class="text-xs text-muted-foreground font-medium block">Total Omzet Shift</span>
-                    <span class="text-base font-bold text-foreground mt-1 block">{{ formatRupiah(shiftSummary.totalOmzet) }}</span>
-                    <span class="text-[11px] text-muted-foreground mt-0.5 block">{{ shiftSummary.count }} transaksi lunas</span>
-                </div>
-                <div class="p-3.5 rounded-md bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40">
-                    <span class="text-xs text-emerald-700 dark:text-emerald-400 font-medium block">Penerimaan Tunai (Cash)</span>
-                    <span class="text-base font-bold text-emerald-700 dark:text-emerald-300 mt-1 block">{{ formatRupiah(shiftSummary.totalTunai) }}</span>
-                    <span class="text-[11px] text-emerald-600/80 dark:text-emerald-400/70 mt-0.5 block">Uang fisik laci kasir</span>
-                </div>
-                <div class="p-3.5 rounded-md bg-sky-50/50 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-800/40">
-                    <span class="text-xs text-sky-700 dark:text-sky-400 font-medium block">Non-Tunai (QRIS / Transfer)</span>
-                    <span class="text-base font-bold text-sky-700 dark:text-sky-300 mt-1 block">{{ formatRupiah(shiftSummary.totalNonTunai) }}</span>
-                    <span class="text-[11px] text-sky-600/80 dark:text-sky-400/70 mt-0.5 block">Settlement digital</span>
-                </div>
-                <div class="p-3.5 rounded-md bg-muted/40 border border-border/60">
-                    <span class="text-xs text-muted-foreground font-medium block">Transaksi Batal (Void)</span>
-                    <span class="text-base font-bold text-foreground mt-1 block">{{ shiftSummary.cancelledCount }} Nota</span>
-                    <span class="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5 block font-medium" v-if="shiftSummary.cancelledCount > 0">Stok telah diretur</span>
-                    <span class="text-[11px] text-muted-foreground mt-0.5 block" v-else>Tidak ada pembatalan</span>
-                </div>
-            </div>
-        </section>
+                <div class="no-print flex flex-wrap items-center gap-2.5 self-start lg:self-center">
+                    <!-- Date Picker Filter -->
+                    <div class="flex items-center gap-1.5 bg-background rounded-lg border border-input px-2.5 h-9 shadow-2xs">
+                        <svg class="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <input type="date" v-model="startDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Awal" />
+                        <span class="text-muted-foreground text-xs font-medium">-</span>
+                        <input type="date" v-model="endDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Akhir" />
+                    </div>
 
-        <!-- Riwayat Transaksi -->
-        <section class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-border flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                    <h2 class="text-lg font-bold tracking-tight text-foreground">Riwayat Transaksi</h2>
-                    <p class="text-xs text-muted-foreground mt-0.5">Daftar transaksi yang sudah Anda selesaikan berdasarkan tanggal.</p>
-                </div>
-                <div class="no-print shrink-0 flex items-center gap-2 bg-background rounded-md border border-input px-2 h-9">
-                    <input type="date" v-model="startDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Awal" />
-                    <span class="text-muted-foreground text-xs font-medium">-</span>
-                    <input type="date" v-model="endDate" class="border-none bg-transparent focus:outline-none text-xs font-medium text-foreground h-full cursor-pointer" title="Tanggal Akhir" />
+                    <!-- Cetak Slip Shift Button -->
+                    <button
+                        type="button"
+                        @click="printShiftReport"
+                        class="inline-flex items-center gap-1.5 bg-background hover:bg-muted text-foreground text-xs font-medium h-9 px-3.5 rounded-lg border border-input transition-colors shadow-2xs cursor-pointer"
+                        title="Cetak X-Report / Slip Rekap Shift"
+                    >
+                        <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        <span>Cetak Slip Shift</span>
+                    </button>
                 </div>
             </div>
 
-            <div v-if="activeSales.length === 0" class="p-12 text-center text-muted-foreground text-xs font-medium">
-                Belum ada transaksi pada tanggal tersebut.
+            <!-- Integrated Micro Stat Ribbon (Fintech-Grade, Zero Duplikasi) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-card">
+                <!-- Stat 1: Total Omzet Penjualan -->
+                <div class="p-3.5 sm:px-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-semibold text-muted-foreground block uppercase tracking-wider font-sans">Total Omzet Shift</span>
+                        <span class="text-base sm:text-lg font-bold font-sans tracking-tight text-foreground mt-0.5 block">{{ formatRupiah(shiftSummary.totalOmzet) }}</span>
+                    </div>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border font-sans">
+                        {{ shiftSummary.count }} Lunas
+                    </span>
+                </div>
+
+                <!-- Stat 2: Non-Tunai (QRIS / EDC) -->
+                <div class="p-3.5 sm:px-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-semibold text-sky-600 dark:text-sky-400 block uppercase tracking-wider font-sans">Non-Tunai (QRIS / Transfer)</span>
+                        <span class="text-base sm:text-lg font-bold font-sans tracking-tight text-sky-700 dark:text-sky-300 mt-0.5 block">{{ formatRupiah(shiftSummary.totalNonTunai) }}</span>
+                    </div>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-sans">
+                        Digital
+                    </span>
+                </div>
+
+                <!-- Stat 3: Transaksi Batal (Void) -->
+                <div class="p-3.5 sm:px-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-semibold text-muted-foreground block uppercase tracking-wider font-sans">Transaksi Batal (Void)</span>
+                        <span class="text-base sm:text-lg font-bold font-sans tracking-tight text-foreground mt-0.5 block">{{ shiftSummary.cancelledCount }} Nota</span>
+                    </div>
+                    <span 
+                        class="text-xs font-medium px-2 py-0.5 rounded-md border font-sans"
+                        :class="shiftSummary.cancelledCount > 0 ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800' : 'bg-muted text-muted-foreground border-border'"
+                    >
+                        {{ shiftSummary.cancelledCount > 0 ? 'Stok Diretur' : 'Nihil' }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Tabel Riwayat Transaksi -->
+            <div v-if="activeSales.length === 0" class="py-12 px-6 text-center text-muted-foreground text-xs font-medium">
+                Belum ada transaksi penjualan pada rentang tanggal yang dipilih.
             </div>
 
             <div v-else class="overflow-x-auto">

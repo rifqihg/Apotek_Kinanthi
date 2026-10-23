@@ -102,6 +102,7 @@ const toggleRow = (id) => {
 // State for editing medicine classification & threshold
 const editingMedicine = ref(null);
 const editForm = useForm({
+    nama_obat: '',
     classification: 'obat_keras',
     threshold_min: 10,
     deskripsi: '',
@@ -109,6 +110,7 @@ const editForm = useForm({
 
 const openEditModal = (medicine) => {
     editingMedicine.value = medicine;
+    editForm.nama_obat = medicine.nama_obat || '';
     editForm.classification = medicine.classification || 'obat_keras';
     editForm.threshold_min = medicine.threshold_min ?? 10;
     editForm.deskripsi = medicine.deskripsi || '';
@@ -133,7 +135,7 @@ const submitEditMedicine = () => {
 <template>
     <Head :title="title" />
 
-    <div class="space-y-6 animate-in fade-in duration-700">
+    <div class="space-y-8 animate-in fade-in duration-700">
         <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             <!-- SISI KIRI: KONSOL OPERASIONAL (lg:col-span-8) -->
@@ -521,8 +523,16 @@ const submitEditMedicine = () => {
                             <button @click="closeEditModal" class="text-muted-foreground hover:text-foreground text-lg leading-none">&times;</button>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nama Obat</p>
-                            <p class="font-semibold text-sm text-foreground mt-0.5">{{ editingMedicine.nama_obat }}</p>
+                            <label class="block text-xs font-semibold text-foreground mb-1">
+                                Nama Obat <span class="text-rose-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                v-model="editForm.nama_obat" 
+                                required 
+                                class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs" 
+                                placeholder="Nama obat..."
+                            />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-foreground mb-1">Klasifikasi Golongan Obat (BPOM / SIPNAP)</label>

@@ -190,17 +190,40 @@ class AdminInventoryController extends Controller
 
     public function distribution(Request $request)
     {
-        $kasirs = User::where('role', 'kasir')->get(['id', 'name']);
+        $kasirs = User::where('role', 'kasir')->select(['id', 'name'])->get();
         $selectedKasirId = $request->query('kasir_id');
         if (!$selectedKasirId && $kasirs->isNotEmpty()) {
             $selectedKasirId = $kasirs->first()->id;
         }
-        $search = $request->query('search', '');
         
-        $medicines = collect();
+        $medicines = [];
+
         if ($selectedKasirId) {
-            $query = Medicine::with([
-                'category',
+            $hasStockScope = function($q) use ($selectedKasirId) {
+                $q->where('stock_on_hand', '>', 0)
+                  ->where(function($sq) use ($selectedKasirId) {
+                      $sq->where('location_type', 'gudang')
+                         ->orWhere(function($ssq) use ($selectedKasirId) {
+                             $ssq->where('location_type', 'kasir')->where('location_id', $selectedKasirId);
+                         });
+                  });
+            };
+
+            // Select only necessary medicine columns (avoid hydrating unused bloat)
+            $query = Medicine::select([
+                'id',
+                'nama_obat',
+                'kode_obat',
+                'barcode',
+                'foto_obat',
+                'satuan_stok',
+                'base_unit',
+                'satuan_besar',
+                'rasio_konversi',
+                'classification',
+                'kategori'
+            ])
+            ->with([
                 'latestIncomingStock',
                 'warehouseInventories' => function($q) use ($selectedKasirId) {
                     $q->where('stock_on_hand', '>', 0)
@@ -210,32 +233,15 @@ class AdminInventoryController extends Controller
                                  $ssq->where('location_type', 'kasir')->where('location_id', $selectedKasirId);
                              });
                       })
-                      ->orderBy('expired_date', 'asc');
+                      ->select(['id', 'medicine_id', 'location_type', 'location_id', 'stock_on_hand']);
                 }
-            ])->whereHas('warehouseInventories', function($q) use ($selectedKasirId) {
-                $q->where('stock_on_hand', '>', 0)
-                  ->where(function($sq) use ($selectedKasirId) {
-                      $sq->where('location_type', 'gudang')
-                         ->orWhere(function($ssq) use ($selectedKasirId) {
-                             $ssq->where('location_type', 'kasir')->where('location_id', $selectedKasirId);
-                         });
-                  });
-            });
-            
-            if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('nama_obat', 'like', "%{$search}%")
-                      ->orWhere('kode_obat', 'like', "%{$search}%")
-                      ->orWhereHas('warehouseInventories', function($sq) use ($search) {
-                          $sq->where('batch_no', 'like', "%{$search}%");
-                      });
-                });
-            }
-            
-            $medicinesData = $query->paginate(12)->withQueryString();
-            
-            // Map the medicines to include aggregate totals, base unit, and packaging info
-            $medicinesData->getCollection()->transform(function ($medicine) {
+            ])
+            ->whereHas('warehouseInventories', $hasStockScope);
+
+            $medicinesCollection = $query->orderBy('nama_obat', 'asc')->get();
+
+            // Map and reduce payload footprint
+            $medicinesCollection->transform(function ($medicine) {
                 $gudangStock = (float) $medicine->warehouseInventories->where('location_type', 'gudang')->sum('stock_on_hand');
                 $kasirStock = (float) $medicine->warehouseInventories->where('location_type', 'kasir')->sum('stock_on_hand');
                 
@@ -244,7 +250,7 @@ class AdminInventoryController extends Controller
                 $medicine->stok_kasir = $kasirStock;
                 $medicine->satuan_terkecil = $satuanTerkecil;
                 
-                // Ambil data kemasan dari incoming_stock terakhir atau master obat
+                // Kemasan format
                 $latestIncoming = $medicine->latestIncomingStock;
                 $kemasan = $satuanTerkecil;
                 if ($latestIncoming) {
@@ -260,17 +266,20 @@ class AdminInventoryController extends Controller
                 }
                 $medicine->kemasan = $kemasan;
                 
+                // Prune raw relation collections to trim network transfer
+                unset($medicine->warehouseInventories);
+                unset($medicine->latestIncomingStock);
+
                 return $medicine;
             });
-            
-            $medicines = $medicinesData;
+
+            $medicines = $medicinesCollection;
         }
 
         return Inertia::render('Control/Admin/Distribution', [
             'kasirs' => $kasirs,
-            'selectedKasirId' => $selectedKasirId,
+            'selectedKasirId' => $selectedKasirId ? (int) $selectedKasirId : null,
             'medicines' => $medicines,
-            'filters' => ['search' => $search]
         ]);
     }
 

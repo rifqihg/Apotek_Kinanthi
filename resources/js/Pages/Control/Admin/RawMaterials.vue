@@ -209,7 +209,7 @@ const deleteMaterial = (m) => {
 
 <template>
 <Head title="Data Bahan Baku" />
-<div class="space-y-6">
+<div class="space-y-8">
     <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
         <!-- SISI KIRI: KONSOL OPERASIONAL (lg:col-span-8) -->
@@ -485,7 +485,7 @@ const deleteMaterial = (m) => {
 <!-- Modal Add / Edit -->
 <Teleport to="body">
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" @click.self="closeModal">
-        <div class="bg-card rounded-lg shadow-lg w-full max-w-lg overflow-hidden border border-border">
+        <div class="bg-card rounded-lg shadow-lg w-full max-w-2xl overflow-hidden border border-border">
             <div class="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-semibold text-foreground tracking-tight leading-none mb-1">{{ editingMaterial ? 'Edit Bahan Baku' : 'Tambah Bahan Baku Baru' }}</h3>
@@ -549,24 +549,55 @@ const deleteMaterial = (m) => {
                     <div class="col-span-2 pt-3 border-t border-border mt-2">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Konversi Satuan & Ekonomi</p>
                     </div>
-                    <div class="col-span-2 grid grid-cols-3 gap-4">
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Satuan Beli <span class="text-destructive">*</span></label>
-                            <select v-model="form.satuan_pembelian" :disabled="!form.bentuk_sediaan" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground disabled:opacity-50">
+                    <div class="col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3.5 items-start">
+                        <div class="space-y-1.5 flex flex-col">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider h-5 flex items-center whitespace-nowrap">
+                                <span>Satuan Beli</span>
+                                <span class="text-destructive ml-0.5">*</span>
+                            </label>
+                            <select 
+                                v-model="form.satuan_pembelian" 
+                                :disabled="!form.bentuk_sediaan" 
+                                required 
+                                class="w-full h-9 pl-3 pr-8 border border-input bg-background rounded-md text-xs font-medium text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer"
+                            >
                                 <option value="" disabled>Pilih Satuan...</option>
                                 <option v-for="unit in availableSatuan" :key="unit" :value="unit">{{ unit }}</option>
                             </select>
                         </div>
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Satuan Pakai (Base) <span class="text-destructive">*</span></label>
-                            <select v-model="form.satuan_dasar_penggunaan" :disabled="!form.bentuk_sediaan" required class="w-full h-9 px-3 border border-input bg-background rounded-md text-sm text-foreground disabled:opacity-50">
+                        <div class="space-y-1.5 flex flex-col">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider h-5 flex items-center whitespace-nowrap">
+                                <span>Satuan Pakai (Base)</span>
+                                <span class="text-destructive ml-0.5">*</span>
+                            </label>
+                            <select 
+                                v-model="form.satuan_dasar_penggunaan" 
+                                :disabled="!form.bentuk_sediaan" 
+                                required 
+                                class="w-full h-9 pl-3 pr-8 border border-input bg-background rounded-md text-xs font-medium text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors cursor-pointer"
+                            >
                                 <option value="" disabled>Pilih Satuan Pakai...</option>
                                 <option v-for="unit in availableSatuan" :key="unit" :value="unit">{{ unit }}</option>
                             </select>
                         </div>
-                        <div class="space-y-1.5">
-                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider">Rasio Konversi <span v-if="autoRatioMsg" :class="isRatioLocked ? 'text-emerald-600' : 'text-amber-600'" class="text-[10px] ml-1 lowercase font-bold">{{ autoRatioMsg }}</span><span v-else class="text-destructive">*</span></label>
-                            <input v-model="form.rasio_konversi" type="number" min="1" step="any" :readonly="isRatioLocked" required :class="['w-full h-9 px-3 border border-input rounded-md text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors', isRatioLocked ? 'bg-muted opacity-80 cursor-not-allowed border-transparent font-bold' : 'bg-background hover:border-primary']" placeholder="Contoh: 100">
+                        <div class="space-y-1.5 flex flex-col">
+                            <label class="text-xs font-semibold text-foreground uppercase tracking-wider h-5 flex items-center justify-between whitespace-nowrap">
+                                <span class="flex items-center">
+                                    <span>Rasio Konversi</span>
+                                    <span v-if="!autoRatioMsg" class="text-destructive ml-0.5">*</span>
+                                </span>
+                                <span v-if="autoRatioMsg" :class="isRatioLocked ? 'text-emerald-600' : 'text-amber-600'" class="text-[10px] ml-1 lowercase font-bold">{{ autoRatioMsg }}</span>
+                            </label>
+                            <input 
+                                v-model="form.rasio_konversi" 
+                                type="number" 
+                                min="1" 
+                                step="any" 
+                                :readonly="isRatioLocked" 
+                                required 
+                                :class="['w-full h-9 px-3 border border-input rounded-md text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors', isRatioLocked ? 'bg-muted opacity-80 cursor-not-allowed border-transparent font-bold' : 'bg-background hover:border-primary']" 
+                                placeholder="Contoh: 100"
+                            >
                         </div>
                     </div>
                     

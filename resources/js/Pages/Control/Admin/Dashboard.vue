@@ -122,11 +122,13 @@ const getThresholdUnits = (item) => getFormattedUnits(item, item?.batas_aman);
 <template>
     <Head title="Dashboard Admin" />
 
-    <div class="space-y-6">
-        <!-- Ringkasan Hari Ini -->
-        <div class="space-y-3">
-            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ringkasan Hari Ini</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="space-y-8">
+        <!-- OPERATIONAL KPI DECK (ROW 1 & ROW 2) -->
+        <div class="space-y-4">
+            <!-- Row 1: Ringkasan Operasional Hari Ini -->
+            <div class="space-y-3">
+                <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ringkasan Operasional Hari Ini</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Penjualan Kasir (Blue) -->
                 <Link :href="route('control.admin.reports.cashier-monitoring')" prefetch cache-for="1m" class="block focus:outline-none select-none">
                     <Card class="bg-card border-border shadow-sm transition-all duration-150 hover:border-blue-400/60 dark:hover:border-blue-500/50 active:scale-[0.985] active:brightness-95 cursor-pointer h-full">
@@ -334,6 +336,7 @@ const getThresholdUnits = (item) => getFormattedUnits(item, item?.batas_aman);
                 </Card>
             </Link>
         </div>
+    </div>
 
         <!-- Dashboard Charts: Decomposed Sub-Components -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -34,7 +34,7 @@ function printLabel() {
 
 <template>
     <Head :title="`Detail: ${submission.nama_racikan}`" />
-    <div class="space-y-6">
+    <div class="space-y-8">
         <!-- Back Button & Header -->
         <div class="flex flex-col gap-4">
             <div>

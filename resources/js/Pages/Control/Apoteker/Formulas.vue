@@ -218,7 +218,7 @@ function submit() {
 <template>
     <Head title="Formula Obat" />
 
-    <div class="space-y-6">
+    <div class="space-y-8">
         <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
@@ -492,32 +492,34 @@ function submit() {
                             <p class="text-xs text-muted-foreground">Belum ada bahan. Tambahkan komposisi racikan.</p>
                         </div>
                         
-                        <div v-for="(ing, index) in form.ingredients" :key="ing._key" class="flex items-start gap-2 bg-muted/10 p-2 border border-border rounded-lg">
-                            <!-- Dropdown Pilih Obat/Bahan -->
-                            <div class="flex-1">
-                                <select v-model="ing.source_id" @change="updateUnit(index)" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground focus:ring-1 focus:ring-ring outline-none" required>
-                                    <option value="" disabled>Pilih {{ ing.source_type === 'medicine' ? 'Obat Jadi' : 'Bahan Baku' }}...</option>
-                                    <template v-if="ing.source_type === 'medicine'">
-                                        <option v-for="med in medicines" :key="med.id" :value="med.id">{{ med.nama_obat }}</option>
-                                    </template>
-                                    <template v-else>
-                                        <option v-for="rm in rawMaterials" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }}</option>
-                                    </template>
-                                </select>
-                            </div>
-                            
-                            <!-- Input Kuantitas -->
-                            <div class="w-40 sm:w-44 relative flex-shrink-0 flex items-center">
-                                <input v-model="ing.qty_required" type="number" min="0.01" step="any" placeholder="Qty" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground pr-[92px] pl-2 focus:ring-1 focus:ring-ring outline-none" required />
-                                <div class="absolute right-1 flex items-center justify-center pointer-events-none">
-                                    <span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider truncate max-w-[85px]" :title="ing.unit_label || '-'">{{ ing.unit_label || '-' }}</span>
+                        <div v-else class="space-y-2.5">
+                            <div v-for="(ing, index) in form.ingredients" :key="ing._key" class="flex items-start gap-2 bg-muted/10 p-2 border border-border rounded-lg">
+                                <!-- Dropdown Pilih Obat/Bahan -->
+                                <div class="flex-1">
+                                    <select v-model="ing.source_id" @change="updateUnit(index)" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground focus:ring-1 focus:ring-ring outline-none" required>
+                                        <option value="" disabled>Pilih {{ ing.source_type === 'medicine' ? 'Obat Jadi' : 'Bahan Baku' }}...</option>
+                                        <template v-if="ing.source_type === 'medicine'">
+                                            <option v-for="med in medicines" :key="med.id" :value="med.id">{{ med.nama_obat }}</option>
+                                        </template>
+                                        <template v-else>
+                                            <option v-for="rm in rawMaterials" :key="rm.id" :value="rm.id">{{ rm.nama_bahan }}</option>
+                                        </template>
+                                    </select>
                                 </div>
+                                
+                                <!-- Input Kuantitas -->
+                                <div class="w-40 sm:w-44 relative flex-shrink-0 flex items-center">
+                                    <input v-model="ing.qty_required" type="number" min="0.01" step="any" placeholder="Qty" class="w-full h-8 bg-background border border-input rounded text-xs text-foreground pr-[92px] pl-2 focus:ring-1 focus:ring-ring outline-none" required />
+                                    <div class="absolute right-1 flex items-center justify-center pointer-events-none">
+                                        <span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider truncate max-w-[85px]" :title="ing.unit_label || '-'">{{ ing.unit_label || '-' }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hapus Baris -->
+                                <button type="button" @click="removeIngredient(index)" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-red-500 hover:bg-red-50 rounded transition-colors" title="Hapus">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
                             </div>
-                            
-                            <!-- Hapus Baris -->
-                            <button type="button" @click="removeIngredient(index)" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-red-500 hover:bg-red-50 rounded transition-colors" title="Hapus">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            </button>
                         </div>
                         <p v-if="form.errors.ingredients" class="text-red-500 text-xs mt-1">{{ form.errors.ingredients }}</p>
                     </div>

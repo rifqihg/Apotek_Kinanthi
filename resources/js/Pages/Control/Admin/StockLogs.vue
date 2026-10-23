@@ -28,6 +28,11 @@ const switchTab = (tab) => {
         url.searchParams.set('tab', tab);
         window.history.replaceState({}, '', url);
     }
+    if (tab === 'audit' && (!props.audits?.data || !props.audits.data.length)) {
+        applyAuditFilters();
+    } else if (tab === 'mutasi' && (!props.logs?.data || !props.logs.data.length)) {
+        applyMutationFilters();
+    }
 };
 
 // ─── TAB 1: MUTASI STOK STATE & LIVE FILTER ──────────────────
@@ -271,7 +276,7 @@ const formatAuditDate = (dateStr) => {
 
 <template>
 <Head :title="activeTab === 'mutasi' ? 'Riwayat Mutasi Stok' : 'Jejak Audit Aktivitas'" />
-<div class="space-y-6">
+<div class="space-y-8">
     <!-- BENTO COCKPIT HEADER -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
         <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->
@@ -484,16 +489,16 @@ const formatAuditDate = (dateStr) => {
         <!-- Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <Table class="w-full table-fixed min-w-[980px]">
+                <Table class="w-full min-w-[1050px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-[160px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
-                            <TableHead class="w-[75px] py-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jenis</TableHead>
-                            <TableHead class="w-auto min-w-[200px] py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Item (Obat / Bahan)</TableHead>
-                            <TableHead class="w-[185px] py-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
-                            <TableHead class="w-[140px] py-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
-                            <TableHead class="w-[145px] py-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Mutasi</TableHead>
-                            <TableHead class="w-[195px] py-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Sisa Stok</TableHead>
+                            <TableHead class="w-[160px] min-w-[150px] py-2.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="w-[125px] min-w-[115px] py-2.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Jenis</TableHead>
+                            <TableHead class="min-w-[240px] py-2.5 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">Item (Obat / Bahan)</TableHead>
+                            <TableHead class="w-[150px] min-w-[140px] py-2.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Batch</TableHead>
+                            <TableHead class="w-[150px] min-w-[140px] py-2.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left whitespace-nowrap">Referensi</TableHead>
+                            <TableHead class="w-[130px] min-w-[120px] py-2.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Qty Mutasi</TableHead>
+                            <TableHead class="w-[160px] min-w-[150px] py-2.5 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center whitespace-nowrap">Sisa Stok</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -507,20 +512,20 @@ const formatAuditDate = (dateStr) => {
                         </TableRow>
                         <TableRow v-for="l in (activeLogs.data || [])" :key="l.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <!-- Waktu -->
-                            <TableCell class="w-[160px] py-2.5 px-3 align-middle text-foreground text-sm font-medium tabular-nums whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-foreground text-sm font-medium tabular-nums whitespace-nowrap">
                                 {{ new Date(l.created_at).toLocaleString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) }}
                             </TableCell>
                             <!-- Jenis -->
-                            <TableCell class="w-[75px] py-2.5 px-2 align-middle text-center">
-                                <span :class="getLogTypeClass(displayType(l))" class="px-2.5 py-0.5 rounded-md text-xs font-medium border inline-block">
+                            <TableCell class="py-2.5 px-3 align-middle text-center whitespace-nowrap">
+                                <span :class="getLogTypeClass(displayType(l))" class="px-2.5 py-1 rounded-md text-xs font-semibold border inline-flex items-center justify-center">
                                     {{ displayType(l) }}
                                 </span>
                             </TableCell>
                             <!-- Item -->
-                            <TableCell class="w-auto min-w-[200px] py-2.5 px-3 align-middle text-left">
-                                <div class="flex flex-col min-w-0">
-                                    <div class="flex items-center gap-2 truncate min-w-0">
-                                        <span class="text-sm font-medium text-foreground leading-tight truncate" :title="l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || l.item?.nama_produk || '-'">
+                            <TableCell class="py-2.5 px-4 align-middle text-left">
+                                <div class="flex flex-col min-w-0 max-w-[320px]">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-foreground leading-snug break-words" :title="l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || l.item?.nama_produk || '-'">
                                             {{ l.inventory?.medicine?.nama_obat || l.rawMaterialStock?.rawMaterial?.nama_bahan || l.item?.nama_obat || l.item?.nama_bahan || l.item?.nama_produk || '-' }}
                                         </span>
                                         <span v-if="l.inventory?.medicine?.classification === 'narkotika' || l.inventory?.medicine?.classification === 'psikotropika'" 
@@ -537,18 +542,18 @@ const formatAuditDate = (dateStr) => {
                                 </div>
                             </TableCell>
                             <!-- Batch -->
-                            <TableCell class="w-[185px] py-2.5 px-1.5 align-middle text-center text-xs sm:text-[13px] font-medium text-foreground tracking-tight whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-center text-xs sm:text-[13px] font-medium text-foreground tracking-tight whitespace-nowrap">
                                 {{ l.inventory?.batch_no || l.rawMaterialStock?.batch_no || l.item?.batch_no || l.item?.kode_bahan || l.rawMaterialStock?.rawMaterial?.kode_bahan || '-' }}
                             </TableCell>
                             <!-- Referensi -->
-                            <TableCell class="w-[140px] py-2.5 px-2 align-middle">
+                            <TableCell class="py-2.5 px-3 align-middle">
                                 <div class="flex flex-col">
                                     <span class="text-xs font-medium text-foreground leading-tight">{{ formatReference(l).title }}</span>
                                     <span class="text-[11px] text-muted-foreground leading-normal mt-0.5 break-words whitespace-normal">{{ formatReference(l).id }}</span>
                                 </div>
                             </TableCell>
                             <!-- Qty Mutasi -->
-                            <TableCell class="w-[145px] py-2.5 px-2 align-middle text-center tabular-nums whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums whitespace-nowrap">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
                                 <div v-if="l.inventory?.medicine" class="flex items-center justify-center gap-1 flex-nowrap whitespace-nowrap">
                                     <template v-for="(b, i) in getMutationUnits(l.quantity, l.inventory)" :key="i">
@@ -569,7 +574,7 @@ const formatAuditDate = (dateStr) => {
                                 </div>
                             </TableCell>
                             <!-- Sisa Stok -->
-                            <TableCell class="w-[195px] py-2.5 px-2 align-middle text-center tabular-nums whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-center tabular-nums whitespace-nowrap">
                                 <!-- Hierarchical Multi-unit display for Medicine -->
                                 <div v-if="l.inventory?.medicine" class="flex items-center justify-center gap-1 flex-nowrap whitespace-nowrap">
                                     <template v-for="(b, i) in getMutationUnits(l.balance_after, l.inventory)" :key="i">
@@ -608,15 +613,15 @@ const formatAuditDate = (dateStr) => {
         <!-- Audit Table -->
         <div class="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
             <div class="overflow-x-auto">
-                <Table class="w-full table-fixed min-w-[980px]">
+                <Table class="w-full min-w-[1100px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-[160px] py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Waktu</TableHead>
-                            <TableHead class="w-[160px] py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Pengguna</TableHead>
-                            <TableHead class="w-[110px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tindakan</TableHead>
-                            <TableHead class="w-auto min-w-[250px] py-2 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deskripsi Aktivitas</TableHead>
-                            <TableHead class="w-[140px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Model Target</TableHead>
-                            <TableHead class="w-[100px] py-2 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Record ID</TableHead>
+                            <TableHead class="w-[160px] min-w-[150px] py-2.5 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="w-[160px] min-w-[150px] py-2.5 px-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Pengguna</TableHead>
+                            <TableHead class="w-[215px] min-w-[200px] py-2.5 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Tindakan</TableHead>
+                            <TableHead class="min-w-[320px] py-2.5 px-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deskripsi Aktivitas</TableHead>
+                            <TableHead class="w-[130px] min-w-[120px] py-2.5 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Model Target</TableHead>
+                            <TableHead class="w-[90px] min-w-[80px] py-2.5 px-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Record ID</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -630,32 +635,32 @@ const formatAuditDate = (dateStr) => {
                         </TableRow>
                         <TableRow v-for="a in (activeAudits.data || [])" :key="a.id" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <!-- Waktu -->
-                            <TableCell class="w-[160px] py-2.5 px-3 align-middle text-foreground text-sm font-medium tabular-nums whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-foreground text-sm font-medium tabular-nums whitespace-nowrap">
                                 {{ formatAuditDate(a.performed_at) }}
                             </TableCell>
                             <!-- Pengguna -->
-                            <TableCell class="w-[160px] py-2 px-3 align-middle whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle whitespace-nowrap">
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium text-foreground leading-tight">{{ a.user?.name || 'Sistem Otomatis' }}</span>
                                     <span class="text-xs text-muted-foreground uppercase tracking-wider leading-tight mt-0.5">{{ a.user?.role || 'SYSTEM' }}</span>
                                 </div>
                             </TableCell>
                             <!-- Aksi -->
-                            <TableCell class="w-[110px] py-2 px-3 align-middle text-center whitespace-nowrap">
-                                <span :class="getActionClass(a.action)" class="px-2 py-0.5 rounded text-xs font-medium border inline-block tracking-wider">
+                            <TableCell class="py-2.5 px-3 align-middle text-center whitespace-nowrap">
+                                <span :class="getActionClass(a.action)" class="px-2.5 py-1 rounded text-xs font-medium border inline-flex items-center justify-center font-mono tracking-normal">
                                     {{ a.action }}
                                 </span>
                             </TableCell>
                             <!-- Deskripsi -->
-                            <TableCell class="w-auto min-w-[250px] py-2 px-3 align-middle text-foreground font-normal">
-                                <span class="text-xs text-foreground line-clamp-2 block">{{ a.description }}</span>
+                            <TableCell class="py-2.5 px-4 align-middle text-foreground font-normal break-words">
+                                <span class="text-xs text-foreground leading-relaxed block">{{ a.description }}</span>
                             </TableCell>
                             <!-- Model Target -->
-                            <TableCell class="w-[140px] py-2 px-3 align-middle text-center text-xs text-muted-foreground font-mono whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-center text-xs text-muted-foreground font-mono whitespace-nowrap">
                                 {{ a.auditable_type ? a.auditable_type.split('\\').pop() : '-' }}
                             </TableCell>
                             <!-- Record ID -->
-                            <TableCell class="w-[100px] py-2 px-3 align-middle text-center text-xs font-mono text-muted-foreground whitespace-nowrap">
+                            <TableCell class="py-2.5 px-3 align-middle text-center text-xs font-mono text-muted-foreground whitespace-nowrap">
                                 {{ a.auditable_id || '-' }}
                             </TableCell>
                         </TableRow>

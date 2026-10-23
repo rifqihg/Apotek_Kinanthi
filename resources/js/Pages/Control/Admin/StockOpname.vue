@@ -269,7 +269,7 @@ const submit = () => {
 <template>
     <Head title="Stock Opname Admin" />
 
-    <div class="space-y-6">
+    <div class="space-y-8">
         <!-- BENTO COCKPIT HEADER -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             <!-- SISI KIRI: KONSOL OPERASIONAL & ACTION BAR (lg:col-span-8) -->

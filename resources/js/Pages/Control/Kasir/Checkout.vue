@@ -139,28 +139,28 @@ const submit = () => {
                 <div class="space-y-4">
                     <!-- Subtotal -->
                     <div class="flex justify-between items-center">
-                        <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subtotal</span>
+                        <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subtotal</span>
                         <span class="text-base font-bold text-foreground">{{ formatRupiah(subtotalAmount) }}</span>
                     </div>
 
                     <!-- Diskon -->
                     <div>
-                        <label class="block text-xs font-medium text-muted-foreground mb-1.5">Diskon (Rp)</label>
-                        <input type="number" v-model="form.discount_amount" class="h-9 w-full text-right text-sm bg-background border border-input rounded-md px-3 font-semibold text-destructive focus:outline-none focus:ring-1 focus:ring-ring" placeholder="0" min="0" step="0.01">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Diskon (Rp)</label>
+                        <input type="number" v-model="form.discount_amount" class="h-9 w-full text-right text-sm bg-background border border-input rounded-md px-3 font-semibold text-destructive focus:outline-none focus:ring-1 focus:ring-ring transition-colors" placeholder="0" min="0" step="0.01">
                     </div>
 
                     <!-- Total Tagihan -->
                     <div class="border-t border-border pt-3">
-                        <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 text-right">
-                            <p class="text-xs font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">Total Tagihan</p>
-                            <span class="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{{ formatRupiah(finalTotalAmount) }}</span>
+                        <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3.5 text-right">
+                            <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">Total Tagihan</p>
+                            <span class="text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">{{ formatRupiah(finalTotalAmount) }}</span>
                         </div>
                     </div>
 
                     <!-- Metode Bayar -->
                     <div>
-                        <label class="block text-xs font-medium text-muted-foreground mb-1.5">Metode Pembayaran</label>
-                        <select v-model="form.payment_method" class="h-9 w-full bg-background border border-input rounded-md px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Metode Pembayaran</label>
+                        <select v-model="form.payment_method" class="h-9 w-full bg-background border border-input rounded-md px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors">
                             <option value="tunai">Tunai</option>
                             <option value="transfer">Transfer Bank</option>
                             <option value="qris">QRIS</option>
@@ -169,14 +169,14 @@ const submit = () => {
 
                     <!-- Uang Diterima -->
                     <div>
-                        <label class="block text-xs font-medium text-muted-foreground mb-1.5">Uang Diterima (Rp)</label>
-                        <input type="number" v-model="form.paid_amount" class="h-10 w-full text-right text-base bg-background border border-input rounded-md px-3 font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="0" required min="0" step="0.01">
+                        <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Uang Diterima (Rp)</label>
+                        <input type="number" v-model="form.paid_amount" class="h-10 w-full text-right text-base bg-background border border-input rounded-md px-3 font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring tabular-nums transition-colors" placeholder="0" required min="0" step="0.01">
                     </div>
 
                     <!-- Kembalian -->
-                    <div class="flex justify-between items-end border-t border-border pt-3">
-                        <span class="text-xs font-medium text-muted-foreground">Kembalian</span>
-                        <span class="text-lg font-bold text-foreground">{{ formatRupiah(changeAmount) }}</span>
+                    <div class="flex justify-between items-end border-t border-border pt-3.5">
+                        <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kembalian</span>
+                        <span class="text-xl font-bold text-foreground tabular-nums">{{ formatRupiah(changeAmount) }}</span>
                     </div>
                 </div>
 

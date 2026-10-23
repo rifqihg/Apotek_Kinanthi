@@ -36,8 +36,7 @@ const updateProfile = () => {
 <template>
     <Head title="Pengaturan Profil" />
 
-    <div class="py-6">
-        <div class="max-w-4xl mx-auto space-y-6">
+    <div class="max-w-4xl mx-auto space-y-8">
             <!-- Header Section -->
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
@@ -167,5 +166,4 @@ const updateProfile = () => {
                 </div>
             </form>
         </div>
-    </div>
 </template>

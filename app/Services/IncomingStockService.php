@@ -25,6 +25,9 @@ class IncomingStockService
                 if (empty($item['medicine_id'])) {
                     $medicine = Medicine::create([
                         'nama_obat' => $item['new_medicine_name'],
+                        'barcode' => $item['barcode'] ?? null,
+                        'kfa_code' => $item['kfa_code'] ?? null,
+                        'nie' => $item['nie'] ?? null,
                         'kategori' => $item['new_medicine_kategori'] ?? null,
                         'satuan_besar' => $item['satuan_input'] ?? $item['new_medicine_satuan_besar'] ?? null,
                         'satuan_menengah' => $item['mid_unit'] ?? null,
@@ -42,8 +45,24 @@ class IncomingStockService
                     );
                 } else {
                     $medicine = Medicine::findOrFail($item['medicine_id']);
+                    $updates = [];
                     if (isset($item['min_stock_threshold']) && $item['min_stock_threshold'] !== null && $item['min_stock_threshold'] !== '') {
-                        $medicine->update(['threshold_min' => (int) $item['min_stock_threshold']]);
+                        $updates['threshold_min'] = (int) $item['min_stock_threshold'];
+                    }
+                    if (!empty($item['barcode']) && empty($medicine->barcode)) {
+                        $updates['barcode'] = $item['barcode'];
+                    }
+                    if (!empty($item['kfa_code']) && empty($medicine->kfa_code)) {
+                        $updates['kfa_code'] = $item['kfa_code'];
+                    }
+                    if (!empty($item['nie']) && empty($medicine->nie)) {
+                        $updates['nie'] = $item['nie'];
+                    }
+                    if (!empty($item['new_medicine_kategori']) && $medicine->kategori !== $item['new_medicine_kategori']) {
+                        $updates['kategori'] = $item['new_medicine_kategori'];
+                    }
+                    if (!empty($updates)) {
+                        $medicine->update($updates);
                     }
                 }
 
@@ -91,6 +110,12 @@ class IncomingStockService
                 $createdStocks[] = $stock;
             }
 
+            // ponytail: recalculate once per unique medicine, not once per item
+            $medicineIds = collect($createdStocks)->pluck('medicine_id')->unique();
+            foreach ($medicineIds as $mid) {
+                Medicine::find($mid)?->recalculateStock();
+            }
+
             AuditTrail::log($userId, 'STORE_INCOMING_STOCK',
                 "Admin menyimpan dan mengaktifkan Faktur {$data['faktur_no']} dengan " . count($createdStocks) . " item.",
                 IncomingStock::class, $createdStocks[0]->id ?? null
@@ -102,18 +127,16 @@ class IncomingStockService
 
     private function addToWarehouse(IncomingStock $stock, int $qty): void
     {
-        $wi = WarehouseInventory::firstOrCreate(
+        // ponytail: firstOrNew+save = 1 observer trigger for new rows (with correct qty, not 0)
+        $wi = WarehouseInventory::firstOrNew(
             ['medicine_id' => $stock->medicine_id, 'batch_no' => $stock->batch_no],
             ['expired_date' => $stock->expired_date, 'stock_on_hand' => 0, 'status' => 'active']
         );
-        
-        $wi->update([
-            'stock_on_hand' => $wi->stock_on_hand + $qty,
-            'incoming_stock_id' => $stock->id,
-            'transferred_at' => now(),
-            'status' => 'active'
-        ]);
 
-        $stock->medicine->recalculateStock();
+        $wi->stock_on_hand += $qty;
+        $wi->incoming_stock_id = $stock->id;
+        $wi->transferred_at = now();
+        $wi->status = 'active';
+        $wi->save();
     }
 }

@@ -419,7 +419,7 @@ const savePatient = async () => {
 
 <template>
     <Head title="Tambah Resep Baru" />
-    <div class="space-y-6 max-w-5xl mx-auto">
+    <div class="space-y-8 max-w-5xl mx-auto pb-12">
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-foreground tracking-tight">Resep Baru</h1>
@@ -430,7 +430,7 @@ const savePatient = async () => {
             </Link>
         </div>
 
-        <form @submit.prevent="submit" class="space-y-6">
+        <form @submit.prevent="submit" class="space-y-8">
             <!-- Data Pasien & Dokter -->
             <div class="bg-card border border-border rounded-lg p-6 shadow-sm space-y-4">
                 <div class="flex items-center justify-between border-b border-border pb-3">
@@ -972,7 +972,7 @@ const savePatient = async () => {
                 </div>
             </div>
 
-            <button type="submit" :disabled="form.processing" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-md text-sm font-medium shadow-sm transition-colors disabled:opacity-50 uppercase tracking-wider cursor-pointer">
+            <button type="submit" :disabled="form.processing" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-md text-sm font-medium shadow-sm transition-colors disabled:opacity-50 uppercase tracking-wider cursor-pointer mt-8">
                 Simpan Resep
             </button>
         </form>

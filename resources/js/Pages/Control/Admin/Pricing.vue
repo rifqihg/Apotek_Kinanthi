@@ -352,7 +352,7 @@ const calculateMargin = (product) => {
             </div>
 
             <!-- SECTION 2: OBAT JADI -->
-            <div class="pt-6 border-t border-border">
+            <div class="pt-8 border-t border-border">
                 <div class="mb-4">
                     <h2 class="text-xl font-bold text-foreground">Harga Obat Jadi</h2>
                     <p class="text-sm text-muted-foreground mt-1">Atur harga jual (selling price) untuk obat jadi. Harga ini akan jadi default di Kasir.</p>
@@ -601,9 +601,9 @@ const calculateMargin = (product) => {
                     <p class="text-xs text-muted-foreground mt-1" v-if="selectedMedicine">Obat: <span class="font-semibold text-foreground">{{ selectedMedicine.nama_obat }}</span></p>
                 </div>
                 
-                <div class="p-6 space-y-4 flex-1 overflow-y-auto">
+                <div class="p-6 space-y-3.5 flex-1 overflow-y-auto">
                     <!-- Dynamic Packaging Tiers (Tersier / Sekunder / Primer) -->
-                    <div v-for="t in modalTiers" :key="t.field" class="p-4 bg-muted/30 rounded-lg border border-border">
+                    <div v-for="t in modalTiers" :key="t.field" class="p-3.5 bg-muted/30 rounded-lg border border-border">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-semibold text-foreground">Harga Kemasan {{ t.tierName }} ({{ t.unit }})</label>
                             <span v-if="t.hpp > 0" class="text-xs text-muted-foreground font-medium">

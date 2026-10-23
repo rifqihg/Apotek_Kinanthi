@@ -147,7 +147,7 @@ const finalizeOpname = () => {
 <template>
     <Head title="Detail Stock Opname" />
 
-    <div class="space-y-6">
+    <div class="space-y-8">
         <!-- Back Navigation Link -->
         <div>
             <Link :href="route('control.admin.stock-opname.index')" class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">

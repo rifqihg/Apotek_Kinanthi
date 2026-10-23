@@ -1,18 +1,18 @@
 <template>
-  <Card class="shadow-sm border-border bg-card flex flex-col justify-between overflow-hidden">
+  <Card class="shadow-sm border-border bg-card flex flex-col justify-between overflow-hidden font-sans">
     <CardHeader class="pb-4 border-b border-border">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-          <CardTitle class="text-base font-semibold tracking-tight text-foreground">
+          <CardTitle class="text-base font-semibold tracking-tight text-foreground font-sans">
             5 Obat Terlaris
           </CardTitle>
         </div>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 font-sans tracking-wide">
           Top Qty
         </span>
       </div>
-      <CardDescription class="text-xs text-muted-foreground mt-1">
+      <CardDescription class="text-xs text-muted-foreground mt-1 font-sans">
         Peringkat obat berdasarkan kuantitas penjualan tertinggi
       </CardDescription>
     </CardHeader>
@@ -279,3 +279,10 @@ const tooltipStyle = computed(() => {
   };
 });
 </script>
+
+<style scoped>
+svg text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+</style>
+

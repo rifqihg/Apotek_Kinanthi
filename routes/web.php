@@ -57,11 +57,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
     Route::put('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'updateRawMaterial'])->name('raw-materials.update');
     Route::delete('/raw-materials/{rawMaterial}', [AdminMedicineController::class, 'destroyRawMaterial'])->name('raw-materials.destroy');
 
-    // ─── FAKTUR MASUK (Single-Gate Workflow) ─────────────────
+    // ─── FAKTUR MASUK ─────────────────
     Route::get('/incoming-stocks', [AdminProcurementController::class, 'incomingStocks'])->name('incoming-stocks');
     Route::get('/incoming-stocks/search-medicines', [AdminProcurementController::class, 'searchMedicines'])->name('incoming-stocks.search-medicines');
     Route::get('/incoming-stocks/past-invoices', [AdminProcurementController::class, 'pastInvoices'])->name('incoming-stocks.past-invoices');
+    Route::get('/incoming-stocks/satusehat-lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('incoming-stocks.satusehat-lookup');
+    Route::get('/procurement/kfa/lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('procurement.kfa.lookup');
     Route::post('/incoming-stocks', [AdminProcurementController::class, 'storeIncomingStock'])->name('incoming-stocks.store');
+    Route::post('/incoming-stocks/update-invoice', [AdminProcurementController::class, 'updateIncomingInvoice'])->name('incoming-stocks.update-invoice');
 
     // ─── AUDIT & USER MANAGEMENT ──────────────────────────────
     Route::get('/audit-trails', [AdminUserController::class, 'auditTrails'])->name('audit-trails');
@@ -168,5 +171,7 @@ Route::middleware(['auth', 'role:kasir'])->prefix('control/kasir')->name('contro
     Route::get('/otc', [KasirSaleController::class, 'otcIndex'])->name('otc.index');
     Route::post('/otc', [KasirSaleController::class, 'otcStore'])->name('otc.store');
 });
+
+Route::middleware(['auth'])->get('/api/satusehat/lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('api.satusehat.lookup');
 
 require __DIR__ . '/auth.php';

@@ -84,7 +84,7 @@ const exportToPdf = () => {
 <template>
     <Head title="Monitoring Transaksi" />
 
-    <div class="space-y-6">
+    <div class="space-y-8">
 
         <!-- UNIFIED FILTER & EXPORT ACTION BAR -->
         <div class="bg-card rounded-lg border border-border p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -178,8 +178,7 @@ const exportToPdf = () => {
                 <Table class="w-full min-w-[1070px]">
                     <TableHeader>
                         <TableRow class="h-10 border-b border-border/60 hover:bg-transparent">
-                            <TableHead class="w-10 min-w-10 py-2 px-3 text-center"></TableHead>
-                            <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[130px] whitespace-nowrap">Waktu</TableHead>
+                            <TableHead class="py-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left min-w-[160px] whitespace-nowrap">Waktu</TableHead>
                             <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[180px] whitespace-nowrap">No. Faktur & Kasir</TableHead>
                             <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center min-w-[100px] whitespace-nowrap">Metode Bayar</TableHead>
                             <TableHead class="py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right min-w-[110px] whitespace-nowrap">Subtotal</TableHead>
@@ -194,14 +193,16 @@ const exportToPdf = () => {
                         <template v-for="data in activeTransactions" :key="data.id">
                             <!-- Main Row -->
                             <TableRow @click="toggleRow(data.id)" class="h-10 border-b border-border/40 hover:bg-muted/30 transition-colors cursor-pointer group">
-                                <TableCell class="py-2 px-3 align-middle text-center">
-                                    <div class="w-5 h-5 rounded bg-muted/60 group-hover:bg-muted flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors mx-auto">
-                                        <svg :class="{'rotate-180': expandedRows[data.id]}" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
+                                <TableCell class="py-2 px-4 align-middle text-left whitespace-nowrap">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-5 h-5 rounded bg-muted/60 group-hover:bg-muted flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
+                                            <svg :class="{'rotate-180': expandedRows[data.id]}" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                        <span class="text-sm font-medium text-foreground tabular-nums">{{ formatDate(data.created_at) }}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell class="py-2 px-3 align-middle text-sm font-medium text-foreground tabular-nums">{{ formatDate(data.created_at) }}</TableCell>
                                 <TableCell class="py-2 px-3 align-middle">
                                     <div class="flex flex-col">
                                         <div class="flex items-center gap-2">
@@ -253,7 +254,7 @@ const exportToPdf = () => {
                             
                             <!-- Expanded Details Row -->
                             <TableRow v-show="expandedRows[data.id]" class="bg-muted/20 border-b border-border/40">
-                                <TableCell colspan="10" class="p-0 border-t-0">
+                                <TableCell colspan="9" class="p-0 border-t-0">
                                     <div class="p-3 sm:p-4 border-y border-border/60">
                                         <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Rincian Item Nota Penjualan</h3>
                                         
@@ -289,7 +290,7 @@ const exportToPdf = () => {
                         </template>
 
                         <TableRow v-if="activeTransactions.length === 0">
-                            <TableCell colspan="10" class="py-8 px-3 text-center text-muted-foreground font-medium text-xs">Belum ada aktivitas penjualan dalam rentang tanggal yang dipilih.</TableCell>
+                            <TableCell colspan="9" class="py-8 px-3 text-center text-muted-foreground font-medium text-xs">Belum ada aktivitas penjualan dalam rentang tanggal yang dipilih.</TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>

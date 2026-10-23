@@ -8,8 +8,11 @@ use App\Models\Control\IncomingStock;
 use App\Models\Control\Medicine;
 use App\Models\Control\Setting;
 use App\Models\Control\Supplier;
+use App\Models\Control\WarehouseInventory;
 use App\Services\IncomingStockService;
+use App\Services\SatuSehatKfaService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -107,7 +110,12 @@ class AdminProcurementController extends Controller
     // ─── INCOMING STOCKS (FAKTUR) ───────────────────────────
     public function incomingStocks(Request $request)
     {
-        $query = IncomingStock::with(['supplier', 'medicine', 'returnForm']);
+        $query = IncomingStock::with([
+            'supplier:id,nama_pbf',
+            'medicine:id,nama_obat,satuan_stok,rasio_konversi',
+            'returnForm:id,incoming_stock_id',
+            'warehouseInventories:id,incoming_stock_id,medicine_id,batch_no,stock_on_hand,location_type',
+        ]);
 
         if ($search = $request->search) {
             $query->where(function ($q) use ($search) {
@@ -138,7 +146,7 @@ class AdminProcurementController extends Controller
 
     protected function getMedicinesCatalog(?string $search = null)
     {
-        return Medicine::select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah'])
+        return Medicine::select(['id', 'nama_obat', 'satuan_stok', 'rasio_konversi', 'threshold_min', 'satuan_besar', 'satuan_menengah', 'kategori'])
             ->with(['latestIncomingStock' => function ($q) {
                 $q->select([
                     'incoming_stocks.id', 'incoming_stocks.medicine_id', 'incoming_stocks.satuan_input', 'incoming_stocks.mid_unit',
@@ -150,6 +158,7 @@ class AdminProcurementController extends Controller
                 $q->where('nama_obat', 'like', "%{$search}%");
             })
             ->orderBy('nama_obat')
+            ->limit($search ? 30 : 60)
             ->get()
             ->map(function ($m) {
                 $latest = $m->latestIncomingStock;
@@ -173,9 +182,25 @@ class AdminProcurementController extends Controller
         ]);
     }
 
+    public function satusehatLookup(Request $request, SatuSehatKfaService $service)
+    {
+        $query = (string) ($request->query('q') ?? $request->query('barcode') ?? $request->query('nie') ?? $request->query('kfa') ?? '');
+        $type = $request->query('type'); // 'nie' | 'kfa' | 'barcode' | null
+
+        if (trim($query) === '') {
+            return response()->json([
+                'found' => false,
+                'message' => 'Parameter pencarian (Nomor NIE BPOM / Kode KFA) wajib diisi.',
+            ], 422);
+        }
+
+        $result = $service->lookup($query, $type);
+        return response()->json($result);
+    }
+
     protected function getPastInvoicesData(?int $supplierId = null, ?string $search = null): array
     {
-        $query = IncomingStock::with(['supplier:id,nama_pbf', 'medicine:id,nama_obat,satuan_stok,threshold_min'])
+        $query = IncomingStock::with(['supplier:id,nama_pbf', 'medicine:id,nama_obat,satuan_stok,threshold_min,kategori'])
             ->select([
                 'id', 'faktur_no', 'supplier_id', 'medicine_id', 'tanggal_faktur',
                 'satuan_input', 'mid_unit', 'mid_to_big_ratio', 'small_to_mid_ratio',
@@ -195,7 +220,7 @@ class AdminProcurementController extends Controller
             });
         }
 
-        $stocks = $query->orderBy('tanggal_faktur', 'desc')->orderBy('id', 'desc')->limit(200)->get();
+        $stocks = $query->orderBy('tanggal_faktur', 'desc')->orderBy('id', 'desc')->limit(50)->get();
         $invoices = [];
 
         foreach ($stocks as $stock) {
@@ -217,6 +242,7 @@ class AdminProcurementController extends Controller
                 'medicine_name' => $stock->medicine?->nama_obat ?? '-',
                 'satuan_stok' => $stock->medicine?->satuan_stok ?? 'Pcs',
                 'min_stock_threshold' => $stock->medicine?->threshold_min ?? 10,
+                'kategori' => $stock->medicine?->kategori ?? null,
                 'satuan_input' => $stock->satuan_input ?: 'Box',
                 'mid_unit' => $stock->mid_unit,
                 'mid_to_big_ratio' => $stock->mid_to_big_ratio ?: 1,
@@ -325,5 +351,213 @@ class AdminProcurementController extends Controller
 
         $path = Storage::disk($disk)->path($incomingStock->foto_faktur_path);
         return response()->file($path);
+    }
+
+    /**
+     * Smart Guarded Edit: Update Faktur Masuk (Metadata, Harga, Batch, dan Kuantitas Aman).
+     */
+    public function updateIncomingInvoice(Request $request)
+    {
+        $validated = $request->validate([
+            'original_faktur_no'        => 'required|string',
+            'faktur_no'                 => 'required|string|max:100',
+            'supplier_id'               => 'required|exists:suppliers,id',
+            'tanggal_faktur'            => 'required|date',
+            'ppn_persen'                => 'required|numeric|min:0|max:100',
+            'foto_faktur'               => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'items'                     => 'required|array|min:1',
+            'items.*.id'                => 'required|exists:incoming_stocks,id',
+            'items.*.is_new_medicine'   => 'nullable',
+            'items.*.medicine_id'       => 'nullable|integer',
+            'items.*.new_medicine_name' => 'nullable|string|max:255',
+            'items.*.batch_no'          => 'required|string|max:100',
+            'items.*.expired_date'      => 'required|date',
+            'items.*.qty_masuk'         => 'required|integer|min:1',
+            'items.*.harga_beli_satuan' => 'required|numeric|min:0',
+            'items.*.diskon_persen'     => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        return DB::transaction(function () use ($validated, $request) {
+            $originalFakturNo = $validated['original_faktur_no'];
+            $newFakturNo = trim($validated['faktur_no']);
+            $supplierId = (int) $validated['supplier_id'];
+            $tanggalFaktur = $validated['tanggal_faktur'];
+            $ppnPersen = (float) $validated['ppn_persen'];
+
+            $stocks = IncomingStock::with('medicine')->where('faktur_no', $originalFakturNo)->get();
+
+            if ($stocks->isEmpty()) {
+                return redirect()->back()->with('error', "Faktur {$originalFakturNo} tidak ditemukan.");
+            }
+
+            // Upload foto baru jika ada
+            $newFotoPath = null;
+            if ($request->hasFile('foto_faktur')) {
+                $newFotoPath = $request->file('foto_faktur')->store('faktur', 'local');
+            }
+
+            $affectedMedicineIds = collect();
+
+            foreach ($validated['items'] as $itemData) {
+                $stock = $stocks->firstWhere('id', (int) $itemData['id']);
+                if (!$stock) continue;
+
+                $affectedMedicineIds->push($stock->medicine_id);
+
+                $oldMedicineId = (int) $stock->medicine_id;
+                $isNewMed = filter_var($itemData['is_new_medicine'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                if ($isNewMed) {
+                    $newMedName = trim($itemData['new_medicine_name'] ?? '');
+                    if (!$newMedName) {
+                        return redirect()->back()->with('error', 'Nama obat baru wajib diisi.');
+                    }
+
+                    $existing = Medicine::where('nama_obat', $newMedName)->first();
+                    if ($existing) {
+                        $newMedicineId = $existing->id;
+                    } else {
+                        $createdMed = Medicine::create([
+                            'nama_obat'       => $newMedName,
+                            'satuan_besar'    => $stock->satuan_input ?? 'Box',
+                            'satuan_menengah' => $stock->mid_unit ?? null,
+                            'satuan_stok'     => $stock->medicine?->satuan_stok ?? 'Strip',
+                            'rasio_konversi'  => $stock->unit_conversion_factor ?? 1,
+                            'threshold_min'   => 10,
+                            'stok_total'      => 0,
+                            'status'          => 'active',
+                        ]);
+                        $newMedicineId = $createdMed->id;
+
+                        AuditTrail::log(
+                            $request->user()->id,
+                            'CREATE_MEDICINE',
+                            "Menambah sediaan obat baru dari koreksi Faktur {$newFakturNo}: {$createdMed->nama_obat}",
+                            Medicine::class,
+                            $createdMed->id
+                        );
+                    }
+                } else {
+                    $newMedicineId = (int) ($itemData['medicine_id'] ?? $stock->medicine_id);
+                }
+
+                $oldBatch = $stock->batch_no;
+                $newBatch = trim($itemData['batch_no']);
+                $newExp = $itemData['expired_date'];
+                $newHargaBeli = (float) $itemData['harga_beli_satuan'];
+                $newDiskon = (float) ($itemData['diskon_persen'] ?? 0);
+                $newQtyMasuk = (int) $itemData['qty_masuk'];
+
+                // Ambil stok gudang terkait
+                $wi = WarehouseInventory::where('incoming_stock_id', $stock->id)
+                    ->where('location_type', 'gudang')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$wi) {
+                    $wi = WarehouseInventory::where('medicine_id', $stock->medicine_id)
+                        ->where('batch_no', $oldBatch)
+                        ->where('location_type', 'gudang')
+                        ->lockForUpdate()
+                        ->first();
+                }
+
+                // Handle jika obat dialihkan ke obat lain (re-assign medicine)
+                if ($newMedicineId !== $oldMedicineId) {
+                    // Pastikan tidak ada stok yang sudah berada di kasir
+                    $cashierStock = WarehouseInventory::where('incoming_stock_id', $stock->id)
+                        ->where('location_type', 'kasir')
+                        ->where('stock_on_hand', '>', 0)
+                        ->exists();
+
+                    if ($cashierStock) {
+                        $medName = $stock->medicine?->nama_obat ?? 'Obat';
+                        return redirect()->back()->with('error', "Obat {$medName} tidak dapat dialihkan karena sebagian stok sudah terdistribusi ke kasir atau terjual.");
+                    }
+
+                    if ($wi) {
+                        $wi->medicine_id = $newMedicineId;
+                        $wi->setMutationContext('adjustment', null, "Pengalihan obat faktur {$newFakturNo} dari ID {$oldMedicineId} ke ID {$newMedicineId}");
+                        $wi->save();
+                    }
+
+                    $stock->medicine_id = $newMedicineId;
+                    $affectedMedicineIds->push($newMedicineId);
+                }
+
+                // Hitung selisih kuantitas konversi
+                $factor = (int) ($stock->unit_conversion_factor ?: 1);
+                $oldQtyConverted = (int) $stock->qty_converted;
+                $newQtyConverted = $newQtyMasuk * $factor;
+                $deltaQty = $newQtyConverted - $oldQtyConverted;
+
+                if ($deltaQty != 0) {
+                    if ($wi) {
+                        // Jika ingin mengurangi kuantitas, pastikan stok fisik di gudang cukup untuk dikurangi
+                        if ($deltaQty < 0 && $wi->stock_on_hand < abs($deltaQty)) {
+                            $medName = $stock->medicine?->nama_obat ?? 'Obat';
+                            $unit = $stock->medicine?->satuan_stok ?? 'item';
+                            return redirect()->back()->with('error', "Kuantitas {$medName} tidak dapat dikurangi. Sisa stok di gudang hanya {$wi->stock_on_hand} {$unit} karena sebagian stok telah terdistribusi ke kasir atau terjual.");
+                        }
+
+                        $wi->setMutationContext('adjustment', null, "Koreksi Qty Faktur {$newFakturNo}");
+                        $wi->stock_on_hand += $deltaQty;
+                    }
+                    $stock->qty_masuk = $newQtyMasuk;
+                    $stock->qty_converted = $newQtyConverted;
+                    $stock->qty_fisik_verify = $newQtyConverted;
+                }
+
+                // Perbarui batch & exp di stok gudang
+                if ($wi) {
+                    $wi->batch_no = $newBatch;
+                    $wi->expired_date = $newExp;
+                    $wi->save();
+                }
+
+                // Update data incoming stock
+                $stock->faktur_no = $newFakturNo;
+                $stock->supplier_id = $supplierId;
+                $stock->tanggal_faktur = $tanggalFaktur;
+                $stock->ppn_persen = $ppnPersen;
+                $stock->batch_no = $newBatch;
+                $stock->expired_date = $newExp;
+                $stock->harga_beli_satuan = $newHargaBeli;
+                $stock->diskon_persen = $newDiskon;
+                $stock->jumlah_harga = ($newHargaBeli * (1 - ($newDiskon / 100))) * $stock->qty_masuk;
+
+                if ($newFotoPath) {
+                    $stock->foto_faktur_path = $newFotoPath;
+                }
+
+                $stock->save();
+            }
+
+            // Jika nomor faktur atau foto berubah, sinkronkan seluruh item dalam faktur ini
+            if ($originalFakturNo !== $newFakturNo || $newFotoPath) {
+                IncomingStock::where('faktur_no', $originalFakturNo)->update([
+                    'faktur_no' => $newFakturNo,
+                    'supplier_id' => $supplierId,
+                    'tanggal_faktur' => $tanggalFaktur,
+                    'ppn_persen' => $ppnPersen,
+                    ...($newFotoPath ? ['foto_faktur_path' => $newFotoPath] : [])
+                ]);
+            }
+
+            // Recalculate stok master obat
+            foreach ($affectedMedicineIds->unique() as $mid) {
+                Medicine::find($mid)?->recalculateStock();
+            }
+
+            AuditTrail::log(
+                $request->user()->id,
+                'UPDATE_INCOMING_INVOICE',
+                "Admin memperbarui data Faktur {$originalFakturNo}" . ($originalFakturNo !== $newFakturNo ? " menjadi {$newFakturNo}" : ""),
+                IncomingStock::class,
+                $stocks->first()?->id
+            );
+
+            return redirect()->back()->with('success', "Faktur {$newFakturNo} berhasil diperbarui.");
+        });
     }
 }

@@ -52,7 +52,7 @@ const completeItem = (itemId) => {
 
 <template>
     <Head :title="`Detail Resep - ${prescription.prescription_number}`" />
-    <div class="space-y-6 max-w-5xl mx-auto">
+    <div class="space-y-8 max-w-5xl mx-auto pb-12">
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-foreground tracking-tight">Detail Resep</h1>

@@ -303,16 +303,18 @@ const donutSlices = computed(() => {
 <template>
     <Head title="Dashboard Apoteker" />
 
-    <div class="space-y-6">
+    <div class="space-y-8">
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <!-- ROW 1: LAYANAN RESEP HARI INI (4 CARDS)                     -->
+        <!-- OPERATIONAL KPI DECK (ROW 1 & ROW 2)                        -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <div class="space-y-3">
-            <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Layanan Resep Hari Ini
-            </h2>
+        <div class="space-y-4">
+            <!-- ROW 1: LAYANAN RESEP HARI INI (4 CARDS) -->
+            <div class="space-y-3">
+                <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Layanan Resep Hari Ini
+                </h2>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Card 1: Menunggu Skrining -->
                 <Link
                     :href="route('control.apoteker.prescriptions.index', { status: 'menunggu' })"
@@ -545,6 +547,7 @@ const donutSlices = computed(() => {
                 </Card>
             </Link>
         </div>
+    </div>
 
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!-- VISUAL ANALYTICS: TREN RESEP & PROPORSI SEDIAAN RACIKAN    -->

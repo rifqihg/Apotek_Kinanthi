@@ -396,6 +396,7 @@ class AdminMedicineController extends Controller
     public function updateMedicine(Request $request, Medicine $medicine)
     {
         $validated = $request->validate([
+            'nama_obat' => 'required|string|max:255',
             'threshold_min' => 'required|integer|min:0',
             'deskripsi' => 'nullable|string|max:1000',
             'classification' => ['nullable', \Illuminate\Validation\Rule::in(['narkotika', 'psikotropika', 'prekursor', 'obat_keras', 'bebas_terbatas', 'bebas'])],

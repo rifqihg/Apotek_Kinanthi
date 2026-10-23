@@ -80,12 +80,22 @@ class AdminUserController extends Controller
             );
         }
 
-        $logsClosure = function () use ($mutationQuery) {
+        $isAuditTab = $request->input('tab') === 'audit';
+        $isPartial = $request->hasHeader('X-Inertia-Partial-Data');
+
+        $logsClosure = function () use ($mutationQuery, $isAuditTab, $isPartial) {
+            if ($isAuditTab && !$isPartial) {
+                return ['data' => [], 'links' => [], 'total' => 0];
+            }
             return (clone $mutationQuery)->latest()->paginate(15, ['*'], 'mutations_page')->withQueryString();
         };
 
-        $kpiClosure = function () use ($mutationQuery) {
+        $kpiClosure = function () use ($mutationQuery, $isAuditTab, $isPartial) {
+            if ($isAuditTab && !$isPartial) {
+                return ['in' => 0, 'out' => 0, 'total' => 0];
+            }
             $kpiCounts = (clone $mutationQuery)
+                ->without(['inventory', 'rawMaterialStock', 'item'])
                 ->selectRaw("
                     COUNT(*) as total_count,
                     SUM(CASE WHEN type IN ('Masuk', 'Penyesuaian Masuk', 'Retur') THEN 1 ELSE 0 END) as count_in,
@@ -100,8 +110,12 @@ class AdminUserController extends Controller
             ];
         };
 
-        $auditsClosure = function () use ($request) {
+        $auditsClosure = function () use ($request, $isAuditTab, $isPartial) {
+            if (!$isAuditTab && !$isPartial) {
+                return ['data' => [], 'links' => [], 'total' => 0];
+            }
             return AuditTrail::with('user:id,name,role')
+                ->select(['id', 'user_id', 'action', 'description', 'auditable_type', 'auditable_id', 'performed_at'])
                 ->latest('performed_at')
                 ->when($request->filled('audit_search'), function ($q) use ($request) {
                     $s = $request->audit_search;

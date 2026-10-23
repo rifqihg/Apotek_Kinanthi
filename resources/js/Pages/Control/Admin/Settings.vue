@@ -17,16 +17,13 @@ const submit = () => form.put(route('control.admin.settings.update'), { preserve
 <template>
     <Head title="Pengaturan" />
 
-    <div class="space-y-6">
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-6 rounded-lg border border-border shadow-sm">
-            <div>
-                <h1 class="text-2xl font-bold text-foreground tracking-tight">Pengaturan Sistem</h1>
-                <p class="text-sm text-muted-foreground mt-1">Konfigurasi nilai default PPN dan margin profit untuk keseluruhan sistem</p>
-            </div>
+    <div class="space-y-6 max-w-2xl">
+        <div>
+            <h1 class="text-xl font-bold text-foreground tracking-tight">Pengaturan Sistem</h1>
+            <p class="text-xs text-muted-foreground mt-0.5">Konfigurasi nilai default PPN dan margin profit untuk keseluruhan sistem</p>
         </div>
 
-        <div class="bg-card border border-border rounded-lg p-6 max-w-2xl shadow-sm">
+        <div class="bg-card border border-border rounded-lg p-6 shadow-sm">
             <form @submit.prevent="submit" class="space-y-6">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

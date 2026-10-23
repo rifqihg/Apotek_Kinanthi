@@ -42,7 +42,7 @@ const formatMonthLabel = (m) => {
 <template>
     <Head title="Laporan Mutasi SIPNAP" />
 
-    <div class="space-y-6 animate-in fade-in duration-500">
+    <div class="space-y-8 animate-in fade-in duration-500">
         <!-- HEADER: HERO BANNER & STATS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             <!-- Hero Banner -->
