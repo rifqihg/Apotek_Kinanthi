@@ -24,7 +24,7 @@ class ApotekerController extends Controller
 
         // 8 Lightweight Count Metrics (executed as lightning-fast SQL COUNTs)
         $kpi = [
-            'rx_menunggu' => Prescription::where('status', 'menunggu')->count(),
+            'rx_menunggu' => Prescription::whereIn('status', ['baru', 'menunggu'])->count(),
             'rx_diproses' => Prescription::where('status', 'diproses')->count(),
             'rx_siap_ambil' => Prescription::where('status', 'siap_ambil')->count(),
             'rx_selesai_hari_ini' => Prescription::where('status', 'selesai')->whereDate('updated_at', $today)->count(),
@@ -66,7 +66,7 @@ class ApotekerController extends Controller
                 'prescriptionItems:id,prescription_id,item_type,custom_formula_name'
             ])
             ->select(['id', 'prescription_number', 'patient_id', 'doctor_name', 'clinic_name', 'status', 'created_at'])
-            ->whereIn('status', ['menunggu', 'diproses', 'siap_ambil'])
+            ->whereIn('status', ['baru', 'menunggu', 'diproses', 'siap_ambil'])
             ->latest()
             ->take(5)
             ->get()

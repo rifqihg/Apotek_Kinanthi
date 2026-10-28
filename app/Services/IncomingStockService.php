@@ -129,8 +129,8 @@ class IncomingStockService
     {
         // ponytail: firstOrNew+save = 1 observer trigger for new rows (with correct qty, not 0)
         $wi = WarehouseInventory::firstOrNew(
-            ['medicine_id' => $stock->medicine_id, 'batch_no' => $stock->batch_no],
-            ['expired_date' => $stock->expired_date, 'stock_on_hand' => 0, 'status' => 'active']
+            ['medicine_id' => $stock->medicine_id, 'batch_no' => $stock->batch_no, 'location_type' => 'gudang'],
+            ['expired_date' => $stock->expired_date, 'stock_on_hand' => 0, 'status' => 'active', 'location_id' => null]
         );
 
         $wi->stock_on_hand += $qty;

@@ -72,6 +72,7 @@ return new class extends Migration
             $table->index('status');
             $table->index('approved_by');
             $table->index('prescription_id');
+            $table->index(['status', 'created_at'], 'cs_status_created_idx');
         });
 
         // 3. Compounding Details (Rincian Bahan Racikan)

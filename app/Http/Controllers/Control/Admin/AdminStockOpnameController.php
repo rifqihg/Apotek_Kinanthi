@@ -67,7 +67,15 @@ class AdminStockOpnameController extends Controller
                     'warehouseInventories' => fn($q) => $q->where('status', 'active')
                         ->where('stock_on_hand', '>', 0)
                         ->select(['id', 'medicine_id', 'batch_no', 'expired_date', 'stock_on_hand']),
-                    'latestActiveIncomingStock'
+                    'latestActiveIncomingStock' => fn($q) => $q->select([
+                        'incoming_stocks.id',
+                        'incoming_stocks.medicine_id',
+                        'incoming_stocks.satuan_input',
+                        'incoming_stocks.mid_unit',
+                        'incoming_stocks.small_to_mid_ratio',
+                        'incoming_stocks.mid_to_big_ratio',
+                        'incoming_stocks.unit_conversion_factor',
+                    ]),
                 ])
                 ->orderBy('nama_obat')
                 ->get()
@@ -351,7 +359,10 @@ class AdminStockOpnameController extends Controller
             }
 
             if (count($sipnapViolations) > 0 && auth()->user()->role !== 'apoteker') {
-                return redirect()->back()->with('error', 'Peringatan SIPNAP: Ditemukan selisih stok kurang (hilang) pada obat khusus (' . implode(', ', $sipnapViolations) . '). Pengurangan stok ini ilegal dilakukan sepihak oleh Admin. Wajib disesuaikan langsung oleh Apoteker beserta Berita Acara.');
+                $hasMissingReason = $opname->items->where('difference', '<', -0.001)->contains(fn($it) => empty($it->reason));
+                if ($hasMissingReason) {
+                    return redirect()->back()->with('error', 'Peringatan Regulasi SIPNAP: Ditemukan selisih stok kurang (hilang) pada obat khusus (' . implode(', ', $sipnapViolations) . '). Wajib mengisi kolom alasan / nomor Berita Acara penyesuaian pada setiap item, atau difinalisasi langsung oleh Apoteker.');
+                }
             }
 
             $affectedMedicines = [];

@@ -185,13 +185,23 @@ class AdminSalesExportController extends Controller
         });
 
         $totalTerjual = $medTerjual + $cpTerjual;
-        $totalAmount = $medAmount + $cpAmount;
+        $grossAmount = $medAmount + $cpAmount;
+
+        $totalDiscount = (float) \Illuminate\Support\Facades\DB::table('sales')
+            ->where('status', 'paid')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->sum('discount_amount');
+
+        $netAmount = max(0, $grossAmount - $totalDiscount);
         $totalModal = $medModal + $cpModal;
-        $totalLaba = $totalAmount - $totalModal;
+        $totalLaba = $netAmount - $totalModal;
 
         return [
             'total_items' => $totalTerjual,
-            'total_amount' => $totalAmount,
+            'gross_amount' => $grossAmount,
+            'total_discount' => $totalDiscount,
+            'total_amount' => $netAmount,
             'total_modal' => $totalModal,
             'total_laba' => $totalLaba,
         ];

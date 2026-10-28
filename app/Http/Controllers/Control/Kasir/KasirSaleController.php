@@ -103,13 +103,17 @@ class KasirSaleController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
         ]);
 
-        if (Sale::where('prescription_id', $v['prescription_id'])->where('status', 'paid')->exists()) {
-            return back()->with('error', 'Resep ini sudah pernah dibayar. Tidak dapat diproses ulang.');
-        }
-
         try {
             return DB::transaction(function () use ($v) {
-                $prescription = Prescription::with(['patient'])->findOrFail($v['prescription_id']);
+                /** @var Prescription $prescription */
+                $prescription = Prescription::with(['patient'])
+                    ->lockForUpdate()
+                    ->findOrFail($v['prescription_id']);
+
+                if ($prescription->status === 'selesai' || Sale::where('prescription_id', $prescription->id)->where('status', 'paid')->exists()) {
+                    abort(422, 'Resep ini sudah pernah dibayar atau telah selesai diproses.');
+                }
+
                 $resolvedItems = [];
 
                 foreach ($v['items'] as $itemData) {
@@ -134,6 +138,15 @@ class KasirSaleController extends Controller
                             $qtyInBase = $qty * max(1, (float) $med->rasio_konversi);
                         }
 
+                        if ($unitPrice <= 0) {
+                            $latestStock = IncomingStock::where('medicine_id', $med->id)->orderBy('id', 'desc')->first();
+                            $unitPrice = (float) ($latestStock?->harga_jual_akhir ?? 0);
+                        }
+
+                        if ($unitPrice <= 0) {
+                            abort(422, "Harga jual obat '{$med->nama_obat}' belum divalidasi oleh Admin (Rp 0). Transaksi tidak dapat dilanjutkan.");
+                        }
+
                         $resolvedItems[] = [
                             'prescription_item' => $pItem,
                             'prescription_item_id' => $pItem->id,
@@ -146,7 +159,9 @@ class KasirSaleController extends Controller
                             'unit_price' => $unitPrice,
                         ];
                     } else {
-                        $cp = $pItem->compoundedProduct ?: ($pItem->compounded_product_id ? CompoundedProduct::find($pItem->compounded_product_id) : null);
+                        $cp = $pItem->compounded_product_id 
+                            ? CompoundedProduct::where('id', $pItem->compounded_product_id)->lockForUpdate()->first() 
+                            : ($pItem->compoundedProduct ?: null);
                         if (!$cp) abort(422, 'Item racikan tidak ditemukan.');
                         $this->validateCompoundedItem($cp, $qty);
 
@@ -245,8 +260,8 @@ class KasirSaleController extends Controller
             ->get();
 
         return inertia('Control/Kasir/OTC', [
-            'medicines' => $medicines,
-            'compoundedProducts' => $compoundedProducts,
+            'medicines' => fn () => $medicines,
+            'compoundedProducts' => fn () => $compoundedProducts,
             'filters' => ['search' => $search ?? ''],
         ]);
     }
@@ -272,6 +287,16 @@ class KasirSaleController extends Controller
                     $qty = (float) $itemData['quantity'];
                     if ($itemData['item_type'] === 'obat_jadi') {
                         $med = Medicine::findOrFail($itemData['id']);
+                        $unitPrice = (float) $med->selling_price;
+                        if ($unitPrice <= 0) {
+                            $latestStock = IncomingStock::where('medicine_id', $med->id)->orderBy('id', 'desc')->first();
+                            $unitPrice = (float) ($latestStock?->harga_jual_akhir ?? 0);
+                        }
+
+                        if ($unitPrice <= 0) {
+                            abort(422, "Harga jual obat '{$med->nama_obat}' belum divalidasi oleh Admin (Rp 0). Transaksi OTC tidak dapat dilanjutkan.");
+                        }
+
                         $resolvedItems[] = [
                             'item_type' => 'obat_jadi',
                             'medicine_id' => $med->id,
@@ -279,10 +304,10 @@ class KasirSaleController extends Controller
                             'unit' => $med->satuan_stok ?: ($med->base_unit ?: 'Pcs'),
                             'quantity' => $qty,
                             'qty_in_base' => $qty,
-                            'unit_price' => (float) $med->selling_price,
+                            'unit_price' => $unitPrice,
                         ];
                     } else {
-                        $cp = CompoundedProduct::findOrFail($itemData['id']);
+                        $cp = CompoundedProduct::where('id', $itemData['id'])->lockForUpdate()->firstOrFail();
                         $this->validateCompoundedItem($cp, $qty);
                         $resolvedItems[] = [
                             'item_type' => 'racikan',

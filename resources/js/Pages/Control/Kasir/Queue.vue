@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { useDebounceFn } from '@vueuse/core';
+import { useSmartSync } from '@/Composables/useSmartSync';
 
 defineOptions({ layout: ControlLayout });
 
@@ -13,6 +14,13 @@ const props = defineProps({
     prescriptions: [Object, Array],
     sales: [Object, Array],
     filters: { type: Object, default: () => ({}) },
+});
+
+// Sinkronisasi antrean live: reload resep & penjualan setiap 10 detik atau seketika saat kasir membuka tab
+useSmartSync({
+    only: ['prescriptions', 'sales'],
+    interval: 10000,
+    throttle: 3000
 });
 
 const search = ref(props.filters?.search || '');
@@ -536,90 +544,92 @@ const submitVoid = () => {
         </section>
 
         <!-- Modal Otorisasi Void Admin -->
-        <div v-if="showVoidModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div class="bg-card w-full max-w-md rounded-lg border border-border shadow-lg p-6 space-y-4">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h3 class="text-base font-bold text-foreground">Otorisasi Pembatalan (Void)</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">Wajib diverifikasi oleh Admin/Supervisor.</p>
+        <Teleport to="body">
+            <div v-if="showVoidModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div class="bg-card w-full max-w-md rounded-lg border border-border shadow-lg p-6 space-y-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-foreground">Otorisasi Pembatalan (Void)</h3>
+                            <p class="text-xs text-muted-foreground mt-0.5">Wajib diverifikasi oleh Admin/Supervisor.</p>
+                        </div>
+                        <button @click="closeVoidModal" :disabled="isSubmittingVoid" class="text-muted-foreground hover:text-foreground text-sm font-medium">✕</button>
                     </div>
-                    <button @click="closeVoidModal" :disabled="isSubmittingVoid" class="text-muted-foreground hover:text-foreground text-sm font-medium">✕</button>
+
+                    <div class="bg-muted/40 rounded-md p-3 text-xs space-y-1 border border-border/60">
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Faktur Penjualan:</span>
+                            <span class="font-bold text-foreground">{{ voidTargetSale?.sale_number }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Total Transaksi:</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ formatRupiah(voidTargetSale?.total_amount) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Metode Bayar:</span>
+                            <span class="uppercase font-medium text-foreground">{{ voidTargetSale?.payment_method }}</span>
+                        </div>
+                    </div>
+
+                    <div v-if="voidErrorMessage" class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-3 py-2 rounded-md text-xs font-medium">
+                        {{ voidErrorMessage }}
+                    </div>
+
+                    <form @submit.prevent="submitVoid" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1">Email / Nama Admin</label>
+                            <input
+                                type="text"
+                                v-model="voidForm.admin_username"
+                                required
+                                placeholder="Masukkan email atau nama lengkap admin"
+                                class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1">Password Admin</label>
+                            <input
+                                type="password"
+                                v-model="voidForm.admin_password"
+                                required
+                                placeholder="Masukkan password admin"
+                                class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-foreground mb-1">Alasan Pembatalan (Opsional)</label>
+                            <textarea
+                                v-model="voidForm.reason"
+                                rows="2"
+                                placeholder="Misal: Salah input obat / Pasien membatalkan pembelian"
+                                class="w-full px-3 py-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                            ></textarea>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 pt-2">
+                            <button
+                                type="button"
+                                @click="closeVoidModal"
+                                :disabled="isSubmittingVoid"
+                                class="h-9 px-4 rounded-md border border-input bg-background hover:bg-muted text-foreground text-xs font-medium transition-colors"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="isSubmittingVoid"
+                                class="h-9 px-4 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                            >
+                                <svg v-if="isSubmittingVoid" class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>{{ isSubmittingVoid ? 'Memproses...' : 'Konfirmasi & Batalkan Nota' }}</span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="bg-muted/40 rounded-md p-3 text-xs space-y-1 border border-border/60">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Faktur Penjualan:</span>
-                        <span class="font-bold text-foreground">{{ voidTargetSale?.sale_number }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Total Transaksi:</span>
-                        <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ formatRupiah(voidTargetSale?.total_amount) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Metode Bayar:</span>
-                        <span class="uppercase font-medium text-foreground">{{ voidTargetSale?.payment_method }}</span>
-                    </div>
-                </div>
-
-                <div v-if="voidErrorMessage" class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-3 py-2 rounded-md text-xs font-medium">
-                    {{ voidErrorMessage }}
-                </div>
-
-                <form @submit.prevent="submitVoid" class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Email / Nama Admin</label>
-                        <input
-                            type="text"
-                            v-model="voidForm.admin_username"
-                            required
-                            placeholder="Masukkan email atau nama lengkap admin"
-                            class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                        />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Password Admin</label>
-                        <input
-                            type="password"
-                            v-model="voidForm.admin_password"
-                            required
-                            placeholder="Masukkan password admin"
-                            class="w-full h-9 px-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                        />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-foreground mb-1">Alasan Pembatalan (Opsional)</label>
-                        <textarea
-                            v-model="voidForm.reason"
-                            rows="2"
-                            placeholder="Misal: Salah input obat / Pasien membatalkan pembelian"
-                            class="w-full px-3 py-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                        ></textarea>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 pt-2">
-                        <button
-                            type="button"
-                            @click="closeVoidModal"
-                            :disabled="isSubmittingVoid"
-                            class="h-9 px-4 rounded-md border border-input bg-background hover:bg-muted text-foreground text-xs font-medium transition-colors"
-                        >
-                            Batal
-                        </button>
-                        <button
-                            type="submit"
-                            :disabled="isSubmittingVoid"
-                            class="h-9 px-4 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
-                        >
-                            <svg v-if="isSubmittingVoid" class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span>{{ isSubmittingVoid ? 'Memproses...' : 'Konfirmasi & Batalkan Nota' }}</span>
-                        </button>
-                    </div>
-                </form>
             </div>
-        </div>
+        </Teleport>
     </div>
 </template>
 

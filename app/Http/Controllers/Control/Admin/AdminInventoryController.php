@@ -157,18 +157,20 @@ class AdminInventoryController extends Controller
             }
             $incomingStock->save();
 
-            // Deduct Warehouse Inventory (Kasir sync)
-            $wi = WarehouseInventory::where('incoming_stock_id', $incomingStock->id)
-                ->gudang()
+            // Deduct Warehouse Inventory (Kasir & Gudang sync)
+            $remainingRetur = $qty_terkecil;
+            $inventories = WarehouseInventory::where('incoming_stock_id', $incomingStock->id)
                 ->where('stock_on_hand', '>', 0)
-                ->first();
+                ->orderByRaw("CASE WHEN location_type = 'gudang' THEN 0 ELSE 1 END")
+                ->get();
 
-            if ($wi) {
-                $deductAmount = min($wi->stock_on_hand, $qty_terkecil);
-                $wi->setMutationContext('out', $returnForm, 'Retur ke Supplier: ' . $v['alasan_retur']);
-                $wi->update([
-                    'stock_on_hand' => $wi->stock_on_hand - $deductAmount,
-                ]);
+            foreach ($inventories as $wi) {
+                if ($remainingRetur <= 0) break;
+                $deductAmount = min((float) $wi->stock_on_hand, $remainingRetur);
+                $wi->setMutationContext('return', $returnForm, 'Retur ke Supplier: ' . $v['alasan_retur']);
+                $wi->stock_on_hand = round((float) $wi->stock_on_hand - $deductAmount, 2);
+                $wi->save();
+                $remainingRetur -= $deductAmount;
             }
 
             // Recalculate medicine total
@@ -224,7 +226,15 @@ class AdminInventoryController extends Controller
                 'kategori'
             ])
             ->with([
-                'latestIncomingStock',
+                'latestIncomingStock' => fn($q) => $q->select([
+                    'incoming_stocks.id',
+                    'incoming_stocks.medicine_id',
+                    'incoming_stocks.satuan_input',
+                    'incoming_stocks.mid_unit',
+                    'incoming_stocks.mid_to_big_ratio',
+                    'incoming_stocks.small_to_mid_ratio',
+                    'incoming_stocks.unit_conversion_factor',
+                ]),
                 'warehouseInventories' => function($q) use ($selectedKasirId) {
                     $q->where('stock_on_hand', '>', 0)
                       ->where(function($sq) use ($selectedKasirId) {

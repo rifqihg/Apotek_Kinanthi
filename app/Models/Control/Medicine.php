@@ -114,15 +114,8 @@ class Medicine extends Model
     {
         $stokAktifGudang = (float) $this->warehouseInventories()->sum('stock_on_hand');
 
-        $transferredIds = $this->warehouseInventories()
-            ->whereNotNull('incoming_stock_id')
-            ->pluck('incoming_stock_id')
-            ->toArray();
-
         $stokKarantina = (float) $this->incomingStocks()
-            ->when(count($transferredIds) > 0, function ($q) use ($transferredIds) {
-                $q->whereNotIn('id', $transferredIds);
-            })
+            ->whereDoesntHave('warehouseInventories')
             ->selectRaw('SUM(COALESCE(qty_fisik_verify, qty_converted)) as total_karantina')
             ->value('total_karantina');
 

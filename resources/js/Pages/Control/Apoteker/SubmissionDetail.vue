@@ -113,7 +113,12 @@ function printLabel() {
                                 <div class="flex flex-wrap items-center gap-2">
                                     <div class="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-md border border-border">
                                         <span class="text-xs text-muted-foreground uppercase">Awal:</span>
-                                        <span class="text-xs font-semibold text-foreground">{{ Number(d.qty_needed).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }}</span>
+                                        <span class="text-xs font-semibold text-foreground">
+                                            {{ Number(d.qty_needed).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }}
+                                            <span class="text-[11px] font-normal text-muted-foreground ml-0.5">
+                                                {{ d.source_type === 'raw_material' ? (d.raw_material?.satuan_pembelian || d.raw_material?.satuan_dasar_penggunaan || 'g') : (d.medicine?.satuan_terkecil || d.medicine?.satuan_stok || 'Pcs') }}
+                                            </span>
+                                        </span>
                                     </div>
                                 </div>
                                 <div v-if="d.suggested_batch_no" class="inline-flex items-center gap-2 bg-muted px-2.5 py-1 rounded-md border border-border text-xs">
@@ -123,7 +128,13 @@ function printLabel() {
                             </div>
                             <div class="text-right shrink-0">
                                 <p class="text-xs text-muted-foreground mb-1">Massa Neto</p>
-                                <p class="text-foreground font-semibold text-sm tabular-nums">{{ Number(d.final_qty).toLocaleString('id-ID', { maximumFractionDigits: 2 }) }} {{ d.unit }}</p>
+                                <p class="text-foreground font-semibold text-sm tabular-nums">
+                                    {{ 
+                                        d.source_type === 'medicine' && (!d.net_quantity || Number(d.net_quantity) === 0)
+                                            ? Number(d.qty_needed).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' ' + (d.medicine?.satuan_terkecil || d.medicine?.satuan_stok || 'Pcs')
+                                            : Number(d.net_quantity !== null && d.net_quantity !== undefined ? d.net_quantity : (d.qty_needed || 0)).toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' ' + (d.raw_material?.satuan_dasar_penggunaan || 'g')
+                                    }}
+                                </p>
                             </div>
                         </div>
                     </div>

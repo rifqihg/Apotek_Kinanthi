@@ -27,6 +27,9 @@ return new class extends Migration
                 'bebas'
             ])->default('obat_keras');
             $table->string('kode_obat')->unique()->nullable();
+            $table->string('barcode', 100)->nullable()->index();
+            $table->string('kfa_code', 100)->nullable()->index();
+            $table->string('nie', 100)->nullable()->index();
             $table->string('satuan_stok', 50)->default('Tablet');
             $table->string('satuan_besar')->nullable();
             $table->string('satuan_menengah')->nullable();

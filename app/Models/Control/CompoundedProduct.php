@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property float|string|null $base_cost
+ * @property float|string|null $hpp_per_unit
+ * @property float|string|null $harga_jual
+ * @property float|string|null $qty_hasil
+ */
 class CompoundedProduct extends Model
 {
     protected $fillable = [

@@ -10,6 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property float|string|null $total_hpp_bahan
+ * @property float|string|null $total_hpp_racikan
+ * @property float|string|null $biaya_tuslah
+ * @property float|string|null $jasa_racik
+ * @property float|string|null $biaya_kemasan
+ * @property float|string|null $harga_jual_racikan
+ */
 class CompoundingSubmission extends Model
 {
     protected $fillable = [

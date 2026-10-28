@@ -108,6 +108,7 @@ return new class extends Migration
             $table->index('user_id');
             $table->index('action');
             $table->index('performed_at');
+            $table->index(['user_id', 'performed_at'], 'audit_trails_user_performed_idx');
         });
 
     }

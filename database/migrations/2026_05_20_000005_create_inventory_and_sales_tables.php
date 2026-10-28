@@ -77,6 +77,7 @@ return new class extends Migration
             $table->index('status');
             $table->index('incoming_stock_id');
             $table->index(['location_type', 'location_id', 'status'], 'wi_location_status_idx');
+            $table->index(['medicine_id', 'location_type', 'location_id', 'status', 'expired_date'], 'wi_fefo_lookup_idx');
         });
 
         // 3. Stock Opnames & Items
@@ -154,6 +155,7 @@ return new class extends Migration
             $table->index('type');
             $table->index(['reference_type', 'reference_id']);
             $table->index('created_at', 'stock_mutations_created_at_idx');
+            $table->index(['item_type', 'item_id', 'created_at'], 'sm_item_type_id_created_idx');
         });
 
         Schema::create('stock_logs', function (Blueprint $table) {
@@ -236,6 +238,8 @@ return new class extends Migration
             $table->index('item_type', 'sale_items_item_type_idx');
             $table->index(['item_type', 'medicine_id'], 'sale_items_item_type_med_id_idx');
             $table->index(['sale_id', 'medicine_id']);
+            $table->index(['sale_id', 'item_type'], 'sale_items_sale_id_type_idx');
+            $table->index(['item_type', 'compounded_product_id'], 'sale_items_type_cp_id_idx');
         });
     }
 

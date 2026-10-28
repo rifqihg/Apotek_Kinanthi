@@ -1,0 +1,117 @@
+@startuml use_case_apotek_kinanthi
+!theme plain
+title RANCANG BANGUN SISTEM PENGELOLAAN STOK OBAT APOTEK KINANTHI
+
+left to right direction
+
+skinparam monochrome true
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam roundCorner 15
+skinparam ArrowColor #000000
+skinparam UsecaseBorderColor #000000
+skinparam ActorBorderColor #000000
+
+' ─── AKTOR SISTEM ──────────────────────────────────────────────
+actor "Admin" as admin
+actor "Kasir" as kasir
+actor "Apoteker" as apoteker
+
+' ─── BOUNDARY SISTEM ──────────────────────────────────────────
+rectangle "Sistem Pengelolaan Stok & Penjualan Apotek Kinanthi" {
+
+    ' --- Domain Admin (Manajemen & Logistik) ---
+    usecase "Melihat Laporan Laba Bersih\n& Kontrol Keuangan" as UC_Laba
+    usecase "Mengelola Fisik Stok\n& Mutasi Obat/Racikan" as UC_Fisik
+    usecase "Mendistribusikan Stok\nObat ke Kasir" as UC_Dist
+    usecase "Mengatur Hak Akses\nLevel User" as UC_User
+    usecase "Menginput & Mengelola\nBahan Baku" as UC_Bahan
+    usecase "Menetapkan Harga\nJual Utama" as UC_Pricing
+    usecase "Mengelola & Menginput\nFaktur Masuk" as UC_Faktur
+    usecase "Mengelola Obat & Konfirmasi\nKatalog Faktur" as UC_Katalog
+
+    ' --- Sub-Proses Bersama / Pricing Engine / Opname ---
+    usecase "Memberikan Diskon\nTransaksi" as UC_Diskon
+    usecase "Mencetak Struk\nTransaksi" as UC_Struk
+    usecase "Menginput Stok Opname Obat,\nRacikan, & Bahan Baku" as UC_Opname
+    usecase "Sistem Memotong Stok\nBahan Baku & Obat" as UC_Deduct
+    usecase "Memverifikasi\nRacikan" as UC_Verif
+    usecase "Menetapkan Harga\nObat Racik" as UC_HrgRacik
+    usecase "Menetapkan Harga\nObat Faktur" as UC_HrgFaktur
+
+    ' --- Domain Kasir ---
+    usecase "Mengelola Riwayat\nPenjualan Kasir" as UC_Riwayat
+    usecase "Memproses Transaksi\nPenjualan Obat / Resep" as UC_Trans
+
+    ' --- Domain Apoteker (Farmasi Klinis & Pelaporan) ---
+    usecase "Mengelola Data\nResep Pasien" as UC_Resep
+    usecase "Menginput Racikan Aktif\n& Peracikan Obat" as UC_Racik
+    usecase "Mengelola Formula\nRacikan Master" as UC_Formula
+    usecase "Mengecek Stok Obat\n(FEFO Batch Tracker)" as UC_FEFO
+    usecase "Memantau Beyond Use Date\n(BUD Tracker)" as UC_BUD
+    usecase "Mencetak Laporan SIPNAP\n(Narkotika & Psikotropika)" as UC_SIPNAP
+}
+
+' ─── RELASI AKTOR KE USE CASE UTAMA ────────────────────────────
+
+' 1. Hubungan Aktor Admin
+admin --> UC_Laba
+admin --> UC_Fisik
+admin --> UC_Dist
+admin --> UC_User
+admin --> UC_Bahan
+admin --> UC_Pricing
+admin --> UC_Faktur
+admin --> UC_Katalog
+
+' 2. Hubungan Aktor Kasir
+kasir --> UC_Riwayat
+kasir --> UC_Trans
+
+' 3. Hubungan Aktor Apoteker
+apoteker --> UC_Resep
+apoteker --> UC_Racik
+apoteker --> UC_Formula
+apoteker --> UC_FEFO
+apoteker --> UC_BUD
+apoteker --> UC_SIPNAP
+apoteker --> UC_Opname
+
+' ─── RELASI INTER-USE CASE (LENGKAP 7 KELOMPOK) ────────────────
+
+' 1. Relasi Laporan Keuangan Admin
+UC_Laba ..> UC_Riwayat : <<include>>
+UC_Laba ..> UC_Opname : <<include>>
+
+' 2. Relasi Transaksi Kasir
+UC_Trans ..> UC_Diskon : <<extend>>
+UC_Trans ..> UC_Struk : <<include>>
+
+' 3. Serah Terima Resep dari Apoteker ke Kasir
+UC_Resep ..> UC_Trans : <<penyerahan_resep>>
+
+' 4. Relasi Alur Peracikan Apoteker
+UC_Racik ..> UC_FEFO : <<include>>
+UC_Racik ..> UC_BUD : <<include>>
+UC_Racik ..> UC_Deduct : <<include>>
+UC_Racik ..> UC_Formula : <<extend>>
+UC_Racik ..> UC_Verif : <<include>>
+UC_Verif ..> UC_HrgRacik : <<include>>
+
+' 5. Relasi Pricing Engine Admin
+UC_Pricing ..> UC_HrgRacik : <<include>>
+UC_Pricing ..> UC_HrgFaktur : <<include>>
+
+' 6. Relasi Logistik Faktur & Mutasi Stok Admin
+UC_Faktur ..> UC_HrgFaktur : <<include>>
+UC_Faktur ..> UC_Katalog : <<include>>
+UC_Fisik ..> UC_Opname : <<include>>
+UC_Dist ..> UC_Fisik : <<include>>
+
+' 7. Relasi Laporan SIPNAP
+UC_SIPNAP ..> UC_Katalog : <<include>>
+UC_SIPNAP ..> UC_Resep : <<include>>
+
+@enduml

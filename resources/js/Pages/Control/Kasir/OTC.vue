@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { toast } from '@/Components/ui/toast';
+import { useSmartSync } from '@/Composables/useSmartSync';
 import { 
     AlertDialog, 
     AlertDialogAction, 
@@ -149,6 +150,32 @@ const paidAmount = ref(0);
 const isPaymentModalOpen = ref(false);
 const isProcessingPayment = ref(false);
 const isClearCartDialogOpen = ref(false);
+const isSyncing = ref(false);
+
+const handleManualSync = () => {
+    if (isSyncing.value) return;
+    isSyncing.value = true;
+    router.reload({
+        only: ['medicines', 'compoundedProducts'],
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            isSyncing.value = false;
+            toast.success('Stok Diperbarui', {
+                description: 'Katalog stok kasir telah diperbarui dengan data server terkini.',
+                duration: 2000
+            });
+        }
+    });
+};
+
+// Sinkronisasi otomatis aman: hanya aktif saat kasir standby (keranjang kosong & tidak sedang membuka modal pembayaran)
+useSmartSync({
+    only: ['medicines', 'compoundedProducts'],
+    interval: 0, // Murni revalidasi saat kasir kembali ke tab, zero polling berulang
+    throttle: 4000,
+    enabled: () => cart.value.length === 0 && !isPaymentModalOpen.value && !isProcessingPayment.value
+});
 
 const page = usePage();
 
@@ -416,6 +443,22 @@ onUnmounted(() => {
                     </svg>
                     <span class="text-[11px] font-medium">
                         {{ sortBy === 'name' ? 'A-Z' : (sortBy === 'stock_desc' ? 'Stok' : 'Harga') }}
+                    </span>
+                </button>
+
+                <!-- Tombol Segarkan Stok Etalase Kasir Cepat (1-Klik) -->
+                <button 
+                    type="button" 
+                    @click="handleManualSync"
+                    :disabled="isSyncing"
+                    class="h-9 px-2.5 rounded-lg border border-slate-200 dark:border-border bg-slate-50 dark:bg-muted/50 flex items-center gap-1.5 text-slate-700 dark:text-muted-foreground hover:bg-slate-100 dark:hover:bg-muted transition-colors cursor-pointer shadow-2xs text-xs font-semibold shrink-0"
+                    title="Segarkan data stok etalase kasir dari server"
+                >
+                    <svg class="w-3.5 h-3.5 text-slate-500" :class="{ 'animate-spin text-primary': isSyncing }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span class="text-[11px] font-medium hidden sm:inline">
+                        Segarkan
                     </span>
                 </button>
             </div>
@@ -888,153 +931,153 @@ onUnmounted(() => {
 
         </div>
 
-        <!-- ========================================================= -->
-        <!-- MODAL PEMBAYARAN KASIR POS                                 -->
-        <!-- ========================================================= -->
-        <div v-if="isPaymentModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
-            <div class="bg-card w-full max-w-lg rounded-lg shadow-xl border border-border overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-                
-                <!-- MODAL HEADER -->
-                <div class="p-4 border-b border-border flex items-center justify-between bg-muted/30">
-                    <div>
-                        <h3 class="font-semibold text-foreground text-base">Pembayaran Transaksi OTC</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">{{ cart.length }} jenis obat dalam pesanan</p>
-                    </div>
-                    <button @click="closePaymentModal" class="w-7 h-7 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center text-xs font-medium transition-colors">
-                        ✕
-                    </button>
-                </div>
-
-                <!-- MODAL BODY -->
-                <div class="p-5 space-y-4">
+        <!-- MODAL PEMBAYARAN KASIR POS -->
+        <Teleport to="body">
+            <div v-if="isPaymentModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
+                <div class="bg-card w-full max-w-lg rounded-lg shadow-xl border border-border overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
                     
-                    <!-- TOTAL TAGIHAN BESAR -->
-                    <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between">
+                    <!-- MODAL HEADER -->
+                    <div class="p-4 border-b border-border flex items-center justify-between bg-muted/30">
                         <div>
-                            <p class="text-xs font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total yang Harus Dibayar</p>
-                            <p class="text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{{ formatRupiah(grandTotal) }}</p>
+                            <h3 class="font-semibold text-foreground text-base">Pembayaran Transaksi OTC</h3>
+                            <p class="text-xs text-muted-foreground mt-0.5">{{ cart.length }} jenis obat dalam pesanan</p>
                         </div>
-                        <span class="px-2.5 py-1 bg-background text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 rounded-md text-xs font-semibold">
-                            {{ paymentMethod.toUpperCase() }}
-                        </span>
+                        <button @click="closePaymentModal" class="w-7 h-7 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center text-xs font-medium transition-colors">
+                            ✕
+                        </button>
                     </div>
 
-                    <!-- PILIHAN METODE PEMBAYARAN -->
-                    <div>
-                        <label class="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Pilih Metode Pembayaran</label>
-                        <div class="grid grid-cols-3 gap-2">
-                            <button 
-                                type="button" 
-                                @click="paymentMethod = 'tunai'"
-                                :class="paymentMethod === 'tunai' ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs' : 'bg-background text-muted-foreground border-input hover:bg-muted'"
-                                class="h-9 rounded-md border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
-                            >
-                                <span>💵</span>
-                                <span>Tunai</span>
-                            </button>
-                            <button 
-                                type="button" 
-                                @click="paymentMethod = 'qris'"
-                                :class="paymentMethod === 'qris' ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs' : 'bg-background text-muted-foreground border-input hover:bg-muted'"
-                                class="h-9 rounded-md border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
-                            >
-                                <span>📱</span>
-                                <span>QRIS</span>
-                            </button>
-                            <button 
-                                type="button" 
-                                @click="paymentMethod = 'transfer'"
-                                :class="paymentMethod === 'transfer' ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs' : 'bg-background text-muted-foreground border-input hover:bg-muted'"
-                                class="h-9 rounded-md border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
-                            >
-                                <span>🏦</span>
-                                <span>Transfer</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- BAGIAN PEMBAYARAN TUNAI -->
-                    <div v-if="paymentMethod === 'tunai'" class="space-y-3 pt-1">
+                    <!-- MODAL BODY -->
+                    <div class="p-5 space-y-4">
                         
-                        <!-- QUICK NOMINAL BUTTONS -->
-                        <div>
-                            <label class="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Pilihan Uang Cepat</label>
-                            <div class="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                                <button 
-                                    type="button" 
-                                    @click="setQuickCash('pas')" 
-                                    class="px-2.5 py-1 bg-muted hover:bg-accent text-foreground border border-border text-xs font-medium rounded-md transition-colors"
-                                >
-                                    Uang Pas
-                                </button>
-                                <button 
-                                    v-for="nom in [10000, 20000, 50000, 100000]" 
-                                    :key="nom"
-                                    type="button" 
-                                    @click="setQuickCash(nom)" 
-                                    class="px-2.5 py-1 bg-muted hover:bg-accent text-foreground border border-border text-xs font-medium rounded-md transition-colors"
-                                >
-                                    {{ formatNumber(nom) }}
-                                </button>
+                        <!-- TOTAL TAGIHAN BESAR -->
+                        <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total yang Harus Dibayar</p>
+                                <p class="text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{{ formatRupiah(grandTotal) }}</p>
                             </div>
-                        </div>
-
-                        <!-- INPUT UANG DITERIMA -->
-                        <div>
-                            <label class="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Uang Diterima dari Pasien</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground font-semibold text-sm">Rp</span>
-                                <input 
-                                    v-model.number="paidAmount" 
-                                    type="number" 
-                                    class="w-full h-10 pl-9 pr-3 bg-background border border-input rounded-md text-base font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" 
-                                    placeholder="0"
-                                    autofocus
-                                    @keyup.enter="submitPayment"
-                                >
-                            </div>
-                        </div>
-
-                        <!-- KEMBALIAN CARD -->
-                        <div class="p-3 bg-muted/40 border border-border rounded-lg flex items-center justify-between">
-                            <span class="text-xs font-medium text-muted-foreground">Kembalian</span>
-                            <span class="text-lg font-bold" :class="kembalian > 0 ? 'text-emerald-600' : 'text-muted-foreground'">
-                                {{ formatRupiah(kembalian) }}
+                            <span class="px-2.5 py-1 bg-background text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 rounded-md text-xs font-semibold">
+                                {{ paymentMethod.toUpperCase() }}
                             </span>
                         </div>
+
+                        <!-- PILIHAN METODE PEMBAYARAN -->
+                        <div>
+                            <label class="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Pilih Metode Pembayaran</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button 
+                                    type="button" 
+                                    @click="paymentMethod = 'tunai'"
+                                    :class="paymentMethod === 'tunai' ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs' : 'bg-background text-muted-foreground border-input hover:bg-muted'"
+                                    class="h-9 rounded-md border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                >
+                                    <span>💵</span>
+                                    <span>Tunai</span>
+                                </button>
+                                <button 
+                                    type="button" 
+                                    @click="paymentMethod = 'qris'"
+                                    :class="paymentMethod === 'qris' ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs' : 'bg-background text-muted-foreground border-input hover:bg-muted'"
+                                    class="h-9 rounded-md border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                >
+                                    <span>📱</span>
+                                    <span>QRIS</span>
+                                </button>
+                                <button 
+                                    type="button" 
+                                    @click="paymentMethod = 'transfer'"
+                                    :class="paymentMethod === 'transfer' ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs' : 'bg-background text-muted-foreground border-input hover:bg-muted'"
+                                    class="h-9 rounded-md border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                >
+                                    <span>🏦</span>
+                                    <span>Transfer</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- BAGIAN PEMBAYARAN TUNAI -->
+                        <div v-if="paymentMethod === 'tunai'" class="space-y-3 pt-1">
+                            
+                            <!-- QUICK NOMINAL BUTTONS -->
+                            <div>
+                                <label class="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Pilihan Uang Cepat</label>
+                                <div class="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                                    <button 
+                                        type="button" 
+                                        @click="setQuickCash('pas')" 
+                                        class="px-2.5 py-1 bg-muted hover:bg-accent text-foreground border border-border text-xs font-medium rounded-md transition-colors"
+                                    >
+                                        Uang Pas
+                                    </button>
+                                    <button 
+                                        v-for="nom in [10000, 20000, 50000, 100000]" 
+                                        :key="nom"
+                                        type="button" 
+                                        @click="setQuickCash(nom)" 
+                                        class="px-2.5 py-1 bg-muted hover:bg-accent text-foreground border border-border text-xs font-medium rounded-md transition-colors"
+                                    >
+                                        {{ formatNumber(nom) }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- INPUT UANG DITERIMA -->
+                            <div>
+                                <label class="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Uang Diterima dari Pasien</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground font-semibold text-sm">Rp</span>
+                                    <input 
+                                        v-model.number="paidAmount" 
+                                        type="number" 
+                                        class="w-full h-10 pl-9 pr-3 bg-background border border-input rounded-md text-base font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors" 
+                                        placeholder="0"
+                                        autofocus
+                                        @keyup.enter="submitPayment"
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- KEMBALIAN CARD -->
+                            <div class="p-3 bg-muted/40 border border-border rounded-lg flex items-center justify-between">
+                                <span class="text-xs font-medium text-muted-foreground">Kembalian</span>
+                                <span class="text-lg font-bold" :class="kembalian > 0 ? 'text-emerald-600' : 'text-muted-foreground'">
+                                    {{ formatRupiah(kembalian) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- METODE NON-TUNAI (QRIS / TRANSFER) -->
+                        <div v-else class="p-3 bg-muted/40 border border-border rounded-lg text-center space-y-1">
+                            <p class="text-xs font-medium text-foreground">Pembayaran Non-Tunai Dipilih</p>
+                            <p class="text-xs text-muted-foreground">Pastikan dana telah masuk ke rekening atau scan QRIS apotek sejumlah nominal tagihan.</p>
+                        </div>
+
                     </div>
 
-                    <!-- METODE NON-TUNAI (QRIS / TRANSFER) -->
-                    <div v-else class="p-3 bg-muted/40 border border-border rounded-lg text-center space-y-1">
-                        <p class="text-xs font-medium text-foreground">Pembayaran Non-Tunai Dipilih</p>
-                        <p class="text-xs text-muted-foreground">Pastikan dana telah masuk ke rekening atau scan QRIS apotek sejumlah nominal tagihan.</p>
+                    <!-- MODAL FOOTER ACTION -->
+                    <div class="p-4 border-t border-border bg-muted/30 flex gap-2">
+                        <button 
+                            type="button" 
+                            @click="closePaymentModal" 
+                            class="w-1/3 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-md text-xs uppercase tracking-wider transition-colors"
+                        >
+                            Batal (Esc)
+                        </button>
+                        <button 
+                            type="button" 
+                            @click="submitPayment" 
+                            :disabled="isProcessingPayment || (paymentMethod === 'tunai' && paidAmount < grandTotal)"
+                            class="w-2/3 h-9 bg-emerald-600 hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-white font-medium rounded-md text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            <svg v-if="!isProcessingPayment" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                            <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>{{ isProcessingPayment ? 'Memproses...' : 'Selesaikan Transaksi' }}</span>
+                        </button>
                     </div>
 
                 </div>
-
-                <!-- MODAL FOOTER ACTION -->
-                <div class="p-4 border-t border-border bg-muted/30 flex gap-2">
-                    <button 
-                        type="button" 
-                        @click="closePaymentModal" 
-                        class="w-1/3 h-9 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-md text-xs uppercase tracking-wider transition-colors"
-                    >
-                        Batal (Esc)
-                    </button>
-                    <button 
-                        type="button" 
-                        @click="submitPayment" 
-                        :disabled="isProcessingPayment || (paymentMethod === 'tunai' && paidAmount < grandTotal)"
-                        class="w-2/3 h-9 bg-emerald-600 hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-white font-medium rounded-md text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center gap-1.5"
-                    >
-                        <svg v-if="!isProcessingPayment" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                        <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span>{{ isProcessingPayment ? 'Memproses...' : 'Selesaikan Transaksi' }}</span>
-                    </button>
-                </div>
-
             </div>
-        </div>
+        </Teleport>
 
         <!-- ALERT DIALOG KONFIRMASI KOSONGKAN KERANJANG -->
         <AlertDialog v-model:open="isClearCartDialogOpen">

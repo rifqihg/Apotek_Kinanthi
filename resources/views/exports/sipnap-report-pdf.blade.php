@@ -263,6 +263,9 @@
         </tr>
     </table>
 
+    @php
+        $fmt = fn($v) => (fmod((float)$v, 1) != 0 ? number_format((float)$v, 2, ',', '.') : number_format((float)$v, 0, ',', '.'));
+    @endphp
     <!-- RINGKASAN REKAPITULASI MUTASI -->
     <table class="summary-table">
         <thead>
@@ -279,8 +282,8 @@
                 <td>{{ number_format($summary['total_items'] ?? 0, 0, ',', '.') }} Item</td>
                 <td style="color: #991B1B;">{{ number_format($summary['total_narkotika'] ?? 0, 0, ',', '.') }} Item</td>
                 <td style="color: #5B21B6;">{{ number_format($summary['total_psikotropika'] ?? 0, 0, ',', '.') }} Item</td>
-                <td style="color: #065F46;">+{{ number_format($summary['total_pemasukan'] ?? 0, 0, ',', '.') }}</td>
-                <td style="color: #991B1B;">-{{ number_format($summary['total_pengeluaran'] ?? 0, 0, ',', '.') }}</td>
+                <td style="color: #065F46;">+{{ $fmt($summary['total_pemasukan'] ?? 0) }}</td>
+                <td style="color: #991B1B;">-{{ $fmt($summary['total_pengeluaran'] ?? 0) }}</td>
             </tr>
         </tbody>
     </table>
@@ -316,10 +319,10 @@
                         @endif
                     </td>
                     <td class="text-center font-bold">{{ $row['satuan'] ?: '-' }}</td>
-                    <td class="text-center font-bold">{{ number_format($row['stok_awal'], 0, ',', '.') }}</td>
-                    <td class="text-center font-bold" style="color: #047857;">+{{ number_format($row['pemasukan'], 0, ',', '.') }}</td>
-                    <td class="text-center font-bold" style="color: #B91C1C;">-{{ number_format($row['pengeluaran'], 0, ',', '.') }}</td>
-                    <td class="text-center font-bold" style="background-color: #F8FAFC;">{{ number_format($row['stok_akhir'], 0, ',', '.') }}</td>
+                    <td class="text-center font-bold">{{ $fmt($row['stok_awal']) }}</td>
+                    <td class="text-center font-bold" style="color: #047857;">+{{ $fmt($row['pemasukan']) }}</td>
+                    <td class="text-center font-bold" style="color: #B91C1C;">-{{ $fmt($row['pengeluaran']) }}</td>
+                    <td class="text-center font-bold" style="background-color: #F8FAFC;">{{ $fmt($row['stok_akhir']) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -332,10 +335,10 @@
         <tfoot>
             <tr class="total-row">
                 <td colspan="5" class="text-center font-bold">TOTAL AGREGAT MUTASI</td>
-                <td class="text-center font-bold">{{ number_format(collect($reportData)->sum('stok_awal'), 0, ',', '.') }}</td>
-                <td class="text-center font-bold" style="color: #047857;">+{{ number_format(collect($reportData)->sum('pemasukan'), 0, ',', '.') }}</td>
-                <td class="text-center font-bold" style="color: #B91C1C;">-{{ number_format(collect($reportData)->sum('pengeluaran'), 0, ',', '.') }}</td>
-                <td class="text-center font-bold">{{ number_format(collect($reportData)->sum('stok_akhir'), 0, ',', '.') }}</td>
+                <td class="text-center font-bold">{{ $fmt(collect($reportData)->sum('stok_awal')) }}</td>
+                <td class="text-center font-bold" style="color: #047857;">+{{ $fmt(collect($reportData)->sum('pemasukan')) }}</td>
+                <td class="text-center font-bold" style="color: #B91C1C;">-{{ $fmt(collect($reportData)->sum('pengeluaran')) }}</td>
+                <td class="text-center font-bold">{{ $fmt(collect($reportData)->sum('stok_akhir')) }}</td>
             </tr>
         </tfoot>
     </table>

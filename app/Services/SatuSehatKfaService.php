@@ -20,9 +20,8 @@ class SatuSehatKfaService
             return $cachedToken;
         }
 
-        // 2. Prevent Cache Stampede / Dogpiling with Atomic Lock
-        return Cache::lock('satusehat_auth_lock', 10)->block(5, function () {
-            // Double check inside lock
+        $fetcher = function () {
+            // Double check inside lock or fallback
             $cachedToken = Cache::get('satusehat_access_token');
             if ($cachedToken) {
                 return $cachedToken;
@@ -68,7 +67,14 @@ class SatuSehatKfaService
                 Log::error('SATUSEHAT Auth Exception: ' . $e->getMessage());
                 return null;
             }
-        });
+        };
+
+        // 2. Prevent Cache Stampede with Atomic Lock if supported by driver, fallback gracefully if not
+        try {
+            return Cache::lock('satusehat_auth_lock', 10)->block(5, $fetcher);
+        } catch (\BadMethodCallException) {
+            return $fetcher();
+        }
     }
 
     /**

@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
+import { useSmartSync } from '@/Composables/useSmartSync';
 
 defineOptions({ layout: ControlLayout });
 
@@ -9,6 +10,13 @@ const props = defineProps({
     month: { type: String, default: () => new Date().toISOString().substring(0, 7) },
     summary: { type: Object, default: () => ({}) },
     reportData: { type: Array, default: () => [] }
+});
+
+// Sinkronisasi dinamis multi-window (revalidasi instan saat tab dibuka & polling santai 15s)
+useSmartSync({
+    only: ['reportData', 'summary'],
+    interval: 15000,
+    throttle: 3000
 });
 
 const selectedMonth = ref(props.month);

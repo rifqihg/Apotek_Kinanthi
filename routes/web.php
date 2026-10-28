@@ -61,8 +61,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
     Route::get('/incoming-stocks', [AdminProcurementController::class, 'incomingStocks'])->name('incoming-stocks');
     Route::get('/incoming-stocks/search-medicines', [AdminProcurementController::class, 'searchMedicines'])->name('incoming-stocks.search-medicines');
     Route::get('/incoming-stocks/past-invoices', [AdminProcurementController::class, 'pastInvoices'])->name('incoming-stocks.past-invoices');
-    Route::get('/incoming-stocks/satusehat-lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('incoming-stocks.satusehat-lookup');
-    Route::get('/procurement/kfa/lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('procurement.kfa.lookup');
+    Route::get('/incoming-stocks/satusehat-lookup', [AdminProcurementController::class, 'satusehatLookup'])->middleware('throttle:30,1')->name('incoming-stocks.satusehat-lookup');
+    Route::get('/procurement/kfa/lookup', [AdminProcurementController::class, 'satusehatLookup'])->middleware('throttle:30,1')->name('procurement.kfa.lookup');
     Route::post('/incoming-stocks', [AdminProcurementController::class, 'storeIncomingStock'])->name('incoming-stocks.store');
     Route::post('/incoming-stocks/update-invoice', [AdminProcurementController::class, 'updateIncomingInvoice'])->name('incoming-stocks.update-invoice');
 
@@ -77,8 +77,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('control/admin')->name('contro
     // ─── ADMIN STOCK OPNAME ───────────────────────────────────
     Route::get('/stock-opname', [AdminStockOpnameController::class, 'stockOpnameIndex'])->name('stock-opname.index');
     Route::post('/stock-opname', [AdminStockOpnameController::class, 'stockOpnameStore'])->name('stock-opname.store');
-    Route::get('/stock-opname/{id}', [AdminStockOpnameController::class, 'stockOpnameShow'])->name('stock-opname.show');
-    Route::post('/stock-opname/{id}/adjust', [AdminStockOpnameController::class, 'stockOpnameAdjust'])->name('stock-opname.adjust');
 
     // ─── PRICING ENGINE ───────────────────────────────────────
     Route::get('/pricing', [AdminPricingController::class, 'pricingIndex'])->name('pricing.index');
@@ -106,6 +104,10 @@ Route::middleware(['auth', 'role:admin,apoteker'])->prefix('control/admin')->nam
 
     // Secure Faktur File Access (Admin & Apoteker)
     Route::get('/incoming-stocks/{incomingStock}/faktur', [AdminProcurementController::class, 'showFakturFile'])->name('incoming-stocks.faktur-file');
+
+    // Shared Stock Opname Worksheet & Reconciliation (Admin & Apoteker)
+    Route::get('/stock-opname/{id}', [AdminStockOpnameController::class, 'stockOpnameShow'])->name('stock-opname.show');
+    Route::post('/stock-opname/{id}/adjust', [AdminStockOpnameController::class, 'stockOpnameAdjust'])->name('stock-opname.adjust');
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -172,6 +174,6 @@ Route::middleware(['auth', 'role:kasir'])->prefix('control/kasir')->name('contro
     Route::post('/otc', [KasirSaleController::class, 'otcStore'])->name('otc.store');
 });
 
-Route::middleware(['auth'])->get('/api/satusehat/lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('api.satusehat.lookup');
+Route::middleware(['auth', 'throttle:30,1'])->get('/api/satusehat/lookup', [AdminProcurementController::class, 'satusehatLookup'])->name('api.satusehat.lookup');
 
 require __DIR__ . '/auth.php';

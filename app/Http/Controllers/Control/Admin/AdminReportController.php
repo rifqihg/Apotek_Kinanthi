@@ -18,23 +18,38 @@ class AdminReportController extends Controller
     /**
      * Query data rekap penjualan produk obat jadi dengan single SQL grouping agregat
      */
-    private function getSalesData(string $startDate, string $endDate)
+    private function getSalesData(string $startDate, string $endDate, ?array $medicineIds = null)
     {
-        $medSales = DB::table('sale_items')
+        if ($medicineIds !== null && empty($medicineIds)) {
+            return collect();
+        }
+
+        $medSalesQuery = DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.status', 'paid')
             ->where('sale_items.item_type', 'obat_jadi')
             ->whereDate('sales.created_at', '>=', $startDate)
-            ->whereDate('sales.created_at', '<=', $endDate)
+            ->whereDate('sales.created_at', '<=', $endDate);
+
+        if ($medicineIds !== null) {
+            $medSalesQuery->whereIn('sale_items.medicine_id', $medicineIds);
+        }
+
+        $medSales = $medSalesQuery
             ->selectRaw('sale_items.medicine_id, SUM(sale_items.quantity) as terjual, SUM(sale_items.subtotal) as total_penjualan')
             ->groupBy('sale_items.medicine_id')
             ->get()
             ->keyBy('medicine_id');
 
-        $medicines = Medicine::query()
+        $medicinesQuery = Medicine::query()
             ->with(['latestActiveIncomingStock', 'warehouseInventories:id,medicine_id,batch_no'])
-            ->orderBy('nama_obat')
-            ->get();
+            ->orderBy('nama_obat');
+
+        if ($medicineIds !== null) {
+            $medicinesQuery->whereIn('id', $medicineIds);
+        }
+
+        $medicines = $medicinesQuery->get();
 
         return $medicines->map(function ($med) use ($medSales) {
             $sale = $medSales->get($med->id);
@@ -47,22 +62,37 @@ class AdminReportController extends Controller
     /**
      * Query data rekap penjualan produk racikan dengan single SQL grouping agregat
      */
-    private function getCompoundedSalesData(string $startDate, string $endDate)
+    private function getCompoundedSalesData(string $startDate, string $endDate, ?array $compoundedIds = null)
     {
-        $cpSales = DB::table('sale_items')
+        if ($compoundedIds !== null && empty($compoundedIds)) {
+            return collect();
+        }
+
+        $cpSalesQuery = DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.status', 'paid')
             ->where('sale_items.item_type', 'racikan')
             ->whereDate('sales.created_at', '>=', $startDate)
-            ->whereDate('sales.created_at', '<=', $endDate)
+            ->whereDate('sales.created_at', '<=', $endDate);
+
+        if ($compoundedIds !== null) {
+            $cpSalesQuery->whereIn('sale_items.compounded_product_id', $compoundedIds);
+        }
+
+        $cpSales = $cpSalesQuery
             ->selectRaw('sale_items.compounded_product_id, SUM(sale_items.quantity) as terjual, SUM(sale_items.subtotal) as total_penjualan')
             ->groupBy('sale_items.compounded_product_id')
             ->get()
             ->keyBy('compounded_product_id');
 
-        $compounded = CompoundedProduct::query()
-            ->orderBy('nama_produk')
-            ->get();
+        $compoundedQuery = CompoundedProduct::query()
+            ->orderBy('nama_produk');
+
+        if ($compoundedIds !== null) {
+            $compoundedQuery->whereIn('id', $compoundedIds);
+        }
+
+        $compounded = $compoundedQuery->get();
 
         return $compounded->map(function ($cp) use ($cpSales) {
             $sale = $cpSales->get($cp->id);
@@ -180,11 +210,21 @@ class AdminReportController extends Controller
             ->where('sales.status', 'paid')
             ->whereDate('sales.created_at', '>=', $startDate)
             ->whereDate('sales.created_at', '<=', $endDate)
-            ->selectRaw('SUM(sale_items.quantity) as total_items, SUM(sale_items.subtotal) as total_amount')
+            ->selectRaw('SUM(sale_items.quantity) as total_items, SUM(sale_items.subtotal) as gross_amount')
             ->first();
 
         $totalItems = (float) ($salesAgg->total_items ?? 0);
-        $totalAmount = (float) ($salesAgg->total_amount ?? 0);
+        $grossAmount = (float) ($salesAgg->gross_amount ?? 0);
+
+        // Ambil total diskon dari transaksi paid pada rentang tanggal yang sama
+        $totalDiscount = (float) DB::table('sales')
+            ->where('status', 'paid')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->sum('discount_amount');
+
+        // Omzet Bersih Riil (Net Sales) = Total Nilai Kotor Produk dikurangi Total Diskon
+        $netAmount = max(0, $grossAmount - $totalDiscount);
 
         // Hitung total modal hanya untuk item yang terjual pada rentang tanggal
         $medSales = DB::table('sale_items')
@@ -238,9 +278,11 @@ class AdminReportController extends Controller
 
         return [
             'total_items' => $totalItems,
-            'total_amount' => $totalAmount,
+            'gross_amount' => $grossAmount,
+            'total_discount' => $totalDiscount,
+            'total_amount' => $netAmount,
             'total_modal' => $totalModal,
-            'total_laba' => $totalAmount - $totalModal,
+            'total_laba' => $netAmount - $totalModal,
         ];
     }
 
@@ -251,29 +293,49 @@ class AdminReportController extends Controller
     {
         $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->query('end_date', Carbon::today()->format('Y-m-d'));
-        $page = (int) $request->query('page', 1);
+        $page = max(1, (int) $request->query('page', 1));
         $perPage = 20;
 
-        $medItems = $this->getSalesData($startDate, $endDate);
-        $cpItems = $this->getCompoundedSalesData($startDate, $endDate);
+        $totalCount = Medicine::count() + CompoundedProduct::count();
 
-        $allItems = $medItems->concat($cpItems)->sortBy('nama_produk')->values();
+        // Database-level unified pagination: fetch ONLY 20 IDs for the current page
+        $medUnion = DB::table('medicines')->selectRaw("'obat_jadi' as item_type, id, nama_obat as nama_item");
+        $cpUnion = DB::table('compounded_products')->selectRaw("'racikan' as item_type, id, nama_produk as nama_item");
+
+        $pageRows = $medUnion->unionAll($cpUnion)
+            ->orderBy('nama_item', 'asc')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $medicineIds = $pageRows->where('item_type', 'obat_jadi')->pluck('id')->all();
+        $compoundedIds = $pageRows->where('item_type', 'racikan')->pluck('id')->all();
+
+        $medItems = $this->getSalesData($startDate, $endDate, $medicineIds)->keyBy('id');
+        $cpItems = $this->getCompoundedSalesData($startDate, $endDate, $compoundedIds)->keyBy(fn($item) => $item['id']);
+
+        $pageItems = $pageRows->map(function ($row) use ($medItems, $cpItems) {
+            if ($row->item_type === 'obat_jadi') {
+                return $medItems->get($row->id);
+            }
+            return $cpItems->get('cp-' . $row->id);
+        })->filter()->values();
 
         $paginated = new LengthAwarePaginator(
-            $allItems->forPage($page, $perPage)->values(),
-            $allItems->count(),
+            $pageItems,
+            $totalCount,
             $perPage,
             $page,
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
         return Inertia::render('Control/Admin/SalesReport', [
-            'medicines' => $paginated,
+            'medicines' => fn() => $paginated,
             'filters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ],
-            'summary' => $this->calculateSalesSummary($startDate, $endDate),
+            'summary' => fn() => $this->calculateSalesSummary($startDate, $endDate),
         ]);
     }
 
@@ -296,12 +358,14 @@ class AdminReportController extends Controller
             ->first();
 
         $totalSales = (float) ($aggregates->total_sales ?? 0);
+        $totalDiscount = (float) ($aggregates->total_discount ?? 0);
 
         return [
             'total_transactions' => (int) ($aggregates->total_transactions ?? 0),
             'total_sales'        => $totalSales,
             'total_omset'        => $totalSales,
-            'total_discount'     => (float) ($aggregates->total_discount ?? 0),
+            'gross_amount'       => $totalSales + $totalDiscount,
+            'total_discount'     => $totalDiscount,
             'total_tunai'        => (float) ($aggregates->total_tunai ?? 0),
             'total_non_tunai'    => (float) ($aggregates->total_non_tunai ?? 0),
             'total_void'         => (int) ($aggregates->total_void ?? 0),
@@ -359,8 +423,8 @@ class AdminReportController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ],
-            'kpis' => $this->calculateCashierKpis($startDate, $endDate),
-            'transactions' => $sales,
+            'kpis' => fn() => $this->calculateCashierKpis($startDate, $endDate),
+            'transactions' => fn() => $sales,
         ]);
     }
 }

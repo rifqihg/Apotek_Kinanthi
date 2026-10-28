@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { useSmartSync } from '@/Composables/useSmartSync';
 
 defineOptions({ layout: ControlLayout });
 
@@ -10,6 +11,13 @@ const props = defineProps({
     filters: Object,
     kpis: Object,
     transactions: [Array, Object],
+});
+
+// Sinkronisasi live transaksi kasir untuk admin (revalidasi instan saat tab dibuka & polling santai 15s)
+useSmartSync({
+    only: ['kpis', 'transactions'],
+    interval: 15000,
+    throttle: 3000
 });
 
 const isFiltering = ref(false);
@@ -151,8 +159,16 @@ const exportToPdf = () => {
                 <p v-if="activeKpis.total_void > 0" class="text-[11px] text-destructive mt-1 font-medium">{{ activeKpis.total_void }} void/batal</p>
             </div>
             <div class="bg-card p-5 rounded-lg border border-border shadow-sm">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Omzet</p>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Omzet</p>
+                    <span v-if="activeKpis.total_discount > 0" class="text-[10px] font-bold text-destructive bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-900/40 -mt-2">
+                        Netto
+                    </span>
+                </div>
                 <p class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{{ formatRupiah(activeKpis.total_sales || activeKpis.total_omset) }}</p>
+                <p v-if="activeKpis.total_discount > 0" class="text-[11px] text-muted-foreground mt-1">
+                    Diskon: <span class="text-destructive font-medium">-{{ formatRupiah(activeKpis.total_discount) }}</span>
+                </p>
             </div>
             <div class="bg-card p-5 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-sm">
                 <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">Setoran Tunai (Laci)</p>

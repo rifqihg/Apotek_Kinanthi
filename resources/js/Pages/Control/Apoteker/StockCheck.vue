@@ -2,6 +2,7 @@
 import { Head, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
+import { useSmartSync } from '@/Composables/useSmartSync';
 
 defineOptions({ layout: ControlLayout });
 
@@ -9,6 +10,13 @@ const props = defineProps({
     rawMaterials: { type: Array, default: () => [] },
     medicines: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) }
+});
+
+// Revalidasi data stok saat apoteker membuka tab (focus-only, 0 interval, super efisien)
+useSmartSync({
+    only: ['rawMaterials', 'medicines'],
+    interval: 0,
+    throttle: 4000
 });
 
 const activeTab = ref('raw_materials');

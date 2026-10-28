@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import ControlLayout from '@/Layouts/ControlLayout.vue';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { useSmartSync } from '@/Composables/useSmartSync';
 
 defineOptions({ layout: ControlLayout });
 
@@ -10,6 +11,13 @@ const props = defineProps({
     medicines: Object,
     filters: Object,
     summary: Object
+});
+
+// Sinkronisasi otomatis saat kembali ke tab Laporan Penjualan (focus-only)
+useSmartSync({
+    only: ['medicines', 'summary'],
+    interval: 0,
+    throttle: 4000
 });
 
 const isFiltering = ref(false);
@@ -149,8 +157,16 @@ const formatCurrency = (amount) => {
 
         <!-- Card 2: Total Omzet -->
         <div class="bg-card p-5 rounded-lg border border-border shadow-sm flex flex-col justify-center">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Omzet</p>
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Omzet</p>
+                <span v-if="activeSummary.total_discount > 0" class="text-[10px] font-bold text-destructive bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-900/40 -mt-2">
+                    Netto
+                </span>
+            </div>
             <p class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{{ formatCurrency(activeSummary.total_amount) }}</p>
+            <p v-if="activeSummary.total_discount > 0" class="text-[11px] text-muted-foreground mt-1">
+                Diskon: <span class="text-destructive font-medium">-{{ formatCurrency(activeSummary.total_discount) }}</span>
+            </p>
         </div>
 
         <!-- Card 3: Total Modal (HPP) -->

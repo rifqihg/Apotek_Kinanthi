@@ -6,6 +6,7 @@ import { useDebounceFn } from '@vueuse/core';
 import axios from 'axios';
 
 import { useToast } from '@/Components/ui/toast/use-toast';
+import { useSmartSync } from '@/Composables/useSmartSync';
 
 defineOptions({ layout: ControlLayout });
 
@@ -84,6 +85,14 @@ const clearFilters = () => {
     performServerSearch();
 };
 const showModal = ref(false);
+
+// Sinkronisasi otomatis daftar pengajuan racikan (dijeda otomatis jika modal form racikan sedang aktif diisi)
+useSmartSync({
+    only: ['submissions'],
+    interval: 12000,
+    throttle: 3000,
+    enabled: () => !showModal.value
+});
 
 watch(showModal, (newVal) => {
     if (newVal) loadReferenceData();
@@ -634,7 +643,7 @@ if (prefillItemId) {
                             {{ (s.details?.length || 0) }} 
                         </td>
                         <td class="px-4 py-3 text-center text-foreground font-medium text-sm">
-                            {{ s.expected_yield || '-' }} <span class="text-xs text-muted-foreground font-normal">{{ s.target_unit }}</span>
+                            {{ Number(s.compounded_product?.qty_hasil || s.target_quantity || s.expected_yield || 0).toLocaleString('id-ID') }} <span class="text-xs text-muted-foreground font-normal">{{ s.target_unit }}</span>
                         </td>
                         <td class="px-4 py-3 text-center text-muted-foreground text-xs font-medium">
                             <div class="flex flex-col gap-0.5">
@@ -741,43 +750,25 @@ if (prefillItemId) {
                                 <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 11v10"></path></svg>
                                 Target Produksi & Hasil Jadi
                             </h4>
-                            <!-- Status Mass Balance -->
-                            <div class="flex items-center gap-1.5">
-                                <div :class="massBalanceStatus.ok ? 'bg-emerald-500' : 'bg-red-500'" class="w-2 h-2 rounded-full animate-pulse"></div>
-                                <span v-if="form.berat_per_unit > 0" :class="massBalanceStatus.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'" class="text-xs font-semibold uppercase tracking-wider">
-                                    {{ massBalanceStatus.ok ? 'Mass Balance OK' : 'Insufficient Mass' }}
-                                </span>
-                                <span v-else class="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                                    Volume Based
-                                </span>
-                            </div>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-foreground border border-border">
+                                Target: {{ form.jumlah_unit || 0 }} {{ form.target_unit }}
+                            </span>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">Jumlah Unit <span class="text-red-500">*</span></label>
+                            <div class="sm:col-span-4">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">Jumlah Jadi <span class="text-red-500">*</span></label>
                                 <input v-model.number="form.jumlah_unit" type="number" min="1" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring" required />
                             </div>
-                            <div class="sm:col-span-5">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Satuan</label>
+                            <div class="sm:col-span-8">
+                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">Bentuk Sediaan / Satuan Kemasan <span class="text-red-500">*</span></label>
                                 <select v-model="form.target_unit" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring" required>
                                     <option value="Kapsul">Kapsul (Serbuk Terbagi / Kapsul)</option>
                                     <option value="Puyer">Puyer (Serbuk Terbagi)</option>
                                     <option value="Botol">Botol (Larutan Oral / Sirup / Suspensi)</option>
                                     <option value="Pot">Pot (Salep / Krim / Semisolid)</option>
                                     <option value="Tube">Tube (Gel / Pasta Luar)</option>
+                                    <option value="Sachet">Sachet</option>
                                 </select>
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5 whitespace-nowrap">
-                                    Berat/Unit (g)
-                                    <span v-if="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2" class="text-red-500 ml-1" title="Peringatan: Berat melebihi kapasitas rata-rata cangkang kapsul (Max 1.2g)">⚠️</span>
-                                </label>
-                                <input v-model.number="form.berat_per_unit" type="number" step="0.01" class="w-full bg-background border border-input rounded-md h-9 px-3 text-sm font-semibold text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors" :class="form.target_unit === 'Kapsul' && form.berat_per_unit > 1.2 ? 'border-red-500 text-red-500' : ''" placeholder="Target berat" />
-                            </div>
-                            <div class="sm:col-span-3 bg-background border border-border rounded-md p-2 flex flex-col justify-center text-center">
-                                <p class="text-xs text-muted-foreground uppercase">Estimasi Hasil</p>
-                                <p class="text-sm font-semibold text-foreground">{{ yieldStats.yield }} {{ form.target_unit }}</p>
-                                <p v-if="yieldStats.remainder > 0" class="text-xs text-muted-foreground mt-0.5">Sisa: {{ yieldStats.remainder }}g</p>
                             </div>
                         </div>
 

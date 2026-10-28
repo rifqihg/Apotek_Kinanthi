@@ -15,8 +15,10 @@ use App\Models\Control\RawMaterial;
 use App\Models\Control\RawMaterialStock;
 use App\Models\Control\WarehouseInventory;
 use App\Models\PrescriptionItem;
+use App\Models\User;
 use App\Services\StockAuditService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -32,8 +34,26 @@ class ApotekerCompoundingController extends Controller
         $status = $request->query('status');
         $unit = $request->query('unit');
 
-        $query = CompoundingSubmission::with(['details.rawMaterial', 'details.medicine', 'label', 'formula', 'user', 'compoundedProduct'])
+        $query = CompoundingSubmission::select([
+                'id',
+                'user_id',
+                'formula_id',
+                'nama_racikan',
+                'target_quantity',
+                'target_unit',
+                'expected_yield',
+                'status',
+                'created_at',
+            ])
+            ->with([
+                'compoundedProduct:id,compounding_submission_id,batch_no,qty_hasil',
+                'formula:id,nama_resep,kategori_sediaan',
+                'label:id,compounding_id,tanggal_racik,tanggal_kadaluarsa_bud',
+                'user:id,name',
+                'details:id,compounding_id',
+            ])
             ->where('user_id', auth()->id());
+
 
         if ($request->filled('status') && $status !== 'all') {
             $query->where('status', $status);
@@ -95,7 +115,7 @@ class ApotekerCompoundingController extends Controller
             'apoteker_note' => 'nullable|string|max:1000',
             'jumlah_unit' => 'required|numeric|min:1', // Target Jadi
             'target_unit' => 'required|string|in:Kapsul,Puyer,Botol,Pot,Tube,Sachet',
-            'berat_per_unit' => 'required|numeric|min:0', // 0 diizinkan jika sediaan non-massa (sirup/cair)
+            'berat_per_unit' => 'nullable|numeric|min:0',
             'bahan_baku' => 'required|array|min:1',
             'bahan_baku.*.source_type' => 'nullable|in:raw_material,medicine',
             'bahan_baku.*.id_batch' => 'required', // ID raw_material atau medicine
@@ -211,18 +231,23 @@ class ApotekerCompoundingController extends Controller
 
     /**
      * Process transaction logic for storing compounding submission.
+     *
+     * @param array<string, mixed> $v
+     * @param User $user
+     * @return RedirectResponse
      */
-    private function processSubmissionTransaction(array $v, $user)
+    private function processSubmissionTransaction(array $v, User $user): RedirectResponse
     {
         // 1. Kalkulasi Mass Balance & Verifikasi Filler (SOP Logic)
         $totalMassaNetoBahan = round(collect($v['bahan_baku'])->sum('qty_neto_mass'), 2);
-        $totalMassaTarget = round($v['jumlah_unit'] * $v['berat_per_unit'], 2);
+        $beratPerUnit = (float) ($v['berat_per_unit'] ?? 0);
+        $totalMassaTarget = round($v['jumlah_unit'] * $beratPerUnit, 2);
 
-        // Filler otomatis dibutuhkan jika massa bahan baku < massa target
-        $fillerQty = max(0, round($totalMassaTarget - $totalMassaNetoBahan, 2));
+        // Filler otomatis jika ada target bobot per unit
+        $fillerQty = $beratPerUnit > 0 ? max(0, round($totalMassaTarget - $totalMassaNetoBahan, 2)) : 0;
 
-        // Estimasi Hasil Unit (Yield)
-        $expectedYield = floor(round(($totalMassaNetoBahan + $fillerQty) / $v['berat_per_unit'], 2));
+        // Estimasi Hasil Unit (Yield) selalu sama dengan target unit jadi yang ditentukan apoteker
+        $expectedYield = (int) $v['jumlah_unit'];
 
         // 2. Simpan Data Induk Pengajuan Racikan
         /** @var CompoundingSubmission $sub */
@@ -235,150 +260,22 @@ class ApotekerCompoundingController extends Controller
             'expected_yield' => $expectedYield,
             'total_net_mass' => $totalMassaNetoBahan,
             'filler_qty' => $fillerQty,
-            'unit_weight_target' => $v['berat_per_unit'],
+            'unit_weight_target' => $beratPerUnit,
             'apoteker_note' => $v['apoteker_note'] ?? null,
             'status' => 'pending_final_verification',
             'prescription_id' => $v['prescription_id'] ?? null,
             'prescription_item_id' => $v['prescription_item_id'] ?? null,
         ]);
 
-        $totalBaseCost = 0;
+        $totalBaseCost = 0.0;
 
         // 3. Proses Detail Bahan & Pengurangan Stok (FEFO dengan Pessimistic Lock)
         foreach ($v['bahan_baku'] as $d) {
             $sourceType = $d['source_type'] ?? 'raw_material';
-            $itemId = $d['id_batch'];
-            $fefo = CompoundingDetail::suggestFEFO($itemId, $sourceType);
-
             if ($sourceType === 'medicine') {
-                $med = Medicine::with('latestIncomingStock')->findOrFail($itemId);
-                $hppUnit = (float) ($med->latestIncomingStock?->calculateHppSatuan() ?? ($med->selling_price > 0 ? $med->selling_price : 0));
-
-                $detail = CompoundingDetail::create([
-                    'compounding_id' => $sub->id,
-                    'medicine_id' => $med->id,
-                    'raw_material_id' => null,
-                    'stock_batch_id' => null,
-                    'source_type' => 'medicine',
-                    'qty_needed' => $d['qty_taken_pcs'],
-                    'net_quantity' => $d['qty_neto_mass'],
-                    'volume_to_mass_factor' => 1.0,
-                    'suggested_batch_no' => $fefo?->batch_no,
-                    'suggested_expired_date' => $fefo?->expired_date,
-                    'harga_satuan_saat_pakai' => $hppUnit,
-                ]);
-
-                $totalBaseCost += ($detail->qty_needed * $detail->harga_satuan_saat_pakai);
-
-                // Pengurangan Stok Otomatis sesuai Batch FEFO WarehouseInventory dengan Kunci Pesimistik (Race-Free)
-                $remaining = (float) $d['qty_taken_pcs'];
-                /** @var \Illuminate\Database\Eloquent\Collection<int, WarehouseInventory> $inventories */
-                $inventories = WarehouseInventory::where('medicine_id', $med->id)
-                    ->where('location_type', 'gudang')
-                    ->where('stock_on_hand', '>', 0)
-                    ->where('status', 'active')
-                    ->where('is_frozen', false)
-                    ->whereDate('expired_date', '>', now())
-                    ->orderBy('expired_date', 'asc')
-                    ->lockForUpdate()
-                    ->get();
-
-                $totalAvailable = (float) $inventories->sum('stock_on_hand');
-                if ($totalAvailable < $remaining) {
-                    throw new \Exception("Stok tidak mencukupi untuk obat jadi '{$med->nama_obat}' saat penguncian batch. Dibutuhkan: {$remaining}, Tersedia: {$totalAvailable}.");
-                }
-
-                /** @var WarehouseInventory $inv */
-                foreach ($inventories as $inv) {
-                    if ($remaining <= 0) break;
-                    $deduct = min($remaining, (float) $inv->stock_on_hand);
-                    $inv->setMutationContext('out', $sub, "Bahan Racikan: {$sub->nama_racikan}");
-                    $inv->stock_on_hand = (string) round((float) $inv->stock_on_hand - $deduct, 2);
-                    $inv->save();
-
-                    if ($inv->incomingStock) {
-                        $incoming = $inv->incomingStock;
-                        $incoming->qty_converted = max(0, $incoming->qty_converted - $deduct);
-                        $incoming->saveQuietly();
-                    }
-
-                    CompoundingStockDeduction::create([
-                        'compounding_detail_id' => $detail->id,
-                        'stock_source_id' => $inv->id,
-                        'stock_source_type' => WarehouseInventory::class,
-                        'qty_deducted' => $deduct,
-                    ]);
-                    $remaining -= $deduct;
-                }
-
-                $med->recalculateStock();
-
-                StockAuditService::log(
-                    $med,
-                    'Pengurangan Racikan',
-                    (float) ($med->stok_total + $d['qty_taken_pcs']),
-                    (float) $med->stok_total,
-                    "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
-                );
+                $totalBaseCost += $this->processMedicineIngredient($sub, $d);
             } else {
-                $rm = RawMaterial::findOrFail($itemId);
-                $detail = CompoundingDetail::create([
-                    'compounding_id' => $sub->id,
-                    'raw_material_id' => $rm->id,
-                    'medicine_id' => null,
-                    'stock_batch_id' => $fefo?->id,
-                    'source_type' => 'raw_material',
-                    'qty_needed' => $d['qty_taken_pcs'],
-                    'net_quantity' => $d['qty_neto_mass'],
-                    'volume_to_mass_factor' => $rm->density_factor ?? 1.0,
-                    'suggested_batch_no' => $fefo?->batch_no,
-                    'suggested_expired_date' => $fefo?->expired_date,
-                    'harga_satuan_saat_pakai' => $rm->harga_beli_satuan,
-                ]);
-
-                $totalBaseCost += ($detail->qty_needed * $detail->harga_satuan_saat_pakai);
-
-                // Pengurangan Stok Otomatis sesuai Batch FEFO RawMaterialStock dengan Kunci Pesimistik (Race-Free)
-                $remaining = (float) $d['qty_taken_pcs'];
-                /** @var \Illuminate\Database\Eloquent\Collection<int, RawMaterialStock> $batches */
-                $batches = RawMaterialStock::where('raw_material_id', $rm->id)
-                    ->where('stock_on_hand', '>', 0)
-                    ->notExpired()
-                    ->fefo()
-                    ->lockForUpdate()
-                    ->get();
-
-                $totalAvailable = (float) $batches->sum('stock_on_hand');
-                if ($totalAvailable < $remaining) {
-                    throw new \Exception("Stok tidak mencukupi untuk bahan baku '{$rm->nama_bahan}' saat penguncian batch. Dibutuhkan: {$remaining}, Tersedia: {$totalAvailable}.");
-                }
-
-                /** @var RawMaterialStock $batch */
-                foreach ($batches as $batch) {
-                    if ($remaining <= 0)
-                        break;
-                    $deduct = min($remaining, (float) $batch->stock_on_hand);
-                    $batch->setMutationContext('out', $sub, "Bahan racikan: {$sub->nama_racikan}");
-                    $batch->stock_on_hand = (string) round((float) $batch->stock_on_hand - $deduct, 2);
-                    $batch->save();
-
-                    CompoundingStockDeduction::create([
-                        'compounding_detail_id' => $detail->id,
-                        'stock_source_id' => $batch->id,
-                        'stock_source_type' => RawMaterialStock::class,
-                        'qty_deducted' => $deduct,
-                    ]);
-                    $remaining -= $deduct;
-                }
-                $rm->recalculateStock();
-
-                StockAuditService::log(
-                    $rm,
-                    'Pengurangan Racikan',
-                    (float) ($rm->stok_total + $d['qty_taken_pcs']),
-                    (float) $rm->stok_total,
-                    "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
-                );
+                $totalBaseCost += $this->processRawMaterialIngredient($sub, $d);
             }
         }
 
@@ -432,13 +329,197 @@ class ApotekerCompoundingController extends Controller
     }
 
     /**
+     * Process medicine ingredient: create detail, FEFO warehouse inventory deduction, and audit log.
+     *
+     * @param CompoundingSubmission $sub
+     * @param array<string, mixed> $d
+     * @return float
+     */
+    private function processMedicineIngredient(CompoundingSubmission $sub, array $d): float
+    {
+        $itemId = (int) $d['id_batch'];
+        $fefo = CompoundingDetail::suggestFEFO($itemId, 'medicine');
+        $med = Medicine::with('latestIncomingStock')->findOrFail($itemId);
+        $hppUnit = (float) ($med->latestIncomingStock?->calculateHppSatuan() ?? ($med->selling_price > 0 ? $med->selling_price : 0));
+
+        $detail = CompoundingDetail::create([
+            'compounding_id' => $sub->id,
+            'medicine_id' => $med->id,
+            'raw_material_id' => null,
+            'stock_batch_id' => null,
+            'source_type' => 'medicine',
+            'qty_needed' => $d['qty_taken_pcs'],
+            'net_quantity' => $d['qty_neto_mass'],
+            'volume_to_mass_factor' => 1.0,
+            'suggested_batch_no' => $fefo?->batch_no,
+            'suggested_expired_date' => $fefo?->expired_date,
+            'harga_satuan_saat_pakai' => $hppUnit,
+        ]);
+
+        $cost = (float) $detail->qty_needed * (float) $detail->harga_satuan_saat_pakai;
+
+        // Pengurangan Stok Otomatis sesuai Batch FEFO WarehouseInventory dengan Kunci Pesimistik (Race-Free)
+        $remaining = (float) $d['qty_taken_pcs'];
+        /** @var \Illuminate\Database\Eloquent\Collection<int, WarehouseInventory> $inventories */
+        $inventories = WarehouseInventory::where('medicine_id', $med->id)
+            ->where('stock_on_hand', '>', 0)
+            ->where('status', 'active')
+            ->where('is_frozen', false)
+            ->whereDate('expired_date', '>', now())
+            ->orderByRaw("CASE WHEN location_type = 'gudang' THEN 0 ELSE 1 END")
+            ->orderBy('expired_date', 'asc')
+            ->lockForUpdate()
+            ->get();
+
+        $totalAvailable = (float) $inventories->sum('stock_on_hand');
+        if ($totalAvailable < $remaining) {
+            throw new \Exception("Stok tidak mencukupi untuk obat jadi '{$med->nama_obat}' saat penguncian batch. Dibutuhkan: {$remaining}, Tersedia: {$totalAvailable}.");
+        }
+
+        /** @var WarehouseInventory $inv */
+        foreach ($inventories as $inv) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $deduct = min($remaining, (float) $inv->stock_on_hand);
+            $inv->setMutationContext('out', $sub, "Bahan Racikan: {$sub->nama_racikan}");
+            $inv->stock_on_hand = round((float) $inv->stock_on_hand - $deduct, 2);
+            $inv->save();
+
+            if ($inv->incomingStock) {
+                $incoming = $inv->incomingStock;
+                $incoming->qty_converted = max(0, $incoming->qty_converted - $deduct);
+                $incoming->saveQuietly();
+            }
+
+            CompoundingStockDeduction::create([
+                'compounding_detail_id' => $detail->id,
+                'stock_source_id' => $inv->id,
+                'stock_source_type' => WarehouseInventory::class,
+                'qty_deducted' => $deduct,
+            ]);
+            $remaining -= $deduct;
+        }
+
+        $med->recalculateStock();
+
+        StockAuditService::log(
+            $med,
+            'Pengurangan Racikan',
+            (float) ($med->stok_total + $d['qty_taken_pcs']),
+            (float) $med->stok_total,
+            "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
+        );
+
+        return $cost;
+    }
+
+    /**
+     * Process raw material ingredient: create detail, FEFO raw material stock deduction, and audit log.
+     *
+     * @param CompoundingSubmission $sub
+     * @param array<string, mixed> $d
+     * @return float
+     */
+    private function processRawMaterialIngredient(CompoundingSubmission $sub, array $d): float
+    {
+        $itemId = (int) $d['id_batch'];
+        $fefo = CompoundingDetail::suggestFEFO($itemId, 'raw_material');
+        $rm = RawMaterial::findOrFail($itemId);
+        $conversion = max(1, (float) ($rm->rasio_konversi ?? 1));
+        $hargaSatuanDasar = round((float) $rm->harga_beli_satuan / $conversion, 4);
+
+        $detail = CompoundingDetail::create([
+            'compounding_id' => $sub->id,
+            'raw_material_id' => $rm->id,
+            'medicine_id' => null,
+            'stock_batch_id' => $fefo?->id,
+            'source_type' => 'raw_material',
+            'qty_needed' => $d['qty_taken_pcs'],
+            'net_quantity' => $d['qty_neto_mass'],
+            'volume_to_mass_factor' => $rm->density_factor ?? 1.0,
+            'suggested_batch_no' => $fefo?->batch_no,
+            'suggested_expired_date' => $fefo?->expired_date,
+            'harga_satuan_saat_pakai' => $hargaSatuanDasar,
+        ]);
+
+        $cost = (float) $detail->qty_needed * (float) $detail->harga_satuan_saat_pakai;
+
+        // Pengurangan Stok Otomatis sesuai Batch FEFO RawMaterialStock dengan Kunci Pesimistik (Race-Free)
+        $remaining = (float) $d['qty_taken_pcs'];
+        /** @var \Illuminate\Database\Eloquent\Collection<int, RawMaterialStock> $batches */
+        $batches = RawMaterialStock::where('raw_material_id', $rm->id)
+            ->where('stock_on_hand', '>', 0)
+            ->notExpired()
+            ->fefo()
+            ->lockForUpdate()
+            ->get();
+
+        $totalAvailable = (float) $batches->sum('stock_on_hand');
+        if ($totalAvailable < $remaining) {
+            throw new \Exception("Stok tidak mencukupi untuk bahan baku '{$rm->nama_bahan}' saat penguncian batch. Dibutuhkan: {$remaining}, Tersedia: {$totalAvailable}.");
+        }
+
+        /** @var RawMaterialStock $batch */
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $deduct = min($remaining, (float) $batch->stock_on_hand);
+            $batch->setMutationContext('out', $sub, "Bahan racikan: {$sub->nama_racikan}");
+            $batch->stock_on_hand = round((float) $batch->stock_on_hand - $deduct, 2);
+            $batch->save();
+
+            CompoundingStockDeduction::create([
+                'compounding_detail_id' => $detail->id,
+                'stock_source_id' => $batch->id,
+                'stock_source_type' => RawMaterialStock::class,
+                'qty_deducted' => $deduct,
+            ]);
+            $remaining -= $deduct;
+        }
+
+        $rm->recalculateStock();
+
+        StockAuditService::log(
+            $rm,
+            'Pengurangan Racikan',
+            (float) ($rm->stok_total + $d['qty_taken_pcs']),
+            (float) $rm->stok_total,
+            "Bahan racikan: {$sub->nama_racikan} (#{$sub->id})"
+        );
+
+        return $cost;
+    }
+
+    /**
      * Display details of a compounding submission.
      */
     public function showSubmission(CompoundingSubmission $submission)
     {
         abort_if($submission->user_id !== auth()->id() && auth()->user()->role !== 'admin', 403, 'Akses ditolak.');
 
-        $submission->load(['details.medicine', 'label', 'formula', 'user', 'approver']);
+        $submission->load([
+            'details' => function ($q) {
+                $q->select([
+                    'id',
+                    'compounding_id',
+                    'medicine_id',
+                    'raw_material_id',
+                    'source_type',
+                    'qty_needed',
+                    'net_quantity',
+                    'suggested_batch_no',
+                    'suggested_expired_date',
+                ]);
+            },
+            'details.medicine:id,nama_obat,satuan_stok,base_unit',
+            'details.rawMaterial:id,nama_bahan,satuan_dasar_penggunaan,satuan_pembelian',
+            'label:id,compounding_id,tanggal_racik,bud_hari,tanggal_kadaluarsa_bud,aturan_pakai,nama_pasien',
+            'formula:id,nama_resep',
+            'user:id,name',
+            'approver:id,name',
+        ]);
         return Inertia::render('Control/Apoteker/SubmissionDetail', ['submission' => $submission]);
     }
 

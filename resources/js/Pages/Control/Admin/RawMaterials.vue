@@ -409,12 +409,15 @@ const deleteMaterial = (m) => {
                         </div>
                     </TableCell>
                     <!-- GOLONGAN -->
-                    <TableCell class="py-2.5 px-3 text-center text-xs font-medium align-middle">
-                        <span class="px-2 py-0.5 rounded-full border" 
+                    <TableCell class="py-2.5 px-3 text-center align-middle">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider inline-block" 
                             :class="{
-                                'bg-red-50 text-red-600 border-red-200': m.golongan_bahan === 'Keras' || m.golongan_bahan === 'Narkotika' || m.golongan_bahan === 'Psikotropika',
-                                'bg-blue-50 text-blue-600 border-blue-200': m.golongan_bahan === 'Bebas Terbatas',
-                                'bg-green-50 text-green-600 border-green-200': m.golongan_bahan === 'Bebas' || !m.golongan_bahan,
+                                'bg-red-100 text-red-800 border border-red-300': m.golongan_bahan === 'Narkotika',
+                                'bg-purple-100 text-purple-800 border border-purple-300': m.golongan_bahan === 'Psikotropika',
+                                'bg-blue-100 text-blue-800 border border-blue-300': m.golongan_bahan === 'Prekursor',
+                                'bg-rose-50 text-rose-700 border border-rose-200': m.golongan_bahan === 'Keras' || m.golongan_bahan === 'Obat Keras',
+                                'bg-amber-50 text-amber-700 border border-amber-200': m.golongan_bahan === 'Bebas Terbatas',
+                                'bg-emerald-50 text-emerald-700 border border-emerald-200': m.golongan_bahan === 'Bebas' || !m.golongan_bahan,
                             }">
                             {{ m.golongan_bahan || 'Bebas' }}
                         </span>

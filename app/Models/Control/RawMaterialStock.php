@@ -5,6 +5,11 @@ namespace App\Models\Control;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property float|string|null $stock_on_hand
+ * @property float|string|null $expected_quantity
+ * @property float|string|null $actual_quantity
+ */
 class RawMaterialStock extends Model
 {
     protected $fillable = [

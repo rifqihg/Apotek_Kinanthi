@@ -37,6 +37,8 @@ return new class extends Migration
 
             $table->index('status', 'prescriptions_status_idx');
             $table->index(['status', 'created_at'], 'prescriptions_status_created_idx');
+            $table->index(['status', 'updated_at'], 'prescriptions_status_updated_idx');
+            $table->index(['patient_id', 'status'], 'prescriptions_patient_status_idx');
         });
 
         // 2. Prescription Items (Rincian Item Resep)

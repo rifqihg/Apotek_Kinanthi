@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Control\IncomingStock;
 use App\Models\Control\Medicine;
 use App\Models\Control\RawMaterial;
+use App\Models\Control\RawMaterialStock;
+use App\Models\Control\ReturnForm;
 use App\Models\Control\StockLog;
+use App\Models\Control\StockMutation;
+use App\Models\Control\WarehouseInventory;
 use App\Models\SaleItem;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -75,33 +79,76 @@ class ApotekerInventoryController extends Controller
         $startOfMonth = $carbonMonth->copy()->startOfDay();
         $endOfMonth = $carbonMonth->copy()->endOfMonth()->endOfDay();
 
+        // 1. Ambil data obat sediaan jadi terkontrol (Narkotika & Psikotropika)
         $controlledMedicines = Medicine::sipnap()
             ->select(['id', 'kode_obat', 'nama_obat', 'kategori', 'classification', 'satuan_stok', 'base_unit'])
             ->orderBy('classification')
             ->orderBy('nama_obat')
             ->get();
 
-        $reportData = $controlledMedicines->map(function ($med) use ($startOfMonth, $endOfMonth) {
-            // Ambil semua mutasi dari Ledger (StockMutation)
-            $mutations = \App\Models\Control\StockMutation::where('item_id', $med->id)
-                ->where('item_type', \App\Models\Control\Medicine::class)
-                ->get();
+        // 2. Ambil data bahan baku murni racikan terkontrol (Narkotika & Psikotropika)
+        $controlledRawMaterials = RawMaterial::whereIn('golongan_bahan', ['Narkotika', 'Psikotropika', 'narkotika', 'psikotropika'])
+            ->select(['id', 'nama_bahan', 'kode_bahan', 'golongan_bahan', 'satuan_dasar_penggunaan', 'stok_total'])
+            ->orderBy('golongan_bahan')
+            ->orderBy('nama_bahan')
+            ->get();
 
-            $masukBefore = 0.0;
-            $keluarBefore = 0.0;
+        $medIds = $controlledMedicines->pluck('id')->all();
+        $rmIds = $controlledRawMaterials->pluck('id')->all();
+
+        // 3. Batch query mutasi stok (mengecualikan mutasi distribusi internal agar tidak menggembungkan laporan)
+        $mutations = StockMutation::select([
+                'id', 'item_id', 'item_type', 'type', 'quantity', 'note', 'reference_type', 'created_at'
+            ])
+            ->where(function ($q) use ($medIds, $rmIds) {
+                if (!empty($medIds)) {
+                    $q->where(fn($sub) => $sub->whereIn('item_id', $medIds)->where('item_type', Medicine::class));
+                }
+                if (!empty($rmIds)) {
+                    $q->orWhere(fn($sub) => $sub->whereIn('item_id', $rmIds)->where('item_type', RawMaterial::class));
+                }
+            })
+            ->where('type', 'not like', '%Distribusi%')
+            ->where(fn($q) => $q->whereNull('note')->orWhere('note', 'not like', '%Distribusi%'))
+            ->get()
+            ->groupBy(fn($m) => $m->item_type . '_' . $m->item_id);
+
+        // 4. Batch query stok fisik aktif saat ini & nomor batch aktif
+        $medicineStockSummaries = empty($medIds) ? collect() : WarehouseInventory::whereIn('medicine_id', $medIds)
+            ->where('status', 'active')
+            ->where('is_frozen', false)
+            ->selectRaw('medicine_id, SUM(stock_on_hand) as total_stock, GROUP_CONCAT(DISTINCT batch_no SEPARATOR ", ") as batch_nos')
+            ->groupBy('medicine_id')
+            ->get()
+            ->keyBy('medicine_id');
+
+        $rawMaterialStockSummaries = empty($rmIds) ? collect() : RawMaterialStock::whereIn('raw_material_id', $rmIds)
+            ->where('stock_on_hand', '>', 0)
+            ->selectRaw('raw_material_id, SUM(stock_on_hand) as total_stock, GROUP_CONCAT(DISTINCT batch_no SEPARATOR ", ") as batch_nos')
+            ->groupBy('raw_material_id')
+            ->get()
+            ->keyBy('raw_material_id');
+
+        // Helper hitung stok awal, masuk, keluar, dan stok akhir secara matematis & berantai
+        $processItemReport = function ($id, $name, $classification, $satuan, $itemType, $currentStock, $batchNos) use ($startOfMonth, $endOfMonth, $mutations) {
+            $itemMutations = $mutations->get($itemType . '_' . $id, collect());
+
             $masukBulan = 0.0;
             $keluarBulan = 0.0;
+            $masukAfter = 0.0;
+            $keluarAfter = 0.0;
 
-            foreach ($mutations as $mut) {
+            foreach ($itemMutations as $mut) {
                 $qty = (float) $mut->quantity;
                 $typeLower = strtolower($mut->type ?? '');
-                
-                $isMasuk = in_array($typeLower, ['masuk', 'distribusi masuk', 'penyesuaian masuk', 'retur']);
-                $isKeluar = in_array($typeLower, ['keluar', 'distribusi keluar', 'penyesuaian keluar', 'pemusnahan']);
-                
-                // Fallback untuk tipe lama (opname_adjustment) tanpa arah eksplisit
+
+                $isRetur = in_array($typeLower, ['retur', 'return']) || $mut->reference_type === ReturnForm::class;
+                $isMasuk = in_array($typeLower, ['masuk', 'in', 'penyesuaian masuk', 'sale_void']) && !$isRetur;
+                $isKeluar = in_array($typeLower, ['keluar', 'out', 'penyesuaian keluar', 'pemusnahan', 'destruction', 'jual']) || $isRetur;
+
+                // Fallback opname adjustment tanpa arah eksplisit
                 if (!$isMasuk && !$isKeluar) {
-                    if (str_contains($typeLower, 'opname_adjustment') || str_contains($typeLower, 'penyesuaian opname')) {
+                    if (str_contains($typeLower, 'opname')) {
                         if (str_contains($mut->note ?? '', '+')) {
                             $isMasuk = true;
                         } else {
@@ -110,38 +157,63 @@ class ApotekerInventoryController extends Controller
                     }
                 }
 
-                if ($mut->created_at < $startOfMonth) {
-                    if ($isMasuk) $masukBefore += $qty;
-                    if ($isKeluar) $keluarBefore += $qty;
-                } elseif ($mut->created_at <= $endOfMonth) {
+                if ($mut->created_at >= $startOfMonth && $mut->created_at <= $endOfMonth) {
                     if ($isMasuk) $masukBulan += $qty;
                     if ($isKeluar) $keluarBulan += $qty;
+                } elseif ($mut->created_at > $endOfMonth) {
+                    if ($isMasuk) $masukAfter += $qty;
+                    if ($isKeluar) $keluarAfter += $qty;
                 }
             }
 
-            // 3. Kalkulasi Berantai
-            $stokAwal = max(0, $masukBefore - $keluarBefore);
-            $stokAkhir = max(0, $stokAwal + $masukBulan - $keluarBulan);
-
-            $batchNos = \App\Models\Control\WarehouseInventory::where('medicine_id', $med->id)
-                ->where('status', 'active')
-                ->pluck('batch_no')
-                ->filter()
-                ->unique()
-                ->implode(', ');
+            // Hitung mundur dari stok fisik riil untuk menjamin ground truth 100% presisi
+            $stokAkhir = max(0, (float) $currentStock - $masukAfter + $keluarAfter);
+            $stokAwal = max(0, $stokAkhir - $masukBulan + $keluarBulan);
 
             return [
-                'id' => $med->id,
+                'id' => $id,
                 'batch_no' => $batchNos ?: '-',
-                'nama_obat' => $med->nama_obat,
-                'classification' => $med->classification,
-                'satuan' => $med->satuan_terkecil,
+                'nama_obat' => $name,
+                'classification' => strtolower($classification),
+                'satuan' => $satuan ?: 'Pcs',
                 'stok_awal' => $stokAwal,
                 'pemasukan' => $masukBulan,
                 'pengeluaran' => $keluarBulan,
                 'stok_akhir' => $stokAkhir,
             ];
-        });
+        };
+
+        $reportData = collect();
+
+        foreach ($controlledMedicines as $med) {
+            $summary = $medicineStockSummaries->get($med->id);
+            $currentStock = (float) ($summary?->total_stock ?? 0);
+            $batchNos = $summary?->batch_nos ?? '-';
+            $reportData->push($processItemReport(
+                $med->id,
+                $med->nama_obat,
+                $med->classification,
+                $med->satuan_terkecil,
+                Medicine::class,
+                $currentStock,
+                $batchNos
+            ));
+        }
+
+        foreach ($controlledRawMaterials as $rm) {
+            $summary = $rawMaterialStockSummaries->get($rm->id);
+            $currentStock = (float) ($summary?->total_stock ?? 0);
+            $batchNos = $summary?->batch_nos ?? '-';
+            $reportData->push($processItemReport(
+                $rm->id,
+                $rm->nama_bahan . ' (Bahan Baku)',
+                $rm->golongan_bahan,
+                $rm->satuan_dasar_penggunaan ?: 'Gram',
+                RawMaterial::class,
+                $currentStock,
+                $batchNos
+            ));
+        }
 
         $summary = [
             'total_items' => $reportData->count(),
