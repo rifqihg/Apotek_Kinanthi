@@ -191,7 +191,24 @@ class KasirSaleController extends Controller
 
     public function receipt($saleId)
     {
-        $sale = Sale::with(['kasir', 'prescription.patient', 'saleItems.medicine', 'saleItems.compoundedProduct'])->findOrFail($saleId);
+        $sale = Sale::select([
+            'id',
+            'sale_number',
+            'kasir_id',
+            'prescription_id',
+            'sale_type',
+            'total_amount',
+            'discount_amount',
+            'paid_amount',
+            'change_amount',
+            'payment_method',
+            'created_at',
+        ])->with([
+            'kasir:id,name',
+            'prescription:id,patient_id,prescription_number',
+            'prescription.patient:id,name',
+            'saleItems:id,sale_id,item_name,quantity,unit,unit_price,subtotal',
+        ])->findOrFail($saleId);
 
         abort_if($sale->kasir_id !== auth()->id() && auth()->user()->role !== 'admin', 403, 'Akses ditolak: Anda hanya dapat mencetak struk transaksi milik sendiri.');
 

@@ -185,13 +185,20 @@ class AdminProcurementController extends Controller
     public function satusehatLookup(Request $request, SatuSehatKfaService $service)
     {
         $query = (string) ($request->query('q') ?? $request->query('barcode') ?? $request->query('nie') ?? $request->query('kfa') ?? '');
-        $type = $request->query('type'); // 'nie' | 'kfa' | 'barcode' | null
+        $type = $request->query('type'); // 'name' | 'nie' | 'kfa' | 'barcode' | null
 
         if (trim($query) === '') {
             return response()->json([
                 'found' => false,
-                'message' => 'Parameter pencarian (Nomor NIE BPOM / Kode KFA) wajib diisi.',
+                'message' => 'Parameter pencarian wajib diisi.',
             ], 422);
+        }
+
+        if ($type === 'name') {
+            $page = max(1, (int) $request->query('page', 1));
+            $limit = max(1, min(25, (int) $request->query('limit', 10)));
+            $result = $service->searchByName($query, $limit, $page);
+            return response()->json($result);
         }
 
         $result = $service->lookup($query, $type);

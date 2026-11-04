@@ -57,10 +57,30 @@ class AdminPricingController extends Controller
                 $product->calculated_jasa = $jasaRacik;
                 $product->calculated_kemasan = $biayaKemasan;
                 $product->calculated_margin = $margin;
+                $product->is_loss = $margin !== null && $margin < 0;
+                $product->is_unpriced = $product->pricing_status === 'pending_price' || !((float)$product->harga_jual > 0) || ((float)$hppBahan > 0 && !((float)$product->harga_jual > 0));
                 unset($product->submission);
                 
                 return $product;
             });
+
+        $buildBadge = function ($sell, $hpp) {
+            $s = (float) $sell;
+            $c = (float) $hpp;
+            if ($s <= 0 || $c <= 0) return null;
+            $val = round((($s - $c) / $c) * 100, 1);
+            return [
+                'val' => $val,
+                'text' => ($val > 0 ? '+' : '') . $val . '%',
+                'isLoss' => $val < 0,
+                'isOver' => $val > 300,
+                'cls' => $val < 0 
+                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800' 
+                    : ($val > 300 
+                        ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' 
+                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'),
+            ];
+        };
 
         $medicines = Medicine::select([
                 'id',
@@ -92,7 +112,7 @@ class AdminPricingController extends Controller
             }])
             ->latest('id')
             ->get()
-            ->map(function ($med) {
+            ->map(function ($med) use ($buildBadge) {
                 $latestStock = $med->latestIncomingStock;
                 $hppKecil = $latestStock ? (float) $latestStock->calculateHppSatuan() : 0;
                 $hppMenengah = 0;
@@ -128,6 +148,20 @@ class AdminPricingController extends Controller
                 $med->hpp_kecil = $hppKecil;
                 $med->hpp_menengah = $hppMenengah;
                 $med->hpp_besar = $hppBesar;
+
+                // Precalculated badges & status flags for 0ms frontend rendering
+                $med->badge_besar = $med->satuan_besar ? $buildBadge($med->selling_price_large, $hppBesar) : null;
+                $med->badge_menengah = $med->satuan_menengah ? $buildBadge($med->selling_price_mid, $hppMenengah) : null;
+                $med->badge_kecil = $med->base_unit ? $buildBadge($med->selling_price, $hppKecil) : null;
+
+                $med->is_loss = ($med->selling_price_large > 0 && $med->selling_price_large < $hppBesar) ||
+                                ($med->selling_price_mid > 0 && $med->selling_price_mid < $hppMenengah) ||
+                                ($med->selling_price > 0 && $med->selling_price < $hppKecil);
+
+                $med->is_unpriced = ($med->satuan_besar && !((float)$med->selling_price_large > 0)) ||
+                                    ($med->satuan_menengah && !((float)$med->selling_price_mid > 0)) ||
+                                    !((float)$med->selling_price > 0);
+
                 unset($med->latestIncomingStock);
 
                 return $med;

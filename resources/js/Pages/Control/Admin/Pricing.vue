@@ -18,8 +18,8 @@ const props = defineProps({
 const compoundedSearchQuery = ref('');
 const compoundedFilterStatus = ref('all'); // 'all' | 'pending' | 'loss'
 
-const isCompoundedLoss = (p) => p.calculated_margin !== null && p.calculated_margin < 0;
-const isCompoundedUnpriced = (p) => p.pricing_status === 'pending_price' || !Number(p.harga_jual) || (Number(p.calculated_hpp || 0) > 0 && !Number(p.harga_jual));
+const isCompoundedLoss = (p) => p.is_loss;
+const isCompoundedUnpriced = (p) => p.is_unpriced;
 
 const countCompoundedPending = computed(() => (props.compoundedProducts || []).filter(isCompoundedUnpriced).length);
 const countCompoundedLoss = computed(() => (props.compoundedProducts || []).filter(isCompoundedLoss).length);
@@ -43,15 +43,8 @@ const filteredCompoundedProducts = computed(() => {
 const searchQuery = ref('');
 const filterStatus = ref('all'); // 'all' | 'loss' | 'unpriced'
 
-const isMedicineLoss = (m) =>
-    (m.selling_price_large > 0 && m.selling_price_large < m.hpp_besar) ||
-    (m.selling_price_mid > 0 && m.selling_price_mid < m.hpp_menengah) ||
-    (m.selling_price > 0 && m.selling_price < m.hpp_kecil);
-
-const isMedicineUnpriced = (m) =>
-    (m.satuan_besar && !Number(m.selling_price_large)) ||
-    (m.satuan_menengah && !Number(m.selling_price_mid)) ||
-    !Number(m.selling_price);
+const isMedicineLoss = (m) => m.is_loss;
+const isMedicineUnpriced = (m) => m.is_unpriced;
 
 const countLoss = computed(() => (props.medicines || []).filter(isMedicineLoss).length);
 const countUnpriced = computed(() => (props.medicines || []).filter(isMedicineUnpriced).length);
@@ -224,15 +217,18 @@ const calculateMargin = (product) => {
     <Head title="Penetapan Harga" />
 
     <div class="space-y-8">
-            <!-- SECTION 1: RACIKAN -->
-            <div>
-                <div class="mb-4">
-                    <h2 class="text-xl font-bold text-foreground flex items-center gap-2">
-                        Harga Produk Racikan
-                        <span v-if="compoundedProducts.filter(p => p.pricing_status === 'pending_price').length > 0" class="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-xs font-semibold px-2 py-0.5 rounded-md">{{ compoundedProducts.filter(p => p.pricing_status === 'pending_price').length }} Menunggu</span>
-                    </h2>
-                    <p class="text-sm text-muted-foreground mt-1">Atur harga jual (selling price) untuk produk racikan.</p>
+        <!-- SECTION 1: PRODUK RACIKAN -->
+        <div>
+            <div class="mb-3.5">
+                <div class="flex items-center gap-2.5">
+                    <h2 class="text-lg font-bold text-foreground">Harga Produk Racikan</h2>
+                    <span v-if="countCompoundedPending > 0" class="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        {{ countCompoundedPending }} Menunggu Penetapan Harga
+                    </span>
                 </div>
+                <p class="text-xs text-muted-foreground mt-0.5">Sediaan racikan apoteker yang membutuhkan penetapan harga jual sebelum dapat ditransaksikan di kasir.</p>
+            </div>
                 
                 <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                     <!-- TOOLBAR RACIKAN: FILTER & SEARCH -->
@@ -277,7 +273,7 @@ const calculateMargin = (product) => {
                             <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            <button v-if="compoundedSearchQuery" @click="compoundedSearchQuery = ''" class="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground text-xs font-bold">✕</button>
+                            <button v-if="compoundedSearchQuery" @click="compoundedSearchQuery = ''" class="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground text-xs font-bold leading-none">&times;</button>
                         </div>
                     </div>
 
@@ -304,7 +300,7 @@ const calculateMargin = (product) => {
                                         <span class="text-sm font-medium text-foreground leading-snug break-words">{{ product.nama_produk }}</span>
                                         <div class="flex items-center gap-1.5 mt-0.5 text-xs">
                                             <span class="font-medium text-foreground/80">{{ product.batch_no }}</span>
-                                            <span class="text-muted-foreground/40">·</span>
+                                            <span class="text-muted-foreground/40">&bull;</span>
                                             <span class="text-muted-foreground">Qty: {{ Number(product.qty_hasil).toLocaleString('id-ID') }} {{ product.satuan }}</span>
                                         </div>
                                     </div>
@@ -351,14 +347,15 @@ const calculateMargin = (product) => {
                 </div>
             </div>
 
-            <!-- SECTION 2: OBAT JADI -->
-            <div class="pt-8 border-t border-border">
-                <div class="mb-4">
-                    <h2 class="text-xl font-bold text-foreground">Harga Obat Jadi</h2>
-                    <p class="text-sm text-muted-foreground mt-1">Atur harga jual (selling price) untuk obat jadi. Harga ini akan jadi default di Kasir.</p>
-                </div>
+        <!-- SECTION 2: OBAT JADI -->
+        <div class="pt-6 border-t border-border">
+            <div class="mb-3.5">
+                <h2 class="text-lg font-bold text-foreground">Harga Obat Jadi</h2>
+                <p class="text-xs text-muted-foreground mt-0.5">Atur harga jual berjenjang (Tersier, Sekunder, Primer) untuk katalog obat faktur apotek.</p>
+            </div>
 
-                <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">                    <!-- TOOLBAR OBAT JADI: FILTER & SEARCH -->
+                <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+                    <!-- TOOLBAR OBAT JADI: FILTER & SEARCH -->
                     <div class="p-3.5 sm:p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <!-- Filter Tabs -->
                         <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -400,7 +397,7 @@ const calculateMargin = (product) => {
                             <svg class="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground text-xs font-bold">✕</button>
+                            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground text-xs font-bold leading-none">&times;</button>
                         </div>
                     </div>
 
@@ -435,9 +432,9 @@ const calculateMargin = (product) => {
                                             <span class="text-sm font-medium text-foreground leading-snug break-words">{{ med.nama_obat }}</span>
                                             <div class="flex flex-wrap gap-1.5 items-center mt-1 text-xs text-muted-foreground leading-tight">
                                                 <span v-if="med.kode_obat">{{ med.kode_obat }}</span>
-                                                <span v-if="med.kode_obat && med.latest_batch_no" class="text-muted-foreground/40">·</span>
+                                                <span v-if="med.kode_obat && med.latest_batch_no" class="text-muted-foreground/40">&bull;</span>
                                                 <span v-if="med.latest_batch_no">{{ med.latest_batch_no }}</span>
-                                                <span v-if="isMedicineLoss(med)" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                                <span v-if="med.is_loss" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
                                                     <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                                     Jual Rugi
                                                 </span>
@@ -512,33 +509,33 @@ const calculateMargin = (product) => {
                                         <div class="flex flex-col gap-1">
                                             <!-- Margin Tersier -->
                                             <div v-if="med.satuan_besar" class="h-6 flex items-center justify-center">
-                                                <span v-if="getMarginBadge(med.selling_price_large, med.hpp_besar)"
+                                                <span v-if="med.badge_besar"
                                                       class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
-                                                      :class="getMarginBadge(med.selling_price_large, med.hpp_besar).cls">
-                                                    <span>{{ getMarginBadge(med.selling_price_large, med.hpp_besar).text }}</span>
-                                                    <span v-if="getMarginBadge(med.selling_price_large, med.hpp_besar).isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
+                                                      :class="med.badge_besar.cls">
+                                                    <span>{{ med.badge_besar.text }}</span>
+                                                    <span v-if="med.badge_besar.isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
                                                 </span>
                                                 <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>
 
                                             <!-- Margin Sekunder -->
                                             <div v-if="med.satuan_menengah" class="h-6 flex items-center justify-center">
-                                                <span v-if="getMarginBadge(med.selling_price_mid, med.hpp_menengah)"
+                                                <span v-if="med.badge_menengah"
                                                       class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
-                                                      :class="getMarginBadge(med.selling_price_mid, med.hpp_menengah).cls">
-                                                    <span>{{ getMarginBadge(med.selling_price_mid, med.hpp_menengah).text }}</span>
-                                                    <span v-if="getMarginBadge(med.selling_price_mid, med.hpp_menengah).isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
+                                                      :class="med.badge_menengah.cls">
+                                                    <span>{{ med.badge_menengah.text }}</span>
+                                                    <span v-if="med.badge_menengah.isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
                                                 </span>
                                                 <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>
 
                                             <!-- Margin Primer -->
                                             <div v-if="med.base_unit" class="h-6 flex items-center justify-center">
-                                                <span v-if="getMarginBadge(med.selling_price, med.hpp_kecil)"
+                                                <span v-if="med.badge_kecil"
                                                       class="text-xs font-semibold px-1.5 py-0.5 rounded border inline-flex items-center gap-1 tabular-nums"
-                                                      :class="getMarginBadge(med.selling_price, med.hpp_kecil).cls">
-                                                    <span>{{ getMarginBadge(med.selling_price, med.hpp_kecil).text }}</span>
-                                                    <span v-if="getMarginBadge(med.selling_price, med.hpp_kecil).isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
+                                                      :class="med.badge_kecil.cls">
+                                                    <span>{{ med.badge_kecil.text }}</span>
+                                                    <span v-if="med.badge_kecil.isLoss" class="text-[10px] font-bold text-destructive">RUGI</span>
                                                 </span>
                                                 <span v-else class="text-xs text-muted-foreground/40 italic">-</span>
                                             </div>

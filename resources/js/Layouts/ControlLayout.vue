@@ -305,7 +305,7 @@ watch(() => page.props.flash?.info, (newVal) => {
                             <Link
                                 v-if="!item.children"
                                 :href="safeRoute(item.href)"
-                                prefetch="hover"
+                                :prefetch="item.href === 'control.admin.pricing.index' ? ['mount', 'hover'] : 'hover'"
                                 cache-for="1m"
                                 class="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors group relative"
                                 :class="isRouteActive(item)
@@ -460,7 +460,7 @@ watch(() => page.props.flash?.info, (newVal) => {
                                 <Link
                                     v-if="!item.children"
                                     :href="safeRoute(item.href)"
-                                    prefetch="hover"
+                                    :prefetch="item.href === 'control.admin.pricing.index' ? ['mount', 'hover'] : 'hover'"
                                     cache-for="1m"
                                     @click="isMobileSidebarOpen = false"
                                     class="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors"

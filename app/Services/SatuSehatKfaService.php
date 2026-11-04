@@ -156,52 +156,10 @@ class SatuSehatKfaService
             ->first();
 
         if ($localMed) {
-            $latest = $localMed->latestIncomingStock;
-            $sInput = $latest?->satuan_input ?? $localMed->satuan_besar ?? 'Box';
-            $sMid = $latest?->mid_unit ?? $localMed->satuan_menengah ?? null;
-            $sBase = $localMed->satuan_stok ?: 'Tablet';
-            $rMidToBig = (int) ($latest?->mid_to_big_ratio ?? 1);
-            $rSmallToMid = (int) ($latest?->small_to_mid_ratio ?? ($localMed->rasio_konversi ?: 1));
-            $rConversion = (int) ($latest?->unit_conversion_factor ?? ($localMed->rasio_konversi ?: 1));
-
-            $smallUnitSkipped = false;
-            $noMultiUnit = false;
-
-            if ($sMid && strtolower($sMid) !== strtolower($sBase)) {
-                $smallUnitSkipped = false;
-                $noMultiUnit = false;
-            } elseif (strtolower($sInput) === strtolower($sBase) && $rConversion <= 1) {
-                $noMultiUnit = true;
-                $smallUnitSkipped = false;
-            } else {
-                $smallUnitSkipped = true;
-                $noMultiUnit = false;
-            }
-
             return [
                 'source' => 'local',
                 'found'  => true,
-                'data'   => [
-                    'medicine_id'                => $localMed->id,
-                    'is_new_medicine'            => false,
-                    'nama_obat'                  => $localMed->nama_obat,
-                    'barcode'                    => $localMed->barcode ?: ($type === 'barcode' ? $clean : null),
-                    'kfa_code'                   => $localMed->kfa_code ?: ($type === 'kfa' ? $clean : null),
-                    'nie'                        => $localMed->nie ?: ($type === 'nie' ? strtoupper($clean) : null),
-                    'kategori'                   => $localMed->kategori ?: $this->resolveCategoryFromKfa(['nie' => $localMed->nie], $localMed->nie),
-                    'satuan_stok'                => $sBase,
-                    'satuan_input'               => $sInput,
-                    'mid_unit'                   => $sMid,
-                    'mid_to_big_ratio'           => $rMidToBig,
-                    'small_to_mid_ratio'         => $rSmallToMid,
-                    'unit_conversion_factor'     => $rConversion,
-                    'small_unit_skipped'         => $smallUnitSkipped,
-                    'no_multi_unit'              => $noMultiUnit,
-                    'harga_beli_satuan'          => (float) ($latest?->harga_beli_satuan ?? 0),
-                    'diskon_persen'              => (float) ($latest?->diskon_persen ?? 0),
-                    'min_stock_threshold'        => (int) ($localMed->threshold_min ?? 10),
-                    'requires_unit_confirmation' => false,
-                ],
+                'data'   => $this->formatLocalMedicine($localMed, $type, $clean),
             ];
         }
 
@@ -279,7 +237,7 @@ class SatuSehatKfaService
      */
     protected function mapKfaResultToItem(array $result, string $originalCode, string $type = 'nie'): array
     {
-        $name = $result['nama_dagang'] ?? $result['name'] ?? 'Obat Baru KFA';
+        $name = !empty($result['name']) ? $result['name'] : ($result['nama_dagang'] ?? 'Obat Baru KFA');
         $nie = $result['nie'] ?? ($type === 'nie' ? strtoupper($originalCode) : null);
         $kfaCode = $result['kfa_code'] ?? ($type === 'kfa' ? $originalCode : null);
         $barcode = $result['barcode'] ?? ($type === 'barcode' ? $originalCode : null);
@@ -305,7 +263,7 @@ class SatuSehatKfaService
                 $smallUnit = 'Kapsul';
             } elseif (stripos($bentukSediaan, 'tablet') !== false) {
                 $smallUnit = 'Tablet';
-            } elseif (stripos($bentukSediaan, 'sirup') !== false || stripos($bentukSediaan, 'suspensi') !== false || stripos($bentukSediaan, 'cair') !== false) {
+            } elseif (stripos($bentukSediaan, 'sirup') !== false || stripos($bentukSediaan, 'suspensi') !== false || stripos($bentukSediaan, 'cair') !== false || stripos($bentukSediaan, 'drop') !== false || stripos($bentukSediaan, 'tetes') !== false) {
                 $smallUnit = 'Botol';
                 $satuanInput = 'Botol';
                 $noMultiUnit = true;
@@ -322,10 +280,56 @@ class SatuSehatKfaService
             }
         }
 
+        // Tentukan dari UOM jika tersedia dari KFA
+        $uomName = is_array($result['uom'] ?? null) ? ($result['uom']['name'] ?? null) : ($result['uom'] ?? null);
+        if (!empty($uomName) && is_string($uomName)) {
+            $smallUnit = ucfirst(strtolower($uomName));
+            if (in_array(strtolower($uomName), ['botol', 'tube', 'ampul', 'vial', 'sachet', 'pen'])) {
+                $satuanInput = $smallUnit;
+                $noMultiUnit = true;
+            }
+        }
+
         // Parse Packaging Array from KFA if present
         $packagings = $result['packaging_ids'] ?? [];
         if (!empty($packagings) && is_array($packagings)) {
-            $firstPack = $packagings[0];
+            // Smart Packaging Selection: Prioritaskan kemasan faktur apotek (Dus/Box/Multi-level bertingkat)
+            $selectedPack = null;
+
+            // Prioritas 1: Kemasan bertingkat lengkap (contoh: "Dus, 10 strip @ 10 tablet")
+            foreach ($packagings as $p) {
+                $pName = $p['name'] ?? '';
+                if (preg_match('/(dus|box|kotak)[,\s]+(\d+)\s*(\w+)\s*[@xX]\s*(\d+)\s*(\w+)/i', $pName)) {
+                    $selectedPack = $p;
+                    break;
+                }
+            }
+
+            // Prioritas 2: Kemasan Dus/Box/Kotak dengan kuantitas > 1 (contoh: "Dus isi 100", "Box 50 tablet")
+            if (!$selectedPack) {
+                foreach ($packagings as $p) {
+                    $pName = $p['name'] ?? '';
+                    $pQty = (int) ($p['qty'] ?? 0);
+                    if ($pQty > 1 && preg_match('/(dus|box|kotak)/i', $pName)) {
+                        $selectedPack = $p;
+                        break;
+                    }
+                }
+            }
+
+            // Prioritas 3: Kemasan dengan kuantitas (qty) terbesar
+            if (!$selectedPack) {
+                $maxQty = -1;
+                foreach ($packagings as $p) {
+                    $pQty = (int) ($p['qty'] ?? 0);
+                    if ($pQty > $maxQty) {
+                        $maxQty = $pQty;
+                        $selectedPack = $p;
+                    }
+                }
+            }
+
+            $firstPack = $selectedPack ?: $packagings[0];
             $packName = $firstPack['name'] ?? '';
             $packQty = (int) ($firstPack['qty'] ?? 0);
             $packUom = $firstPack['uom_id'] ?? '';
@@ -346,7 +350,7 @@ class SatuSehatKfaService
                 $smallUnitSkipped = false;
                 $noMultiUnit = false;
             }
-            // Regex 2: "Dus isi 60" or "Box 100 tablet"
+            // Regex 2: "Dus isi 100", "Dus isi 60", "Box 100 tablet"
             elseif ($packQty > 1) {
                 $satuanInput = (stripos($packName, 'dus') !== false) ? 'Dus' : 'Box';
                 $conversion = $packQty;
@@ -366,8 +370,30 @@ class SatuSehatKfaService
                 $requiresConfirmation = true;
             }
         } else {
-            // Packaging data tidak tertera di KFA
-            $requiresConfirmation = true;
+            // Cek jika nama produk mengandung pola kemasan faktur (contoh: "Dus, 10 strip @ 10 tablet" atau "Dus isi 100")
+            if (preg_match('/(dus|box|kotak)[,\s]+(\d+)\s*(\w+)\s*[@xX]\s*(\d+)\s*(\w+)/i', $name, $m)) {
+                $satuanInput = ucfirst(strtolower($m[1]));
+                $midToBig = (int) $m[2];
+                $midUnit = ucfirst(strtolower($m[3]));
+                $smallToMid = (int) $m[4];
+                $smallUnit = ucfirst(strtolower($m[5]));
+                $conversion = $midToBig * $smallToMid;
+                $smallUnitSkipped = false;
+                $noMultiUnit = false;
+                $requiresConfirmation = false;
+                $packagingRaw = $m[0];
+            } elseif (preg_match('/(dus|box|kotak)[,\s]+isi\s*(\d+)/i', $name, $m) || preg_match('/(dus|box|kotak)[,\s]+(\d+)\s*(\w+)/i', $name, $m)) {
+                $satuanInput = ucfirst(strtolower($m[1]));
+                $conversion = (int) $m[2];
+                $smallToMid = $conversion;
+                $midToBig = 1;
+                $smallUnitSkipped = true;
+                $noMultiUnit = false;
+                $requiresConfirmation = false;
+                $packagingRaw = $m[0];
+            } else {
+                $requiresConfirmation = true;
+            }
         }
 
         // Active ingredients formatting
@@ -471,4 +497,233 @@ class SatuSehatKfaService
 
         return 'Obat Bebas';
     }
+
+    /**
+     * Format local medicine model to uniform frontend payload.
+     */
+    public function formatLocalMedicine(Medicine $localMed, ?string $type = null, ?string $clean = null): array
+    {
+        $latest = $localMed->latestIncomingStock;
+        $sInput = $latest?->satuan_input ?? $localMed->satuan_besar ?? 'Box';
+        $sMid = $latest?->mid_unit ?? $localMed->satuan_menengah ?? null;
+        $sBase = $localMed->satuan_stok ?: 'Tablet';
+        $rMidToBig = (int) ($latest?->mid_to_big_ratio ?? 1);
+        $rSmallToMid = (int) ($latest?->small_to_mid_ratio ?? ($localMed->rasio_konversi ?: 1));
+        $rConversion = (int) ($latest?->unit_conversion_factor ?? ($localMed->rasio_konversi ?: 1));
+
+        $smallUnitSkipped = false;
+        $noMultiUnit = false;
+
+        if ($sMid && strtolower($sMid) !== strtolower($sBase)) {
+            $smallUnitSkipped = false;
+            $noMultiUnit = false;
+        } elseif (strtolower($sInput) === strtolower($sBase) && $rConversion <= 1) {
+            $noMultiUnit = true;
+            $smallUnitSkipped = false;
+        } else {
+            $smallUnitSkipped = true;
+            $noMultiUnit = false;
+        }
+
+        return [
+            'medicine_id'                => $localMed->id,
+            'is_new_medicine'            => false,
+            'nama_obat'                  => $localMed->nama_obat,
+            'barcode'                    => $localMed->barcode ?: ($type === 'barcode' ? $clean : null),
+            'kfa_code'                   => $localMed->kfa_code ?: ($type === 'kfa' ? $clean : null),
+            'nie'                        => $localMed->nie ?: ($type === 'nie' ? strtoupper($clean) : null),
+            'kategori'                   => $localMed->kategori ?: $this->resolveCategoryFromKfa(['nie' => $localMed->nie], $localMed->nie),
+            'satuan_stok'                => $sBase,
+            'satuan_input'               => $sInput,
+            'mid_unit'                   => $sMid,
+            'mid_to_big_ratio'           => $rMidToBig,
+            'small_to_mid_ratio'         => $rSmallToMid,
+            'unit_conversion_factor'     => $rConversion,
+            'small_unit_skipped'         => $smallUnitSkipped,
+            'no_multi_unit'              => $noMultiUnit,
+            'harga_beli_satuan'          => (float) ($latest?->harga_beli_satuan ?? 0),
+            'diskon_persen'              => (float) ($latest?->diskon_persen ?? 0),
+            'min_stock_threshold'        => (int) ($localMed->threshold_min ?? 10),
+            'requires_unit_confirmation' => false,
+        ];
+    }
+
+    /**
+     * Search medications by Product Name (Keyword) with pagination.
+     * Priority 1: Local Database (Page 1)
+     * Priority 2: SATUSEHAT KFA-v2 API
+     * Returns a curated list of matching items with total count and page metadata.
+     */
+    public function searchByName(string $keyword, int $limit = 10, int $page = 1): array
+    {
+        $clean = trim($keyword);
+        if (strlen($clean) < 2) {
+            return [
+                'mode'         => 'list',
+                'found'        => false,
+                'items'        => [],
+                'total'        => 0,
+                'current_page' => 1,
+                'per_page'     => $limit,
+                'total_pages'  => 1,
+                'message'      => 'Ketik minimal 2 karakter untuk mencari nama obat.',
+            ];
+        }
+
+        $items = [];
+        $existingCodes = [];
+        $totalCount = 0;
+
+        // 1. CARI DATABASE LOKAL (Hanya ditampilkan pada halaman 1 agar tidak duplikasi lintas halaman)
+        if ($page === 1) {
+            $localMeds = Medicine::select([
+                    'id',
+                    'nama_obat',
+                    'barcode',
+                    'kfa_code',
+                    'nie',
+                    'kategori',
+                    'satuan_stok',
+                    'satuan_besar',
+                    'satuan_menengah',
+                    'rasio_konversi',
+                    'threshold_min',
+                ])
+                ->with(['latestIncomingStock' => function ($q) {
+                    $q->select([
+                        'incoming_stocks.id',
+                        'incoming_stocks.medicine_id',
+                        'incoming_stocks.satuan_input',
+                        'incoming_stocks.mid_unit',
+                        'incoming_stocks.mid_to_big_ratio',
+                        'incoming_stocks.small_to_mid_ratio',
+                        'incoming_stocks.unit_conversion_factor',
+                        'incoming_stocks.harga_beli_satuan',
+                        'incoming_stocks.diskon_persen',
+                    ]);
+                }])
+                ->where(function ($q) use ($clean) {
+                    $q->where('nama_obat', 'like', "%{$clean}%")
+                      ->orWhere('nie', 'like', "%{$clean}%");
+                })
+                ->limit($limit)
+                ->get();
+
+            foreach ($localMeds as $med) {
+                $nieClean = strtoupper(trim((string)$med->nie));
+                $kfaClean = trim((string)$med->kfa_code);
+                if ($nieClean) $existingCodes[$nieClean] = true;
+                if ($kfaClean) $existingCodes[$kfaClean] = true;
+
+                $items[] = [
+                    'source'         => 'local',
+                    'medicine_id'    => $med->id,
+                    'nama_obat'      => $med->nama_obat,
+                    'nie'            => $med->nie ?: '-',
+                    'kfa_code'       => $med->kfa_code ?: '-',
+                    'pabrik'         => 'Apotek Kinanthi (Stok Lokal)',
+                    'bentuk_sediaan' => $med->satuan_stok ?: 'Tablet',
+                    'data'           => $this->formatLocalMedicine($med, 'name', $clean),
+                ];
+            }
+            $totalCount += count($items);
+        }
+
+        // 2. CARI SATUSEHAT KFA-v2 (Cached 24 Jam per Page)
+        $token = $this->getAccessToken();
+        if ($token) {
+            $cacheKey = 'kfa_search_name_' . md5(strtolower($clean)) . "_p{$page}_s{$limit}";
+            $kfaPayload = Cache::remember($cacheKey, now()->addHours(24), function () use ($token, $clean, $limit, $page) {
+                return $this->queryKfaByName($token, $clean, $limit, $page);
+            });
+
+            if (!empty($kfaPayload) && is_array($kfaPayload)) {
+                $kfaRawList = $kfaPayload['items'] ?? [];
+                $kfaTotal = (int) ($kfaPayload['total'] ?? count($kfaRawList));
+                $totalCount += $kfaTotal;
+
+                foreach ($kfaRawList as $kItem) {
+                    $nie = strtoupper(trim((string)($kItem['nie'] ?? '')));
+                    $kfaCode = trim((string)($kItem['kfa_code'] ?? ''));
+
+                    // Cegah duplikasi jika obat ini sudah ada di hasil lokal
+                    if (($nie && isset($existingCodes[$nie])) || ($kfaCode && isset($existingCodes[$kfaCode]))) {
+                        continue;
+                    }
+
+                    $name = !empty($kItem['name']) ? $kItem['name'] : ($kItem['nama_dagang'] ?? 'Obat KFA');
+                    $pabrik = $kItem['manufacturer'] ?? $kItem['manufacturer_name'] ?? $kItem['registrar'] ?? $kItem['registrar_name'] ?? '-';
+                    $bentukSediaan = $kItem['dosage_form']['name'] ?? $kItem['bentuk_sediaan'] ?? 'Tablet';
+
+                    $items[] = [
+                        'source'         => 'kfa',
+                        'medicine_id'    => null,
+                        'nama_obat'      => $name,
+                        'nie'            => $nie ?: '-',
+                        'kfa_code'       => $kfaCode ?: '-',
+                        'pabrik'         => $pabrik,
+                        'bentuk_sediaan' => $bentukSediaan,
+                        'data'           => $this->mapKfaResultToItem($kItem, $kfaCode ?: ($nie ?: $clean), $kfaCode ? 'kfa' : 'nie'),
+                    ];
+                }
+            }
+        }
+
+        $totalPages = $totalCount > 0 ? (int) ceil($totalCount / max(1, $limit)) : 1;
+
+        return [
+            'mode'         => 'list',
+            'found'        => count($items) > 0,
+            'total'        => $totalCount,
+            'current_page' => $page,
+            'per_page'     => $limit,
+            'total_pages'  => $totalPages,
+            'items'        => $items,
+            'message'      => count($items) === 0 ? "Tidak ditemukan obat dengan nama '{$clean}' di katalog lokal maupun KFA Kemenkes." : null,
+        ];
+    }
+
+    /**
+     * Query KFA API by Product Name Keyword with pagination.
+     * Uses official SATUSEHAT KFA-v2 catalog search endpoint with smart brand extraction & extended timeout.
+     */
+    protected function queryKfaByName(string $token, string $keyword, int $limit = 10, int $page = 1): ?array
+    {
+        $kfaUrl = config('services.satusehat.kfa_url', env('SATUSEHAT_KFA_URL', 'https://api-satusehat-stg.dto.kemkes.go.id/kfa-v2'));
+        $kfaUrl = rtrim($kfaUrl, '/');
+
+        // Optimasi Cerdas: Jika input mengandung merek di dalam tanda kurung seperti "Zat A + Zat B (PRENAMIA)"
+        $candidates = [$keyword];
+        if (preg_match('/\(([^)]+)\)$/', trim($keyword), $m)) {
+            $brand = trim($m[1]);
+            if (strlen($brand) >= 2) {
+                array_unshift($candidates, $brand); // Coba merek spesifik dahulu (0.7 detik)
+            }
+        }
+
+        foreach (array_unique($candidates) as $query) {
+            try {
+                $endpoint = "{$kfaUrl}/products/all?page={$page}&size={$limit}&product_type=farmasi&keyword=" . urlencode($query);
+                $res = Http::withToken($token)->timeout(8.5)->get($endpoint);
+
+                if ($res->successful()) {
+                    $json = $res->json();
+                    $data = $json['items']['data'] ?? $json['result']['items']['data'] ?? $json['result']['data'] ?? null;
+                    if (!empty($data) && is_array($data)) {
+                        return [
+                            'items' => $data,
+                            'total' => (int) ($json['total'] ?? count($data)),
+                            'page'  => (int) ($json['page'] ?? $page),
+                            'size'  => (int) ($json['size'] ?? $limit),
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning("KFA Name Query Failed for '{$query}': " . $e->getMessage());
+            }
+        }
+
+        return null;
+    }
 }
+
